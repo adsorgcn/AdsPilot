@@ -1,0 +1,68 @@
+steps:
+  # 构建Go索引迁移镜像
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/index-migrator-go:latest'
+      - '-f'
+      - 'Dockerfile.go-migrator'
+      - '.'
+    dir: 'database/optimizations'
+
+  # 推送镜像
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/index-migrator-go:latest'
+
+  # 创建/更新Cloud Run Job
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+
+        if gcloud run jobs describe apply-indexes-go \
+             --region=asia-northeast1 \
+             --project=${GCP_PROJECT_ID} 2>/dev/null; then
+          echo "Job已存在，更新镜像..."
+          gcloud run jobs update apply-indexes-go \
+            --image=asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/index-migrator-go:latest \
+            --region=asia-northeast1 \
+            --project=${GCP_PROJECT_ID}
+        else
+          echo "创建新Job..."
+          gcloud run jobs create apply-indexes-go \
+            --image=asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/index-migrator-go:latest \
+            --region=asia-northeast1 \
+            --project=${GCP_PROJECT_ID} \
+            --set-secrets=DATABASE_URL=DATABASE_URL:latest \
+            --vpc-connector=cr-conn-default-ane1 \
+            --vpc-egress=private-ranges-only \
+            --service-account=codex-dev@${GCP_PROJECT_ID}.iam.gserviceaccount.com \
+            --max-retries=0 \
+            --task-timeout=10m
+        fi
+
+  # 执行Job应用索引
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'jobs'
+      - 'execute'
+      - 'apply-indexes-go'
+      - '--region=asia-northeast1'
+      - '--project=${GCP_PROJECT_ID}'
+      - '--wait'
+
+images:
+  - 'asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/index-migrator-go:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+timeout: 1200s

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>用户管理</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, PingFang SC, Noto Sans, sans-serif; margin: 20px; }
+    .row { display:flex; gap:8px; align-items:center; margin-bottom: 10px; }
+    input, select { padding:6px; font-size: 13px; }
+    button { padding:6px 10px; font-size: 13px; cursor:pointer; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { border:1px solid #e5e7eb; padding:6px; font-size: 13px; }
+    th { background:#f3f4f6; text-align:left; }
+    .muted { color:#6b7280; font-size:12px; }
+    .card { border:1px solid #e5e7eb; border-radius: 8px; padding: 10px; margin-top: 10px; }
+  </style>
+  <script>
+    async function fetchJSON(u, opt){ const r = await fetch(u, opt||{}); if(!r.ok) throw new Error(r.status); return r.json(); }
+    let list=[]; let selected=null;
+    async function load(){
+      const q = document.querySelector('#q').value||'';
+      const role = document.querySelector('#role').value||'';
+      const url = `/api/v1/console/users?limit=50&offset=0${q?`&q=${encodeURIComponent(q)}`:''}${role?`&role=${encodeURIComponent(role)}`:''}`;
+      const res = await fetchJSON(url);
+      list = res.items||[];
+      const tbody = document.querySelector('#list');
+      tbody.innerHTML = '';
+      for(const u of list){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${u.id}</td><td>${u.email}</td><td>${u.name||''}</td><td>${u.role||''}</td><td>${new Date(u.createdAt).toLocaleString()}</td>
+          <td><button onclick="viewUser('${u.id}')">查看</button></td>`;
+        tbody.appendChild(tr);
+      }
+      document.querySelector('#count').textContent = list.length;
+    }
+    async function viewUser(id){
+      const u = await fetchJSON(`/api/v1/console/users/${id}`);
+      selected = u;
+      document.querySelector('#detail').innerHTML = `
+        <div><b>${u.email}</b> · ${u.name||''} · 角色 ${u.role} · 创建 ${new Date(u.createdAt).toLocaleString()}</div>
+        <div class="row"><label>角色</label>
+          <select id="roleSel"><option>USER</option><option>ADMIN</option></select>
+          <button onclick="saveRole('${u.id}')">保存</button>
+        </div>
+        <div class="row"><label>套餐</label>
+          <select id="planSel"><option value="free">free</option><option value="pro">pro</option><option value="max">max</option></select>
+          <select id="subStatusSel"><option value="active">active</option><option value="paused">paused</option></select>
+          <button onclick="saveSubscription('${u.id}')">保存</button>
+        </div>
+        <div class="row"><label>充值Tokens</label>
+          <input id="tokenAmt" type="number" min="1" step="1" placeholder="数量" style="width:120px" />
+          <button onclick="addTokens('${u.id}')">充值</button>
+        </div>
+        <div class="muted">操作后可在用户端刷新查看生效情况。</div>
+      `;
+      document.querySelector('#roleSel').value = (u.role||'USER').toUpperCase();
+    }
+    async function saveRole(id){
+      const role = document.querySelector('#roleSel').value;
+      await fetchJSON(`/api/v1/console/users/${id}/role`, { method:'PUT', headers:{'content-type':'application/json'}, body: JSON.stringify({ role }) });
+      alert('角色已更新');
+      await load();
+    }
+    async function saveSubscription(id){
+      const planName = document.querySelector('#planSel').value;
+      const status = document.querySelector('#subStatusSel').value;
+      await fetchJSON(`/api/v1/console/users/${id}/subscription`, { method:'PUT', headers:{'content-type':'application/json'}, body: JSON.stringify({ planName, status }) });
+      alert('套餐已更新');
+    }
+    async function addTokens(id){
+      const amt = parseInt(document.querySelector('#tokenAmt').value||'0',10);
+      if(!amt || amt<=0){ alert('请输入有效的数量'); return; }
+      await fetchJSON(`/api/v1/console/users/${id}/tokens`, { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ amount: amt }) });
+      alert('充值成功');
+    }
+    window.addEventListener('DOMContentLoaded', load);
+  </script>
+</head>
+<body>
+  <h2>用户管理</h2>
+  <div class="row">
+    <input id="q" placeholder="搜索 email/name" />
+    <select id="role"><option value="">全部</option><option>USER</option><option>ADMIN</option></select>
+    <button onclick="load()">搜索</button>
+    <a href="/console/manage/index.html" style="margin-left:8px;">返回仪表盘</a>
+  </div>
+  <div class="muted">共 <span id="count">0</span> 个用户</div>
+  <table style="margin-top:8px;">
+    <thead><tr><th>ID</th><th>Email</th><th>Name</th><th>Role</th><th>Created</th><th>操作</th></tr></thead>
+    <tbody id="list"></tbody>
+  </table>
+  <div id="detail" class="card"></div>
+</body>
+</html>
+

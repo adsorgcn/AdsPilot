@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  gm:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.standalone
+    image: gm-standalone:embedded
+    ports:
+      - "3000:3000"
+      - "8080:8080"

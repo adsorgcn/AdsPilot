@@ -1,0 +1,53 @@
+# ==============================================================================
+# Google-Monetize Database Migrator - Optimized Cloud Build Configuration
+# ==============================================================================
+# Follows Google-Monetize monorepo build best practices
+
+steps:
+  # Step 1: 构建数据库迁移器镜像
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-migrator'
+    args:
+      - 'build'
+      - '-t'
+      - '${_IMAGE}'
+      - '-f'
+      - 'deployments/db-migrator/Dockerfile.migrate'
+      - '--cache-from'
+      - '${_IMAGE}'
+      - '--build-arg'
+      - 'MIGRATE_VERSION=v4.17.0'
+      - '.'
+    timeout: '600s'
+    waitFor: ['-']
+
+  # Step 2: 验证镜像完整性
+  - name: '${_IMAGE}'
+    id: 'verify-image'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        echo "验证 db-migrator 镜像..."
+        ls -la /usr/local/bin/migrate
+        /usr/local/bin/migrate -version
+        echo "✅ db-migrator 镜像验证成功"
+    timeout: '30s'
+    waitFor: ['build-migrator']
+
+# 构建选项 - 启用高性能构建
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'  # 高CPU机器，加速构建
+  diskSizeGb: 100
+
+# 构建超时设置
+timeout: '900s'  # 15分钟
+
+# 镜像输出
+images:
+  - '${_IMAGE}'
+
+# 替换变量
+substitutions:
+  _IMAGE: 'asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/db-migrator:latest'

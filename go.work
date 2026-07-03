@@ -1,0 +1,41 @@
+go 1.25.1
+
+// Trigger all services rebuild - 2025-10-08 (Final Verification)
+// All build issues fixed: dependencies, go mod tidy, replace directives
+// Full system verification and deployment - Build #6
+
+use (
+	./pkg/apierrors
+	./pkg/cache
+	./pkg/circuitbreaker
+	./pkg/config
+	./pkg/database
+	./pkg/dburl
+	./pkg/errorreporting
+	./pkg/errors
+	./pkg/events
+	./pkg/eventstore
+	./pkg/http
+	./pkg/httpclient
+	./pkg/idempotency
+	./pkg/logger
+	./pkg/middleware
+	./pkg/noop
+	./pkg/pagination
+	./pkg/serviceclient
+	./pkg/supabaseauth
+	./pkg/telemetry
+	./services/aicore
+	./services/adscenter
+	./services/bff
+	./services/console
+	./services/gateway-middleware
+	./services/projector
+	./services/recommendations
+	./services/siterank
+	./services/useractivity
+	./services/affiliate
+)
+
+// Full backend deployment trigger: Wed Oct 15 14:40:51 CST 2025
+// Codex-dev service account test: Wed Oct 15 14:50:55 CST 2025

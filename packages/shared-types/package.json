@@ -1,0 +1,25 @@
+{
+  "name": "@gm/shared-types",
+  "version": "0.1.0",
+  "description": "Shared TypeScript types generated from OpenAPI specs",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./adscenter": "./src/adscenter/types.d.ts",
+    "./batchopen": "./src/batchopen/types.d.ts",
+    "./billing": "./src/billing/types.d.ts",
+    "./console": "./src/console/types.d.ts",
+    "./notifications": "./src/notifications/types.d.ts",
+    "./offer": "./src/offer/types.d.ts",
+    "./recommendations": "./src/recommendations/types.d.ts",
+    "./siterank": "./src/siterank/types.d.ts"
+  },
+  "scripts": {
+    "generate": "bash ../../scripts/openapi/generate-types.sh"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

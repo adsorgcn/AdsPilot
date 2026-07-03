@@ -1,0 +1,30 @@
+{
+  "displayName": "Auth: High Login Failure Rate",
+  "documentation": {
+    "content": "Alert triggered when login failures exceed 10 per minute for 3 consecutive minutes",
+    "mimeType": "text/markdown"
+  },
+  "conditions": [
+    {
+      "displayName": "Login failures > 10/min",
+      "conditionThreshold": {
+        "filter": "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"frontend-preview\" AND metric.type=\"logging.googleapis.com/user/auth_login_failure\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 10,
+        "duration": "180s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_RATE",
+            "crossSeriesReducer": "REDUCE_SUM"
+          }
+        ]
+      }
+    }
+  ],
+  "combiner": "OR",
+  "enabled": true,
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}

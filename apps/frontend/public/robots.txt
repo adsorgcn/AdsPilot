@@ -1,0 +1,17 @@
+# *
+User-agent: *
+Allow: /
+
+# *
+User-agent: *
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /manage
+Disallow: /api
+
+# Host
+Host: https://www.autoads.dev
+
+# Sitemaps
+Sitemap: https://www.autoads.dev/sitemap.xml
+Sitemap: https://www.autoads.dev/server-sitemap.xml

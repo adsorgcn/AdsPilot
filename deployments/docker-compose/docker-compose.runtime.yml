@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # Main Application - 使用运行时配置
+  app:
+    image: ghcr.io/ScientificInternet/url-batch-checker:latest
+    container_name: gm-app
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.docker  # 加载运行时环境变量
+    environment:
+      # 运行时配置
+      - GA_ID=${GA_ID}
+      - API_BASE_URL=${API_BASE_URL}
+      - SIMILARWEB_BASE_URL=${SIMILARWEB_BASE_URL:-https://data.similarweb.com/api/v1/data}
+      - DEPLOYMENT_ENV=${DEPLOYMENT_ENV:-production}
+      - APP_ENV=${APP_ENV:-production}
+      
+      # Docker环境配置
+      - DOCKER_ENV=true
+      - RUNNING_IN_DOCKER=true
+      - DEPLOYMENT_PLATFORM=clawcloud
+      
+      # Puppeteer/Playwright配置
+      - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+      - PLAYWRIGHT_BROWSERS_PATH=/app/ms-playwright
+      - PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
+      
+      # Next.js配置
+      - NODE_ENV=production
+      - PORT=3000
+      - NEXT_TELEMETRY_DISABLED=1
+      
+      # 日志配置
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - ENABLE_FILE_LOGGING=${ENABLE_FILE_LOGGING:-true}
+      
+      # 健康检查
+      - HEALTHCHECK_ENABLED=true
+    restart: unless-stopped
+    
+    # 安全配置
+    security_opt:
+      - seccomp:unconfined
+    shm_size: 2gb
+    
+    # 资源限制（优化后）
+    deploy:
+      resources:
+        limits:
+          memory: 3G  # 增加到3GB以避免OOM
+          cpus: '2.0'  # 增加CPU限制
+        reservations:
+          memory: 1.5G
+          cpus: '1.0'
+
+volumes:
+  logs:
+    driver: local
+
+networks:
+  default:
+    name: gm-network

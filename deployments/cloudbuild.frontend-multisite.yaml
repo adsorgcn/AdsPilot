@@ -1,0 +1,48 @@
+substitutions:
+  _ENV: preview # preview|prod
+  _TAG: preview-local
+  _SERVICE: frontend-preview
+  _REGION: asia-northeast1
+  _HOSTING_SITE: gm-preview
+  _IMAGE: gcr.io/$PROJECT_ID/frontend:${_TAG}
+  _PREVIEW_STUB: "0"
+
+steps:
+  # 1) Build image
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - apps/frontend/Dockerfile
+      - --build-arg
+      - PREVIEW_STUB=${_PREVIEW_STUB}
+      - -t
+      - ${_IMAGE}
+      - -t
+      - gcr.io/$PROJECT_ID/frontend:${_ENV}-latest
+      - .
+
+  # 2) Deploy to Cloud Run
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_IMAGE}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+
+  # 3) Deploy Hosting site (requires Firebase CLI permissions on SA)
+  - name: gcr.io/firebase-public/cli
+    entrypoint: bash
+    args:
+      - -lc
+      - |
+        firebase deploy --only hosting:${_HOSTING_SITE} --project $PROJECT_ID --non-interactive
+
+images:
+  - ${_IMAGE}
+  - gcr.io/$PROJECT_ID/frontend:${_ENV}-latest
+

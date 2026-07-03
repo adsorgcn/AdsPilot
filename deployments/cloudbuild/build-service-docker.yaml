@@ -1,0 +1,78 @@
+timeout: "3600s"
+options:
+  logging: GCS_ONLY
+logsBucket: gs://gm-build-logs-asia-northeast1/logs
+serviceAccount: 'projects/${GCP_PROJECT_ID}/serviceAccounts/codex-dev@${GCP_PROJECT_ID}.iam.gserviceaccount.com'
+substitutions:
+  _SERVICE: "projector"
+  _IMAGE: "asia-northeast1-docker.pkg.dev/PROJECT/REPO/projector:dev"
+  _DOCKERFILE: "Dockerfile"
+availableSecrets:
+  secretManager:
+    # Database & Cache
+    - versionName: projects/644672509127/secrets/DATABASE_URL/versions/latest
+      env: 'DATABASE_URL'
+    - versionName: projects/644672509127/secrets/REDIS_URL/versions/latest
+      env: 'REDIS_URL'
+    - versionName: projects/644672509127/secrets/VALKEY_URL/versions/latest
+      env: 'VALKEY_URL'
+
+    # Supabase Configuration (from project number 644672509127)
+    - versionName: projects/644672509127/secrets/NEXT_PUBLIC_SUPABASE_URL/versions/latest
+      env: 'SUPABASE_PROJECT_URL'
+    - versionName: projects/644672509127/secrets/NEXT_PUBLIC_SUPABASE_ANON_KEY/versions/latest
+      env: 'SUPABASE_ANON_KEY'
+    - versionName: projects/644672509127/secrets/SUPABASE_SERVICE_KEY/versions/latest
+      env: 'SUPABASE_SERVICE_KEY'
+    - versionName: projects/644672509127/secrets/SUPABASE_ACCESS_TOKEN/versions/latest
+      env: 'SUPABASE_ACCESS_TOKEN'
+    - versionName: projects/644672509127/secrets/SUPABASE_DB_PASSWORD/versions/latest
+      env: 'SUPABASE_DB_PASSWORD'
+
+steps:
+  - name: 'golang:1.25'
+    id: Smoke Tests
+    entrypoint: bash
+    secretEnv: ['DATABASE_URL', 'REDIS_URL', 'VALKEY_URL', 'SUPABASE_PROJECT_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_KEY', 'SUPABASE_ACCESS_TOKEN', 'SUPABASE_DB_PASSWORD']
+    env:
+      - 'GOTOOLCHAIN=auto'
+      - 'GOWORK=off'
+    args:
+      - -c
+      - |
+        cd services/${_SERVICE}
+        if [ -f go.mod ]; then
+          echo "[cloudbuild] running go mod tidy for ${_SERVICE}"
+          GOWORK=off go mod tidy
+          echo "[cloudbuild] running go test -short ./... for ${_SERVICE}"
+          GOWORK=off go test -short ./...
+        else
+          echo "[cloudbuild] no go.mod for ${_SERVICE}, skipping smoke tests"
+        fi
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: Supabase Smoke
+    entrypoint: bash
+    secretEnv: ['SUPABASE_PROJECT_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_KEY', 'SUPABASE_ACCESS_TOKEN']
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        if [[ -f scripts/test-supabase-connection.sh ]]; then
+          chmod +x scripts/test-supabase-connection.sh
+          ./scripts/test-supabase-connection.sh
+        else
+          echo "[cloudbuild] scripts/test-supabase-connection.sh 未找到，跳过 Supabase 冒烟测试"
+        fi
+  - name: 'gcr.io/cloud-builders/docker'
+    id: Build
+    args:
+      - build
+      - '-f'
+      - 'services/${_SERVICE}/${_DOCKERFILE}'
+      - '-t'
+      - '${_IMAGE}'
+      - '--build-arg'
+      - 'GOTOOLCHAIN=auto'
+      - .
+images:
+  - '${_IMAGE}'

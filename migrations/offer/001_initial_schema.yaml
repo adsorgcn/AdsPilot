@@ -1,0 +1,221 @@
+version: "001"
+service: "offer"
+description: "从内嵌DDL迁移的初始表结构 - 包含offers主表及辅助表"
+author: "system-migration"
+created_at: "2025-01-19T12:00:00Z"
+risk_level: "medium"
+dependencies: []
+
+changes:
+  - type: "CREATE_TABLE"
+    name: "offers"
+    sql: |
+      CREATE TABLE IF NOT EXISTS offers (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          name TEXT NOT NULL DEFAULT '',
+          original_url TEXT NOT NULL,
+          final_url TEXT,
+          brand_name TEXT,
+          description TEXT,
+          tagline TEXT,
+          brand_colors JSONB,
+          brand_fonts JSONB,
+          status TEXT NOT NULL DEFAULT 'evaluating',
+          evaluation_status TEXT DEFAULT 'evaluating',
+          siterank_score DOUBLE PRECISION,
+          domain TEXT,
+          impressions BIGINT DEFAULT 0,
+          clicks BIGINT DEFAULT 0,
+          ctr DECIMAL(5,4) DEFAULT 0,
+          total_revenue DECIMAL(12,2) DEFAULT 0,
+          roas DECIMAL(8,2) DEFAULT 0,
+          is_demo BOOLEAN NOT NULL DEFAULT FALSE,
+          demo_category TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    description: "offers主表，存储所有offer信息"
+
+  - type: "CREATE_INDEX"
+    table: "offers"
+    name: "idx_offers_user_id_created_at"
+    sql: |
+      CREATE INDEX IF NOT EXISTS idx_offers_user_id_created_at
+          ON offers(user_id, created_at DESC);
+    description: "优化按用户查询offer列表的性能"
+
+  - type: "CREATE_INDEX"
+    table: "offers"
+    name: "idx_offers_status"
+    sql: |
+      CREATE INDEX IF NOT EXISTS idx_offers_status
+          ON offers(status);
+    description: "优化按状态查询offers的性能"
+
+  - type: "CREATE_TABLE"
+    name: "OfferStatusHistory"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "OfferStatusHistory"(
+          id BIGSERIAL PRIMARY KEY,
+          offer_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          from_status TEXT NOT NULL,
+          to_status TEXT NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    description: "offer状态变更历史记录表，用于追踪所有状态变更"
+
+  - type: "CREATE_INDEX"
+    table: "OfferStatusHistory"
+    name: "idx_offer_status_history_offer_id"
+    sql: |
+      CREATE INDEX IF NOT EXISTS idx_offer_status_history_offer_id
+          ON "OfferStatusHistory"(offer_id, created_at DESC);
+    description: "优化按offer_id查询状态历史的性能"
+
+  - type: "CREATE_TABLE"
+    name: "OfferPreferences"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "OfferPreferences"(
+          user_id TEXT NOT NULL,
+          offer_id TEXT NOT NULL,
+          auto_status_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+          zero_perf_days INTEGER NOT NULL DEFAULT 5,
+          rosc_decline_days INTEGER NOT NULL DEFAULT 7,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          PRIMARY KEY (user_id, offer_id)
+      );
+    description: "用户对特定offer的偏好设置表"
+
+  - type: "CREATE_TABLE"
+    name: "OfferKpiDeadLetter"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "OfferKpiDeadLetter" (
+          id           BIGSERIAL PRIMARY KEY,
+          user_id      TEXT NOT NULL,
+          offer_id     TEXT NOT NULL,
+          date         DATE NOT NULL,
+          reason       TEXT NOT NULL,
+          payload      JSONB NOT NULL DEFAULT '{}'::jsonb,
+          retry_count  INT  NOT NULL DEFAULT 0,
+          last_error   TEXT,
+          status       TEXT NOT NULL DEFAULT 'queued',
+          created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+          updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    description: "KPI计算失败时的死信队列表，用于重试和错误处理"
+
+  - type: "CREATE_INDEX"
+    table: "OfferKpiDeadLetter"
+    name: "idx_offer_kpi_dead_letter_offer_id"
+    sql: |
+      CREATE INDEX IF NOT EXISTS idx_offer_kpi_dead_letter_offer_id
+          ON "OfferKpiDeadLetter"(offer_id);
+    description: "优化按offer_id查询死信队列的性能"
+
+  - type: "CREATE_TABLE"
+    name: "idempotency_keys"
+    sql: |
+      CREATE TABLE IF NOT EXISTS idempotency_keys(
+          key TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          scope TEXT NOT NULL,
+          target_id TEXT NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL,
+          expires_at TIMESTAMPTZ NOT NULL
+      );
+    description: "API调用幂等性控制表，防止重复操作"
+
+  - type: "CREATE_INDEX"
+    table: "idempotency_keys"
+    name: "idx_idempotency_keys_created_at"
+    sql: |
+      CREATE INDEX IF NOT EXISTS idx_idempotency_keys_created_at
+          ON idempotency_keys(created_at);
+    description: "优化按创建时间查询幂等性键的性能"
+
+  - type: "CREATE_INDEX"
+    table: "idempotency_keys"
+    name: "idx_idempotency_keys_expires_at"
+    sql: |
+      CREATE INDEX IF NOT EXISTS idx_idempotency_keys_expires_at
+          ON idempotency_keys(expires_at);
+    description: "优化过期键清理的性能"
+
+rollback:
+  - type: "DROP_TABLE"
+    name: "offers"
+    sql: DROP TABLE IF EXISTS offers;
+    description: "回滚：删除offers主表"
+
+  - type: "DROP_TABLE"
+    name: "OfferStatusHistory"
+    sql: DROP TABLE IF EXISTS "OfferStatusHistory";
+    description: "回滚：删除offer状态历史表"
+
+  - type: "DROP_TABLE"
+    name: "OfferPreferences"
+    sql: DROP TABLE IF EXISTS "OfferPreferences";
+    description: "回滚：删除offer偏好设置表"
+
+  - type: "DROP_TABLE"
+    name: "OfferKpiDeadLetter"
+    sql: DROP TABLE IF EXISTS "OfferKpiDeadLetter";
+    description: "回滚：删除KPI死信队列表"
+
+  - type: "DROP_TABLE"
+    name: "idempotency_keys"
+    sql: DROP TABLE IF EXISTS idempotency_keys;
+    description: "回滚：删除幂等性键表"
+
+validation:
+  - type: "table_exists"
+    name: "offers"
+    description: "验证offers主表已创建"
+
+  - type: "table_exists"
+    name: "OfferStatusHistory"
+    description: "验证OfferStatusHistory表已创建"
+
+  - type: "table_exists"
+    name: "OfferPreferences"
+    description: "验证OfferPreferences表已创建"
+
+  - type: "table_exists"
+    name: "OfferKpiDeadLetter"
+    description: "验证OfferKpiDeadLetter表已创建"
+
+  - type: "table_exists"
+    name: "idempotency_keys"
+    description: "验证idempotency_keys表已创建"
+
+  - type: "index_exists"
+    name: "idx_offers_user_id_created_at"
+    table: "offers"
+    description: "验证offers表的user_id索引已创建"
+
+  - type: "index_exists"
+    name: "idx_offers_status"
+    table: "offers"
+    description: "验证offers表的status索引已创建"
+
+  - type: "index_exists"
+    name: "idx_offer_status_history_offer_id"
+    table: "OfferStatusHistory"
+    description: "验证OfferStatusHistory表的索引已创建"
+
+  - type: "index_exists"
+    name: "idx_offer_kpi_dead_letter_offer_id"
+    table: "OfferKpiDeadLetter"
+    description: "验证OfferKpiDeadLetter表的索引已创建"
+
+  - type: "index_exists"
+    name: "idx_idempotency_keys_created_at"
+    table: "idempotency_keys"
+    description: "验证idempotency_keys表的created_at索引已创建"
+
+  - type: "index_exists"
+    name: "idx_idempotency_keys_expires_at"
+    table: "idempotency_keys"
+    description: "验证idempotency_keys表的expires_at索引已创建"

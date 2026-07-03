@@ -1,0 +1,1 @@
+{"message":"Cannot GET /v1/projects/YOUR_SUPABASE_PROJECT/db/dump"}

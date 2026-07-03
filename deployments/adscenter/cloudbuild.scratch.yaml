@@ -1,0 +1,39 @@
+timeout: "3600s"
+options:
+  logging: CLOUD_LOGGING_ONLY
+substitutions:
+  _IMAGE: "asia-northeast1-docker.pkg.dev/PROJECT/REPO/adscenter:preview"
+steps:
+  - name: gcr.io/cloud-builders/go
+    id: build-binary
+    dir: services/adscenter
+    env:
+      - "GO111MODULE=on"
+      - "GOWORK=/workspace/go.work"
+      - "GOPROXY=https://proxy.golang.org,direct"
+    args: ["build","-trimpath","-ldflags=-s -w","-o","/workspace/adscenter-service","."]
+
+  - name: gcr.io/cloud-builders/gcloud
+    id: write-dockerfile
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        cat > /workspace/Dockerfile <<'EOF'
+        FROM scratch
+        COPY adscenter-service /adscenter-service
+        EXPOSE 8080
+        ENTRYPOINT ["/adscenter-service"]
+        EOF
+
+  - name: gcr.io/kaniko-project/executor:latest
+    id: kaniko-build-push
+    args:
+      - "--destination=${_IMAGE}"
+      - "--dockerfile=/workspace/Dockerfile"
+      - "--context=dir:///workspace"
+      - "--single-snapshot"
+      - "--use-new-run"
+images:
+  - "${_IMAGE}"
+

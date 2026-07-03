@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Token 消耗规则管理</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, PingFang SC, Noto Sans, sans-serif; margin: 20px; background: #f9fafb; }
+    h2 { margin: 16px 0; color: #111827; }
+    h3 { margin: 12px 0; color: #374151; font-size: 16px; }
+    .row { display:flex; gap:8px; align-items:center; margin-bottom: 12px; }
+    .form-row { display:flex; gap:10px; margin-bottom: 10px; align-items: center; background: white; padding: 16px; border-radius: 8px; border: 1px solid #e5e7eb; }
+    input, select { padding:8px 12px; font-size: 13px; border: 1px solid #d1d5db; border-radius: 6px; }
+    button { padding:8px 16px; font-size: 13px; cursor:pointer; border: none; border-radius: 6px; font-weight: 500; }
+    button.primary { background: #3b82f6; color: white; }
+    button.primary:hover { background: #2563eb; }
+    button.secondary { background: #6b7280; color: white; }
+    button.secondary:hover { background: #4b5563; }
+    button.danger { background: #ef4444; color: white; }
+    button.danger:hover { background: #dc2626; }
+    button.success { background: #10b981; color: white; }
+    button.success:hover { background: #059669; }
+    table { width:100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
+    th, td { border:1px solid #e5e7eb; padding:12px; font-size: 13px; }
+    th { background:#f3f4f6; text-align:left; font-weight: 600; color: #374151; }
+    tr:hover { background: #f9fafb; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge.enabled { background: #d1fae5; color: #065f46; }
+    .badge.disabled { background: #fee2e2; color: #991b1b; }
+    .muted { color:#6b7280; font-size:12px; }
+    .card { background: white; border-radius: 8px; padding: 20px; border: 1px solid #e5e7eb; margin-bottom: 16px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+    .stat-card { background: white; padding: 16px; border-radius: 8px; border: 1px solid #e5e7eb; }
+    .stat-value { font-size: 24px; font-weight: 700; color: #111827; }
+    .stat-label { font-size: 12px; color: #6b7280; margin-top: 4px; }
+  </style>
+  <script>
+    async function fetchJSON(u, opt){
+      const r = await fetch(u, opt||{});
+      if(!r.ok) {
+        const text = await r.text();
+        throw new Error(text || r.status);
+      }
+      return r.json();
+    }
+
+    let rules = [];
+
+    async function load(){
+      try {
+        const res = await fetchJSON('/api/v1/console/tokens/rules');
+        rules = res.items || [];
+        renderTable();
+        renderStats();
+      } catch(e){
+        console.error('Failed to load rules:', e);
+        alert('加载规则失败: ' + e.message);
+      }
+    }
+
+    function renderTable(){
+      const tbody = document.querySelector('#rulesList');
+      tbody.innerHTML = '';
+
+      if (rules.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="7" style="text-align:center; color:#6b7280; padding:40px;">暂无规则，请添加第一条规则</td>';
+        tbody.appendChild(tr);
+        return;
+      }
+
+      for(const rule of rules){
+        const tr = document.createElement('tr');
+        const statusBadge = rule.enabled
+          ? '<span class="badge enabled">✓ 启用</span>'
+          : '<span class="badge disabled">✗ 禁用</span>';
+
+        tr.innerHTML = `
+          <td><code>${rule.serviceName}</code></td>
+          <td><code>${rule.actionType}</code></td>
+          <td><strong>${rule.costPerUnit}</strong> Token</td>
+          <td>${rule.description || '-'}</td>
+          <td>${statusBadge}</td>
+          <td class="muted">${new Date(rule.updatedAt).toLocaleString()}</td>
+          <td>
+            <div class="row" style="gap:4px; margin:0;">
+              <button class="secondary" style="padding:4px 8px; font-size:12px;" onclick="editRule('${rule.id}')">编辑</button>
+              ${rule.enabled
+                ? `<button class="danger" style="padding:4px 8px; font-size:12px;" onclick="toggleRule('${rule.id}', false)">禁用</button>`
+                : `<button class="success" style="padding:4px 8px; font-size:12px;" onclick="toggleRule('${rule.id}', true)">启用</button>`
+              }
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function renderStats(){
+      const total = rules.length;
+      const enabled = rules.filter(r => r.enabled).length;
+      const totalCost = rules.filter(r => r.enabled).reduce((sum, r) => sum + r.costPerUnit, 0);
+      const services = new Set(rules.map(r => r.serviceName)).size;
+
+      document.querySelector('#statTotal').textContent = total;
+      document.querySelector('#statEnabled').textContent = enabled;
+      document.querySelector('#statServices').textContent = services;
+      document.querySelector('#statAvgCost').textContent = enabled > 0 ? (totalCost / enabled).toFixed(1) : '0';
+    }
+
+    async function createRule(){
+      const data = {
+        serviceName: document.querySelector('#serviceName').value.trim().toLowerCase(),
+        actionType: document.querySelector('#actionType').value.trim().toLowerCase(),
+        costPerUnit: parseInt(document.querySelector('#costPerUnit').value),
+        description: document.querySelector('#description').value.trim(),
+        enabled: true
+      };
+
+      if (!data.serviceName || !data.actionType) {
+        alert('请填写服务名称和操作类型');
+        return;
+      }
+
+      if (!data.costPerUnit || data.costPerUnit <= 0) {
+        alert('请填写有效的Token消耗数量');
+        return;
+      }
+
+      try {
+        await fetchJSON('/api/v1/console/tokens/rules', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(data)
+        });
+
+        // Clear form
+        document.querySelector('#serviceName').value = '';
+        document.querySelector('#actionType').value = '';
+        document.querySelector('#costPerUnit').value = '';
+        document.querySelector('#description').value = '';
+
+        alert('✓ 规则已创建');
+        await load();
+      } catch(e){
+        alert('创建失败: ' + e.message);
+      }
+    }
+
+    async function editRule(id){
+      const rule = rules.find(r => r.id === id);
+      if (!rule) return;
+
+      const newCost = prompt('新的Token消耗数量:', rule.costPerUnit);
+      if (!newCost) return;
+
+      const cost = parseInt(newCost);
+      if (cost <= 0) {
+        alert('Token消耗必须大于0');
+        return;
+      }
+
+      const newDesc = prompt('新的说明 (可选):', rule.description);
+
+      try {
+        await fetchJSON(`/api/v1/console/tokens/rules/${id}`, {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            costPerUnit: cost,
+            description: newDesc || rule.description
+          })
+        });
+
+        alert('✓ 规则已更新');
+        await load();
+      } catch(e){
+        alert('更新失败: ' + e.message);
+      }
+    }
+
+    async function toggleRule(id, enabled){
+      const action = enabled ? '启用' : '禁用';
+      if (!confirm(`确定要${action}此规则吗？`)) return;
+
+      try {
+        await fetchJSON(`/api/v1/console/tokens/rules/${id}`, {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ enabled })
+        });
+
+        alert(`✓ 规则已${action}`);
+        await load();
+      } catch(e){
+        alert(`${action}失败: ` + e.message);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', load);
+  </script>
+</head>
+<body>
+  <h2>⚡ Token 消耗规则管理</h2>
+
+  <div class="row">
+    <button class="secondary" onclick="window.location.href='/console/manage/index.html'">← 返回仪表盘</button>
+    <button class="secondary" onclick="load()">🔄 刷新</button>
+  </div>
+
+  <!-- Statistics Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" id="statTotal">0</div>
+      <div class="stat-label">总规则数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statEnabled">0</div>
+      <div class="stat-label">启用规则</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statServices">0</div>
+      <div class="stat-label">服务数量</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statAvgCost">0</div>
+      <div class="stat-label">平均消耗</div>
+    </div>
+  </div>
+
+  <!-- Create Form -->
+  <div class="card">
+    <h3>➕ 新增规则</h3>
+    <div class="form-row">
+      <label style="min-width:80px; font-weight:500;">服务名称</label>
+      <select id="serviceName" style="width:150px;">
+        <option value="siterank">siterank</option>
+        <option value="adscenter">adscenter</option>
+        <option value="batchopen">batchopen</option>
+        <option value="offer">offer</option>
+        <option value="billing">billing</option>
+      </select>
+
+      <label style="min-width:80px; font-weight:500;">操作类型</label>
+      <input id="actionType" placeholder="如: basic_evaluation" style="width:180px;" />
+
+      <label style="min-width:80px; font-weight:500;">Token消耗</label>
+      <input id="costPerUnit" type="number" placeholder="1" min="1" style="width:100px;" />
+
+      <label style="min-width:60px; font-weight:500;">说明</label>
+      <input id="description" placeholder="规则说明（可选）" style="flex:1;" />
+
+      <button class="primary" onclick="createRule()">创建规则</button>
+    </div>
+    <div class="muted" style="margin-top:8px;">
+      💡 提示: 服务名称和操作类型将自动转为小写。示例: siterank/basic_evaluation = 1 Token
+    </div>
+  </div>
+
+  <!-- Rules Table -->
+  <div class="card">
+    <h3>📋 规则列表</h3>
+    <table style="margin-top:12px;">
+      <thead>
+        <tr>
+          <th>服务名称</th>
+          <th>操作类型</th>
+          <th>Token消耗</th>
+          <th>说明</th>
+          <th>状态</th>
+          <th>更新时间</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="rulesList">
+        <tr><td colspan="7" style="text-align:center; padding:40px;">加载中...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="muted" style="margin-top:16px;">
+    ℹ️ 说明: 禁用规则不会被删除，可随时重新启用。修改规则会立即生效，影响后续的Token消耗计算。
+  </div>
+</body>
+</html>

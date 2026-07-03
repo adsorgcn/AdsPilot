@@ -1,0 +1,378 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AI Evaluation Test Data",
+  "description": "测试数据配置 - 不同评分段的Offer样本",
+  "version": "1.0.0",
+  "lastUpdated": "2025-10-16",
+
+  "testUsers": {
+    "starter": {
+      "email": "test-starter@autoads.dev",
+      "password": "Test1234!",
+      "plan": "starter",
+      "initialTokens": 100,
+      "canUseAI": false
+    },
+    "professional": {
+      "email": "test-pro@autoads.dev",
+      "password": "Test1234!",
+      "plan": "professional",
+      "initialTokens": 500,
+      "canUseAI": true
+    },
+    "elite": {
+      "email": "test-elite@autoads.dev",
+      "password": "Test1234!",
+      "plan": "elite",
+      "initialTokens": 1000,
+      "canUseAI": true,
+      "hasUnlimitedOffers": true
+    }
+  },
+
+  "testOffers": {
+    "gradeA": {
+      "name": "Nike Official Store - Grade A",
+      "url": "https://www.nike.com",
+      "description": "高流量品牌官网，预期AI评分85-100",
+      "expectedScore": {
+        "min": 85,
+        "max": 100,
+        "grade": "A"
+      },
+      "expectedSimilarWebData": {
+        "globalRank": 100,
+        "monthlyVisits": 50000000,
+        "bounceRate": 0.35,
+        "avgVisitDuration": 240
+      },
+      "expectedAIInsights": {
+        "industry": "E-commerce",
+        "productType": "Fashion & Sportswear",
+        "recommendationReasons": [
+          "全球知名品牌，流量巨大",
+          "用户粘性高，转化率优秀",
+          "多渠道流量来源均衡"
+        ]
+      }
+    },
+
+    "gradeB": {
+      "name": "Sephora Beauty - Grade B",
+      "url": "https://www.sephora.com",
+      "description": "美妆电商平台，预期AI评分70-84",
+      "expectedScore": {
+        "min": 70,
+        "max": 84,
+        "grade": "B"
+      },
+      "expectedSimilarWebData": {
+        "globalRank": 500,
+        "monthlyVisits": 15000000,
+        "bounceRate": 0.42,
+        "avgVisitDuration": 180
+      },
+      "expectedAIInsights": {
+        "industry": "E-commerce",
+        "productType": "Beauty & Cosmetics",
+        "recommendationReasons": [
+          "垂直领域头部品牌",
+          "用户群体明确",
+          "季节性流量波动适中"
+        ]
+      }
+    },
+
+    "gradeC": {
+      "name": "Mid-tier Fashion Store - Grade C",
+      "url": "https://www.asos.com",
+      "description": "中等流量电商，预期AI评分50-69",
+      "expectedScore": {
+        "min": 50,
+        "max": 69,
+        "grade": "C"
+      },
+      "expectedSimilarWebData": {
+        "globalRank": 2000,
+        "monthlyVisits": 5000000,
+        "bounceRate": 0.55,
+        "avgVisitDuration": 120
+      },
+      "expectedAIInsights": {
+        "industry": "E-commerce",
+        "productType": "Fashion",
+        "recommendationReasons": [
+          "流量规模中等",
+          "竞争激烈需要精准定位",
+          "建议适中预算测试"
+        ]
+      }
+    },
+
+    "gradeD": {
+      "name": "Small Brand Store - Grade D",
+      "url": "https://www.example-small-brand.com",
+      "description": "小流量品牌站，预期AI评分30-49",
+      "expectedScore": {
+        "min": 30,
+        "max": 49,
+        "grade": "D"
+      },
+      "expectedSimilarWebData": {
+        "globalRank": 50000,
+        "monthlyVisits": 500000,
+        "bounceRate": 0.65,
+        "avgVisitDuration": 60
+      },
+      "expectedAIInsights": {
+        "industry": "E-commerce",
+        "productType": "Mixed",
+        "recommendationReasons": [
+          "流量较小，转化未知",
+          "建议小预算验证",
+          "需要关注ROI数据"
+        ]
+      }
+    },
+
+    "gradeF": {
+      "name": "Low Quality Site - Grade F",
+      "url": "https://www.example-low-traffic.com",
+      "description": "极低流量站点，预期AI评分0-29",
+      "expectedScore": {
+        "min": 0,
+        "max": 29,
+        "grade": "F"
+      },
+      "expectedSimilarWebData": {
+        "globalRank": 1000000,
+        "monthlyVisits": 10000,
+        "bounceRate": 0.80,
+        "avgVisitDuration": 30
+      },
+      "expectedAIInsights": {
+        "industry": "Unknown",
+        "productType": "Unknown",
+        "recommendationReasons": [
+          "流量极低，不建议投放",
+          "网站质量存疑",
+          "建议寻找其他Offer"
+        ]
+      }
+    },
+
+    "realWorldExamples": {
+      "amazon": {
+        "name": "Amazon.com",
+        "url": "https://www.amazon.com",
+        "expectedGrade": "A",
+        "notes": "最高流量电商平台，几乎总是A级"
+      },
+      "walmart": {
+        "name": "Walmart",
+        "url": "https://www.walmart.com",
+        "expectedGrade": "A",
+        "notes": "大型零售商，高流量高转化"
+      },
+      "target": {
+        "name": "Target",
+        "url": "https://www.target.com",
+        "expectedGrade": "A",
+        "notes": "美国主流零售，稳定A级"
+      },
+      "bestbuy": {
+        "name": "Best Buy",
+        "url": "https://www.bestbuy.com",
+        "expectedGrade": "B",
+        "notes": "电子产品垂直领域，B级"
+      },
+      "etsy": {
+        "name": "Etsy",
+        "url": "https://www.etsy.com",
+        "expectedGrade": "B",
+        "notes": "手工艺品平台，B级"
+      }
+    }
+  },
+
+  "apiEndpoints": {
+    "offerService": {
+      "baseURL": "${OFFER_SERVICE_URL}",
+      "endpoints": {
+        "evaluate": "POST /api/v1/offers/{offerId}/evaluate",
+        "getLatest": "GET /api/v1/offers/{offerId}/evaluations/latest",
+        "getList": "GET /api/v1/offers/{offerId}/evaluations"
+      }
+    },
+    "billingService": {
+      "baseURL": "${BILLING_SERVICE_URL}",
+      "endpoints": {
+        "reserve": "POST /api/v1/tokens/reserve",
+        "consume": "POST /api/v1/tokens/consume",
+        "release": "POST /api/v1/tokens/release",
+        "balance": "GET /api/v1/users/me/tokens/balance",
+        "subscription": "GET /api/v1/users/me/subscription"
+      }
+    },
+    "siterankService": {
+      "baseURL": "${SITERANK_SERVICE_URL}",
+      "endpoints": {
+        "evaluate": "POST /api/v1/offers/{offerId}/evaluate"
+      }
+    }
+  },
+
+  "databaseValidation": {
+    "tables": {
+      "offer_evaluations": {
+        "requiredFields": [
+          "evaluation_id",
+          "offer_id",
+          "status",
+          "evaluation_type",
+          "tokens_consumed",
+          "ai_recommendation_score",
+          "ai_recommendation",
+          "similarweb_score",
+          "created_at",
+          "completed_at"
+        ],
+        "constraints": {
+          "evaluation_type": ["basic", "ai_enhanced"],
+          "status": ["pending", "processing", "completed", "failed"],
+          "tokens_consumed": [1, 3],
+          "ai_recommendation_score": { "min": 0, "max": 100 }
+        }
+      },
+      "evaluation_aggregations": {
+        "requiredFields": [
+          "url_hash",
+          "offer_url",
+          "brand_name",
+          "evaluation_count",
+          "latest_evaluation_id",
+          "latest_score",
+          "cache_valid_until"
+        ],
+        "constraints": {
+          "evaluation_count": { "min": 1 },
+          "cache_valid_until": "NOW() + INTERVAL '7 days'"
+        }
+      },
+      "similarweb_global_cache": {
+        "requiredFields": [
+          "domain",
+          "data",
+          "status",
+          "cached_at",
+          "expires_at"
+        ],
+        "constraints": {
+          "status": ["success", "failed"],
+          "expires_at": "NOW() + INTERVAL '7 days' | NOW() + INTERVAL '1 hour'"
+        }
+      },
+      "token_transactions": {
+        "requiredFields": [
+          "transaction_id",
+          "user_id",
+          "amount",
+          "transaction_type",
+          "service",
+          "action",
+          "created_at"
+        ],
+        "constraints": {
+          "transaction_type": ["debit", "credit"],
+          "service": ["offer"],
+          "action": ["evaluate"]
+        }
+      }
+    }
+  },
+
+  "performanceThresholds": {
+    "aiEvaluationTime": {
+      "max": 30000,
+      "unit": "ms",
+      "description": "AI评估完成时间应小于30秒"
+    },
+    "componentRenderTime": {
+      "max": 500,
+      "unit": "ms",
+      "description": "前端组件渲染时间应小于500ms"
+    },
+    "apiResponseTime": {
+      "max": 2000,
+      "unit": "ms",
+      "description": "API响应时间应小于2秒"
+    },
+    "pollingInterval": {
+      "expected": 3000,
+      "tolerance": 500,
+      "unit": "ms",
+      "description": "状态轮询间隔应为3秒±500ms"
+    },
+    "tokenDeductionDelay": {
+      "max": 1000,
+      "unit": "ms",
+      "description": "Token扣除延迟应小于1秒"
+    }
+  },
+
+  "errorScenarios": {
+    "insufficientTokens": {
+      "description": "Token余额不足",
+      "expectedBehavior": "禁用评估按钮 + 显示错误提示",
+      "expectedUI": "按钮disabled，Toast通知"
+    },
+    "apiTimeout": {
+      "description": "API请求超时",
+      "expectedBehavior": "显示超时错误，提示重试",
+      "expectedUI": "Toast通知 + 错误详情"
+    },
+    "similarWebUnavailable": {
+      "description": "SimilarWeb数据不可用",
+      "expectedBehavior": "降级到基础评估",
+      "expectedStatus": "completed",
+      "expectedFields": { "similarWebScore": null }
+    },
+    "geminiAPIFailure": {
+      "description": "Gemini API调用失败",
+      "expectedBehavior": "重试3次后记录错误",
+      "expectedStatus": "failed",
+      "expectedFields": { "errorMessage": "AI evaluation failed after 3 retries" }
+    },
+    "networkDisconnect": {
+      "description": "网络连接断开",
+      "expectedBehavior": "暂停轮询，重连后恢复",
+      "expectedUI": "网络错误提示"
+    }
+  },
+
+  "testExecutionConfig": {
+    "browser": {
+      "type": "chromium",
+      "headless": false,
+      "slowMo": 100,
+      "viewport": { "width": 1920, "height": 1080 }
+    },
+    "timeouts": {
+      "test": 180000,
+      "navigation": 30000,
+      "action": 10000
+    },
+    "retries": {
+      "max": 2,
+      "delay": 5000
+    },
+    "screenshots": {
+      "onFailure": true,
+      "path": "./test-results/screenshots"
+    },
+    "videos": {
+      "enabled": false,
+      "path": "./test-results/videos"
+    }
+  }
+}

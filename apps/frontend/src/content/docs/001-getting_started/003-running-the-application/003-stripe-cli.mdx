@@ -1,0 +1,19 @@
+---
+title: Running the Stripe CLI for Webhooks
+label: Stripe
+description: How to run the Stripe CLI for Webhooks in a local development environment
+---
+
+Run the Stripe CLI with the following command:
+
+```bash
+npm run stripe:listen
+```
+
+#### Add the Stripe Webhooks Key to your environment file
+
+If this is the first time you run this command, you will need to copy the Webhooks key printed on the console and add it to your development environment variables file:
+
+```bash title=".env.development"
+STRIPE_WEBHOOKS_KEY=<PASTE_KEY_HERE>
+```

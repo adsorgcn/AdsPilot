@@ -1,0 +1,101 @@
+# Development Docker Compose override
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.override.yml up
+version: '3.8'
+
+services:
+  # Override main application service for development
+  google-ads-automation:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: base
+    container_name: google-ads-automation-dev
+    environment:
+      - NODE_ENV=development
+      - DOCKER_ENV=true
+      - NEXT_PUBLIC_DEBUG_MODE=true
+      - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=false
+      - PUPPETEER_EXECUTABLE_PATH=
+      - DATABASE_URL=mysql://gm:devpassword@mysql:3306/google_ads_automation_dev
+    volumes:
+      # Mount source code for hot reload
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+    ports:
+      - "3000:3000"
+    # Override command to enable development mode
+    command: npm run dev
+    networks:
+      - google-ads-network
+    # Remove security constraints for development
+    security_opt: []
+    shm_size: 1gb
+
+  # Redis for development
+  redis:
+    image: redis:7-alpine
+    container_name: google-ads-redis-dev
+    command: redis-server --appendonly yes --notify-keyspace-events Ex
+    volumes:
+      - redis_dev_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - google-ads-network
+
+  # MySQL for development (aligns with Prisma MySQL schema)
+  mysql:
+    image: mysql:8.0
+    container_name: google-ads-mysql-dev
+    environment:
+      - MYSQL_DATABASE=google_ads_automation_dev
+      - MYSQL_USER=gm
+      - MYSQL_PASSWORD=devpassword
+      - MYSQL_ROOT_PASSWORD=rootpassword
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql_dev_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - google-ads-network
+
+  # (Removed pgAdmin for Postgres; MySQL tools can be used externally when needed)
+
+  # Development tools - Redis Commander
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: google-ads-redis-commander-dev
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - google-ads-network
+    profiles:
+      - tools
+
+  # Mailhog for email testing in development
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: google-ads-mailhog-dev
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - google-ads-network
+
+volumes:
+  mysql_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+
+networks:
+  google-ads-network:
+    driver: bridge

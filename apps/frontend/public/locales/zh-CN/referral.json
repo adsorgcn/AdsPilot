@@ -1,0 +1,46 @@
+{
+  "title": "邀请计划",
+  "description": "邀请好友注册，双方均可获得试用期和奖励",
+  "loading": "加载中...",
+  "copied": "已复制 {{label}}",
+  "copyFailed": "复制失败",
+  "activeTrial": {
+    "title": "您有一个活跃的试用期",
+    "description": "您的试用期还有 {{days}} 天，将于 {{endDate}} 到期"
+  },
+  "stats": {
+    "total": "总邀请数",
+    "successful": "成功邀请",
+    "rewards": "累计奖励"
+  },
+  "shareLink": {
+    "title": "分享您的邀请链接",
+    "code": "邀请码",
+    "link": "邀请链接",
+    "qrCode": "二维码",
+    "qrCodeDescription": "扫描二维码快速注册"
+  },
+  "list": {
+    "title": "我的邀请记录",
+    "empty": "还没有邀请记录",
+    "emptyDescription": "分享您的邀请链接开始赚取奖励吧",
+    "joined": "注册时间",
+    "completed": "完成时间",
+    "reward": "奖励",
+    "rewardGranted": "已发放"
+  },
+  "status": {
+    "pending": "待确认",
+    "completed": "已完成",
+    "failed": "失败"
+  },
+  "program": {
+    "title": "邀请计划详情",
+    "inviteeReward": "被邀请人获得 14 天试用",
+    "inviteeRewardDescription": "新用户通过您的邀请链接注册，将获得 14 天免费试用期",
+    "inviterReward": "邀请人获得 14 天试用",
+    "inviterRewardDescription": "每成功邀请一位好友，您将获得 14 天试用期作为奖励",
+    "stackable": "试用期可叠加",
+    "stackableDescription": "多次邀请的试用期可以累计，让您享受更长时间的服务"
+  }
+}

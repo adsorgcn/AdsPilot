@@ -1,0 +1,79 @@
+version: "004"
+service: "adscenter"
+description: "创建性能优化索引 - 为批量操作和用户查询添加性能索引"
+author: "system-migration"
+created_at: "2025-01-19T12:00:00Z"
+risk_level: "low"
+dependencies:
+  - "003"
+
+changes:
+  - type: "CREATE_INDEX"
+    name: "idx_bulk_actions_user_status"
+    table: "BulkActionOperation"
+    sql: |
+      CREATE INDEX IF NOT EXISTS idx_bulk_actions_user_status ON "BulkActionOperation"(user_id, status);
+    description: "优化按用户和状态查询批量操作"
+
+  - type: "CREATE_INDEX"
+    name: "idx_bulk_actions_created"
+    table: "BulkActionOperation"
+    sql: |
+      CREATE INDEX IF NOT EXISTS idx_bulk_actions_created ON "BulkActionOperation"(created_at DESC);
+    description: "优化按创建时间倒序查询批量操作"
+
+  - type: "CREATE_INDEX"
+    name: "idx_user_ads_connection_login_customer"
+    table: "UserAdsConnection"
+    sql: |
+      CREATE INDEX IF NOT EXISTS idx_user_ads_connection_login_customer ON "UserAdsConnection"(loginCustomerId);
+    description: "优化按登录客户ID查询"
+
+  - type: "CREATE_INDEX"
+    name: "idx_user_ads_connection_primary_customer"
+    table: "UserAdsConnection"
+    sql: |
+      CREATE INDEX IF NOT EXISTS idx_user_ads_connection_primary_customer ON "UserAdsConnection"(primaryCustomerId);
+    description: "优化按主客户ID查询"
+
+rollback:
+  - type: "DROP_INDEX"
+    name: "idx_bulk_actions_user_status"
+    sql: DROP INDEX IF EXISTS idx_bulk_actions_user_status;
+    description: "回滚：删除批量操作用户状态索引"
+
+  - type: "DROP_INDEX"
+    name: "idx_bulk_actions_created"
+    sql: DROP INDEX IF EXISTS idx_bulk_actions_created;
+    description: "回滚：删除批量操作创建时间索引"
+
+  - type: "DROP_INDEX"
+    name: "idx_user_ads_connection_login_customer"
+    sql: DROP INDEX IF EXISTS idx_user_ads_connection_login_customer;
+    description: "回滚：删除登录客户ID索引"
+
+  - type: "DROP_INDEX"
+    name: "idx_user_ads_connection_primary_customer"
+    sql: DROP INDEX IF EXISTS idx_user_ads_connection_primary_customer;
+    description: "回滚：删除主客户ID索引"
+
+validation:
+  - type: "index_exists"
+    name: "idx_bulk_actions_user_status"
+    table: "BulkActionOperation"
+    description: "验证批量操作用户状态索引已创建"
+
+  - type: "index_exists"
+    name: "idx_bulk_actions_created"
+    table: "BulkActionOperation"
+    description: "验证批量操作创建时间索引已创建"
+
+  - type: "index_exists"
+    name: "idx_user_ads_connection_login_customer"
+    table: "UserAdsConnection"
+    description: "验证登录客户ID索引已创建"
+
+  - type: "index_exists"
+    name: "idx_user_ads_connection_primary_customer"
+    table: "UserAdsConnection"
+    description: "验证主客户ID索引已创建"

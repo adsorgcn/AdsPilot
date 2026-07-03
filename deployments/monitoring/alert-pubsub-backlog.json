@@ -1,0 +1,35 @@
+{
+  "displayName": "Pub/Sub Subscription Message Backlog",
+  "documentation": {
+    "content": "## Pub/Sub 消息积压告警\n\n**触发条件**: 任一订阅的未确认消息数 > 100\n\n**影响范围**:\n- siterank-worker-sub-preview: Siterank 评分任务延迟\n- browser-visit-sub: 浏览器访问任务延迟\n- notifications/projector: 事件处理延迟\n\n**可能原因**:\n1. Worker 服务实例数不足\n2. 消息处理速度慢 (下游服务慢/超时)\n3. Worker 服务崩溃或未启动\n4. 消息处理逻辑错误导致频繁重试\n\n**处理步骤**:\n1. 检查 worker 服务健康状态和实例数\n2. 查看 worker 日志确认处理速度和错误率\n3. 考虑扩展 worker 实例 (max-instances)\n4. 检查是否有大量消息进入死信队列\n\n**参考文档**: docs/MarkerkitGo/SiterankWorkerDeploymentPlan.md",
+    "mimeType": "text/markdown"
+  },
+  "conditions": [
+    {
+      "displayName": "Unacked Messages > 100",
+      "conditionThreshold": {
+        "filter": "resource.type = \"pubsub_subscription\" AND metric.type = \"pubsub.googleapis.com/subscription/num_undelivered_messages\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 100,
+        "duration": "300s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_MAX",
+            "groupByFields": [
+              "resource.labels.subscription_id"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "combiner": "OR",
+  "enabled": true,
+  "notificationChannels": [
+    "projects/${GCP_PROJECT_ID}/notificationChannels/11693781893064978969"
+  ],
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "displayName": "Cloud SQL Read Replica Replication Lag > 10s",
+  "documentation": {
+    "content": "## 只读副本复制延迟告警\n\n**触发条件**: Cloud SQL 只读副本与主库的复制延迟超过 10 秒\n\n**影响范围**: recommendations 服务的查询可能读取到过期数据\n\n**可能原因**:\n1. 主库写入负载过高\n2. 只读副本资源不足 (CPU/IO)\n3. 网络延迟\n4. 大事务阻塞复制\n\n**处理步骤**:\n1. 检查主库和副本的 CPU/内存/IO 使用率\n2. 检查是否有长事务或大批量写入\n3. 考虑升级只读副本配置\n4. 临时方案: recommendations 降级到主库查询\n\n**参考文档**: docs/MarkerkitGo/OptimizationPhase5Summary.md Section 2.4",
+    "mimeType": "text/markdown"
+  },
+  "conditions": [
+    {
+      "displayName": "Replication Lag > 10s",
+      "conditionThreshold": {
+        "filter": "resource.type = \"cloudsql_database\" AND resource.labels.database_id = \"${GCP_PROJECT_ID}:gm-read-replica\" AND metric.type = \"cloudsql.googleapis.com/database/replication/replica_lag\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 10,
+        "duration": "120s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_MAX"
+          }
+        ]
+      }
+    }
+  ],
+  "combiner": "OR",
+  "enabled": true,
+  "notificationChannels": [
+    "projects/${GCP_PROJECT_ID}/notificationChannels/11693781893064978969"
+  ],
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}

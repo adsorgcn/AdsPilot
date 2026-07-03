@@ -1,0 +1,11 @@
+steps:
+  - name: gcr.io/kaniko-project/executor:latest
+    args:
+      - "--destination=${_IMAGE}"
+      - "--dockerfile=services/projector/Dockerfile"
+      - "--context=dir:///workspace"
+      - "--single-snapshot"
+      - "--use-new-run"
+options:
+  logging: CLOUD_LOGGING_ONLY
+

@@ -1,0 +1,27 @@
+# Siterank Cloud Build - 使用GitHub Source
+# 优势: 不上传本地文件，直接从GitHub拉取，自动应用.gcloudignore
+# 使用: gcloud builds submit --config=cloudbuild-github.yaml --no-source
+
+steps:
+  # Step 1: 从GitHub克隆代码
+  - name: 'gcr.io/cloud-builders/git'
+    args:
+      - clone
+      - --branch=main
+      - --single-branch
+      - https://github.com/ScientificInternet/Google-Monetize.git
+      - /workspace/repo
+
+  # Step 2: 使用Kaniko构建镜像
+  - name: gcr.io/kaniko-project/executor:latest
+    args:
+      - --dockerfile=services/siterank/Dockerfile
+      - --destination=asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/siterank:preview-latest
+      - --context=/workspace/repo
+      - --cache=true
+      - --cache-ttl=6h
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
+timeout: 1800s

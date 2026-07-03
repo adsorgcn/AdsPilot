@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>套餐管理</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, PingFang SC, Noto Sans, sans-serif; margin: 20px; background: #f9fafb; }
+    h2 { margin: 16px 0; color: #111827; }
+    h3 { margin: 12px 0; color: #374151; font-size: 16px; }
+    .row { display:flex; gap:8px; align-items:center; margin-bottom: 12px; }
+    .form-row { display:flex; gap:10px; margin-bottom: 10px; align-items: flex-end; background: white; padding: 16px; border-radius: 8px; border: 1px solid #e5e7eb; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: 12px; font-weight: 500; color: #374151; }
+    input, select, textarea { padding:8px 12px; font-size: 13px; border: 1px solid #d1d5db; border-radius: 6px; }
+    textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+    button { padding:8px 16px; font-size: 13px; cursor:pointer; border: none; border-radius: 6px; font-weight: 500; }
+    button.primary { background: #3b82f6; color: white; }
+    button.primary:hover { background: #2563eb; }
+    button.secondary { background: #6b7280; color: white; }
+    button.secondary:hover { background: #4b5563; }
+    button.danger { background: #ef4444; color: white; }
+    button.danger:hover { background: #dc2626; }
+    button.success { background: #10b981; color: white; }
+    button.success:hover { background: #059669; }
+    .card { background: white; border-radius: 8px; padding: 20px; border: 1px solid #e5e7eb; margin-bottom: 16px; }
+    .package-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-bottom: 20px; }
+    .package-card { background: white; padding: 20px; border-radius: 8px; border: 2px solid #e5e7eb; position: relative; }
+    .package-card.popular { border-color: #3b82f6; }
+    .package-card.popular::before { content: "推荐"; position: absolute; top: -12px; right: 16px; background: #3b82f6; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .package-name { font-size: 20px; font-weight: 700; color: #111827; margin-bottom: 8px; }
+    .package-price { font-size: 32px; font-weight: 700; color: #3b82f6; margin-bottom: 4px; }
+    .package-price span { font-size: 14px; color: #6b7280; font-weight: 400; }
+    .package-tokens { font-size: 14px; color: #6b7280; margin-bottom: 16px; }
+    .package-features { list-style: none; padding: 0; margin: 16px 0; }
+    .package-features li { padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #374151; }
+    .package-features li:before { content: "✓ "; color: #10b981; font-weight: 700; }
+    .package-actions { display: flex; gap: 8px; margin-top: 16px; }
+    .muted { color:#6b7280; font-size:12px; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge.active { background: #d1fae5; color: #065f46; }
+    .badge.inactive { background: #fee2e2; color: #991b1b; }
+  </style>
+  <script>
+    async function fetchJSON(u, opt){
+      const r = await fetch(u, opt||{});
+      if(!r.ok) {
+        const text = await r.text();
+        throw new Error(text || r.status);
+      }
+      return r.json();
+    }
+
+    let packages = [];
+
+    async function load(){
+      try {
+        // Load packages from config
+        const res = await fetchJSON('/api/v1/console/config/subscription_packages');
+        packages = res.value || getDefaultPackages();
+        renderPackages();
+      } catch(e){
+        console.log('Config not found, using defaults:', e.message);
+        packages = getDefaultPackages();
+        renderPackages();
+      }
+    }
+
+    function getDefaultPackages() {
+      return [
+        {
+          id: 'free',
+          name: 'Free',
+          price: 0,
+          currency: 'CNY',
+          period: 'month',
+          includedTokens: 1000,
+          features: ['基础网站评估', 'SimilarWeb 数据', '每日签到奖励'],
+          popular: false,
+          active: true
+        },
+        {
+          id: 'pro',
+          name: 'Pro',
+          price: 99,
+          currency: 'CNY',
+          period: 'month',
+          includedTokens: 10000,
+          features: ['AI 智能评估', '批量操作', '优先支持', '广告合规检测'],
+          popular: true,
+          active: true
+        },
+        {
+          id: 'max',
+          name: 'Max',
+          price: 299,
+          currency: 'CNY',
+          period: 'month',
+          includedTokens: 100000,
+          features: ['无限 AI 评估', '专属客户经理', 'API 访问', '自定义工作流', '高级分析报表'],
+          popular: false,
+          active: true
+        }
+      ];
+    }
+
+    function renderPackages(){
+      const container = document.querySelector('#packageGrid');
+      container.innerHTML = '';
+
+      for(const pkg of packages){
+        const card = document.createElement('div');
+        card.className = `package-card ${pkg.popular ? 'popular' : ''}`;
+
+        const statusBadge = pkg.active
+          ? '<span class="badge active">✓ 启用</span>'
+          : '<span class="badge inactive">✗ 禁用</span>';
+
+        const featuresList = pkg.features.map(f => `<li>${f}</li>`).join('');
+
+        card.innerHTML = `
+          <div class="package-name">${pkg.name}</div>
+          <div class="package-price">
+            ¥${pkg.price}<span>/${pkg.period === 'month' ? '月' : '年'}</span>
+          </div>
+          <div class="package-tokens">包含 ${pkg.includedTokens.toLocaleString()} Tokens</div>
+          ${statusBadge}
+          <ul class="package-features">${featuresList}</ul>
+          <div class="package-actions">
+            <button class="secondary" style="font-size:12px; padding:6px 12px;" onclick="editPackage('${pkg.id}')">编辑</button>
+            ${pkg.active
+              ? `<button class="danger" style="font-size:12px; padding:6px 12px;" onclick="togglePackage('${pkg.id}', false)">禁用</button>`
+              : `<button class="success" style="font-size:12px; padding:6px 12px;" onclick="togglePackage('${pkg.id}', true)">启用</button>`
+            }
+          </div>
+        `;
+        container.appendChild(card);
+      }
+    }
+
+    async function savePackages() {
+      try {
+        await fetchJSON('/api/v1/console/config/subscription_packages', {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ value: packages })
+        });
+        alert('✓ 套餐配置已保存');
+      } catch(e){
+        alert('保存失败: ' + e.message);
+      }
+    }
+
+    async function createPackage(){
+      const pkg = {
+        id: document.querySelector('#pkgId').value.trim().toLowerCase(),
+        name: document.querySelector('#pkgName').value.trim(),
+        price: parseFloat(document.querySelector('#pkgPrice').value),
+        currency: 'CNY',
+        period: document.querySelector('#pkgPeriod').value,
+        includedTokens: parseInt(document.querySelector('#pkgTokens').value),
+        features: document.querySelector('#pkgFeatures').value.split('\n').filter(f => f.trim()),
+        popular: document.querySelector('#pkgPopular').checked,
+        active: true
+      };
+
+      if (!pkg.id || !pkg.name || isNaN(pkg.price) || isNaN(pkg.includedTokens)) {
+        alert('请填写完整的套餐信息');
+        return;
+      }
+
+      // Check duplicate ID
+      if (packages.find(p => p.id === pkg.id)) {
+        alert('套餐 ID 已存在');
+        return;
+      }
+
+      packages.push(pkg);
+      await savePackages();
+
+      // Clear form
+      document.querySelector('#pkgId').value = '';
+      document.querySelector('#pkgName').value = '';
+      document.querySelector('#pkgPrice').value = '';
+      document.querySelector('#pkgTokens').value = '';
+      document.querySelector('#pkgFeatures').value = '';
+      document.querySelector('#pkgPopular').checked = false;
+
+      await load();
+    }
+
+    async function editPackage(id){
+      const pkg = packages.find(p => p.id === id);
+      if (!pkg) return;
+
+      const newName = prompt('套餐名称:', pkg.name);
+      if (!newName) return;
+
+      const newPrice = prompt('价格 (CNY):', pkg.price);
+      if (!newPrice) return;
+
+      const newTokens = prompt('包含 Tokens:', pkg.includedTokens);
+      if (!newTokens) return;
+
+      pkg.name = newName;
+      pkg.price = parseFloat(newPrice);
+      pkg.includedTokens = parseInt(newTokens);
+
+      await savePackages();
+      await load();
+    }
+
+    async function togglePackage(id, active){
+      const pkg = packages.find(p => p.id === id);
+      if (!pkg) return;
+
+      const action = active ? '启用' : '禁用';
+      if (!confirm(`确定要${action}套餐 "${pkg.name}" 吗？`)) return;
+
+      pkg.active = active;
+      await savePackages();
+      await load();
+    }
+
+    window.addEventListener('DOMContentLoaded', load);
+  </script>
+</head>
+<body>
+  <h2>📦 套餐管理</h2>
+
+  <div class="row">
+    <button class="secondary" onclick="window.location.href='/console/manage/index.html'">← 返回仪表盘</button>
+    <button class="secondary" onclick="load()">🔄 刷新</button>
+  </div>
+
+  <!-- Create Package Form -->
+  <div class="card">
+    <h3>➕ 新增套餐</h3>
+    <div class="form-row">
+      <div class="form-group" style="width:120px;">
+        <label>套餐 ID</label>
+        <input id="pkgId" placeholder="starter" />
+      </div>
+
+      <div class="form-group" style="width:150px;">
+        <label>套餐名称</label>
+        <input id="pkgName" placeholder="Starter" />
+      </div>
+
+      <div class="form-group" style="width:100px;">
+        <label>价格 (CNY)</label>
+        <input id="pkgPrice" type="number" step="0.01" placeholder="49" />
+      </div>
+
+      <div class="form-group" style="width:120px;">
+        <label>计费周期</label>
+        <select id="pkgPeriod">
+          <option value="month">月付</option>
+          <option value="year">年付</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="width:120px;">
+        <label>包含 Tokens</label>
+        <input id="pkgTokens" type="number" placeholder="5000" />
+      </div>
+
+      <div class="form-group" style="flex:1;">
+        <label>功能特性 (每行一个)</label>
+        <textarea id="pkgFeatures" placeholder="功能1&#10;功能2&#10;功能3" rows="3"></textarea>
+      </div>
+
+      <div class="form-group" style="align-self: center;">
+        <label style="display:flex; align-items:center; gap:6px;">
+          <input id="pkgPopular" type="checkbox" />
+          标记为推荐
+        </label>
+      </div>
+
+      <button class="primary" style="align-self: flex-end;" onclick="createPackage()">创建套餐</button>
+    </div>
+    <div class="muted" style="margin-top:8px;">
+      💡 提示: 套餐配置保存在 console_config 表的 subscription_packages 键中，支持实时修改。
+    </div>
+  </div>
+
+  <!-- Packages Grid -->
+  <div class="card">
+    <h3>📋 当前套餐</h3>
+    <div id="packageGrid" class="package-grid" style="margin-top:16px;"></div>
+  </div>
+
+  <div class="muted" style="margin-top:16px;">
+    ℹ️ 说明: 禁用的套餐不会在前端显示，但已订阅用户不受影响。修改套餐后立即生效。
+  </div>
+</body>
+</html>

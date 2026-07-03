@@ -1,0 +1,93 @@
+# Circuit Breaker Alerts
+# 断路器状态告警规则
+
+groups:
+  - name: circuit_breaker_alerts
+    interval: 30s
+    rules:
+      # 1. 断路器打开告警 - 高优先级
+      - alert: CircuitBreakerOpen
+        expr: |
+          gm_.*_circuit_breaker_state == 2
+        for: 1m
+        labels:
+          severity: critical
+          component: circuit_breaker
+        annotations:
+          summary: "断路器已打开: {{ $labels.breaker }}"
+          description: "服务 {{ $labels.service }} 的断路器 {{ $labels.breaker }} 已打开，表示下游服务不可用"
+          action: "检查 {{ $labels.breaker }} 服务状态，查看错误日志"
+          impact: "请求将快速失败，返回降级响应"
+
+      # 2. 断路器半开状态 - 中优先级
+      - alert: CircuitBreakerHalfOpen
+        expr: |
+          gm_.*_circuit_breaker_state == 1
+        for: 2m
+        labels:
+          severity: warning
+          component: circuit_breaker
+        annotations:
+          summary: "断路器处于半开状态: {{ $labels.breaker }}"
+          description: "服务 {{ $labels.service }} 的断路器 {{ $labels.breaker }} 正在尝试恢复"
+          action: "观察断路器是否恢复到闭合状态"
+
+      # 3. 高失败率告警 - 中优先级
+      - alert: CircuitBreakerHighFailureRate
+        expr: |
+          (
+            rate(gm_.*_circuit_breaker_requests_total{result="failure"}[5m])
+            /
+            rate(gm_.*_circuit_breaker_requests_total[5m])
+          ) > 0.3
+        for: 5m
+        labels:
+          severity: warning
+          component: circuit_breaker
+        annotations:
+          summary: "断路器失败率过高: {{ $labels.breaker }}"
+          description: "服务 {{ $labels.service }} 的断路器 {{ $labels.breaker }} 失败率超过 30%"
+          action: "检查下游服务 {{ $labels.breaker }} 的健康状况"
+          failure_rate: "{{ $value | humanizePercentage }}"
+
+      # 4. 连续失败告警 - 中优先级
+      - alert: CircuitBreakerConsecutiveFailures
+        expr: |
+          gm_.*_circuit_breaker_failures_total{type="consecutive"} > 5
+        for: 2m
+        labels:
+          severity: warning
+          component: circuit_breaker
+        annotations:
+          summary: "断路器连续失败次数过多: {{ $labels.breaker }}"
+          description: "服务 {{ $labels.service }} 的断路器 {{ $labels.breaker }} 已连续失败 {{ $value }} 次"
+          action: "即将触发断路器打开，检查下游服务"
+
+      # 5. 断路器频繁切换状态 - 低优先级
+      - alert: CircuitBreakerFlapping
+        expr: |
+          changes(gm_.*_circuit_breaker_state[10m]) > 4
+        for: 5m
+        labels:
+          severity: info
+          component: circuit_breaker
+        annotations:
+          summary: "断路器状态频繁切换: {{ $labels.breaker }}"
+          description: "服务 {{ $labels.service }} 的断路器 {{ $labels.breaker }} 在10分钟内状态切换超过4次"
+          action: "下游服务可能不稳定，检查根本原因"
+          impact: "服务可用性受影响，部分请求可能失败"
+
+# 告警通知渠道配置 (需根据实际情况调整)
+# 可通过 Grafana Alertmanager 或 Cloud Monitoring 配置
+notification_config:
+  - name: critical_alerts
+    channels:
+      - slack: "#ops-critical"
+      - pagerduty: "service-key"
+  - name: warning_alerts
+    channels:
+      - slack: "#ops-warnings"
+      - email: "ops-team@gm.com"
+  - name: info_alerts
+    channels:
+      - slack: "#ops-info"

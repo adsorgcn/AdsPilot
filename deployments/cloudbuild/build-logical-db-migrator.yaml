@@ -1,0 +1,35 @@
+# Cloud Build配置 - 逻辑数据库迁移Job
+# 用途：构建并部署逻辑数据库迁移Job
+# 使用：gcloud builds submit --config=deployments/cloudbuild/build-logical-db-migrator.yaml
+
+steps:
+  # 构建镜像
+  - name: gcr.io/kaniko-project/executor:latest
+    args:
+      - --dockerfile=scripts/db/Dockerfile.logical-db-migrator
+      - --context=dir:///workspace
+      - --destination=asia-northeast1-docker.pkg.dev/${PROJECT_ID}/gm-services/logical-db-migrator:latest
+      - --cache=true
+
+  # 创建Cloud Run Job (使用||true避免重复创建失败)
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        gcloud run jobs create logical-db-migrator \
+          --image=asia-northeast1-docker.pkg.dev/${PROJECT_ID}/gm-services/logical-db-migrator:latest \
+          --region=asia-northeast1 \
+          --vpc-connector=cr-conn-default-ane1 \
+          --service-account=codex-dev@${GCP_PROJECT_ID}.iam.gserviceaccount.com \
+          --max-retries=0 \
+          --task-timeout=30m \
+          --memory=1Gi \
+          --cpu=2 \
+          || gcloud run jobs update logical-db-migrator \
+             --image=asia-northeast1-docker.pkg.dev/${PROJECT_ID}/gm-services/logical-db-migrator:latest \
+             --region=asia-northeast1
+
+timeout: 900s
+options:
+  logging: CLOUD_LOGGING_ONLY

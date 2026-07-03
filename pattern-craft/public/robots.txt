@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://patterncraft.fun
+
+# Sitemaps
+Sitemap: https://patterncraft.fun/sitemap.xml

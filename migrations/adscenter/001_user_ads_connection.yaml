@@ -1,0 +1,65 @@
+version: "001"
+service: "adscenter"
+description: "创建Google Ads连接管理表 - 用户与Google Ads账户的连接管理"
+author: "system-migration"
+created_at: "2025-01-19T12:00:00Z"
+risk_level: "medium"
+dependencies: []
+
+changes:
+  - type: "CREATE_TABLE"
+    name: "UserAdsConnection"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "UserAdsConnection" (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "userId" TEXT NOT NULL,
+        "loginCustomerId" TEXT NOT NULL,
+        "primaryCustomerId" TEXT,
+        "refreshToken" TEXT NOT NULL,
+        "scopes" TEXT,
+        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    description: "用户Google Ads连接表，存储认证信息和客户ID关系"
+
+  - type: "CREATE_INDEX"
+    name: "idx_useradsconnection_user"
+    table: "UserAdsConnection"
+    sql: |
+      CREATE INDEX IF NOT EXISTS idx_useradsconnection_user ON "UserAdsConnection"("userId");
+    description: "优化按用户ID查询Google Ads连接"
+
+rollback:
+  - type: "DROP_TABLE"
+    name: "UserAdsConnection"
+    sql: DROP TABLE IF EXISTS "UserAdsConnection";
+    description: "回滚：删除Google Ads连接表"
+
+validation:
+  - type: "table_exists"
+    name: "UserAdsConnection"
+    description: "验证UserAdsConnection表已创建"
+
+  - type: "column_exists"
+    name: "UserAdsConnection"
+    column: "id"
+    description: "验证ID字段存在且为UUID类型"
+
+  - type: "column_exists"
+    name: "UserAdsConnection"
+    column: "userId"
+    description: "验证userId字段存在"
+
+  - type: "column_exists"
+    name: "UserAdsConnection"
+    column: "loginCustomerId"
+    description: "验证loginCustomerId字段存在"
+
+  - type: "index_exists"
+    name: "idx_useradsconnection_user"
+    table: "UserAdsConnection"
+    description: "验证用户ID索引已创建"
+
+  - type: "function_exists"
+    name: "gen_random_uuid"
+    description: "验证UUID生成函数可用"

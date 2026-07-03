@@ -1,0 +1,65 @@
+name: Continuous Integration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  go-tests:
+    name: Go Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.25.1
+
+      - name: Download modules
+        run: go mod download
+
+      - name: gofmt diff check
+        run: |
+          CHANGED=$(gofmt -l $(find . -name '*.go' -not -path './vendor/*'))
+          if [ -n "${CHANGED}" ]; then
+            echo "Files not gofmt'ed:"
+            echo "${CHANGED}"
+            exit 1
+          fi
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Run Go tests per module
+        run: |
+          set -euo pipefail
+          MODULES=$(go work edit -json | jq -r '.Use[].DiskPath')
+          if [ -z "$MODULES" ]; then
+            echo "No modules discovered in go.work"
+            exit 1
+          fi
+          for mod in $MODULES; do
+            echo "Running tests for module: $mod"
+            pushd "$mod" >/dev/null
+            GOWORK=off go test ./...
+            popd >/dev/null
+          done
+          echo "All module tests passed"
+
+  secrets-scan:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

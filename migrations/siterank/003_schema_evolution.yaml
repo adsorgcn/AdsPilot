@@ -1,0 +1,164 @@
+version: "003"
+service: "siterank"
+description: "Schema演进支持 - 为现有表添加历史版本兼容字段"
+author: "system-migration"
+created_at: "2025-01-19T12:00:00Z"
+risk_level: "medium"
+dependencies:
+  - "001"
+  - "002"
+
+changes:
+  # offer_evaluations表的字段添加
+  - type: "ALTER_TABLE"
+    name: "offer_evaluations"
+    sql: |
+      ALTER TABLE "offer_evaluations" ADD COLUMN IF NOT EXISTS "url_hash" TEXT NOT NULL DEFAULT '';
+    description: "添加URL哈希字段用于快速查找和去重"
+
+  - type: "ALTER_TABLE"
+    name: "offer_evaluations"
+    sql: |
+      ALTER TABLE "offer_evaluations" ADD COLUMN IF NOT EXISTS "cache_ttl_until" TIMESTAMPTZ;
+    description: "添加缓存TTL字段用于评估结果缓存管理"
+
+  - type: "ALTER_TABLE"
+    name: "offer_evaluations"
+    sql: |
+      ALTER TABLE "offer_evaluations" ADD COLUMN IF NOT EXISTS "is_demo" BOOLEAN DEFAULT FALSE;
+    description: "添加演示数据标记字段"
+
+  # token_reservations表的字段添加
+  - type: "ALTER_TABLE"
+    name: "token_reservations"
+    sql: |
+      ALTER TABLE "token_reservations" ADD COLUMN IF NOT EXISTS "expires_at" TIMESTAMPTZ NOT NULL DEFAULT now() + interval '1 hour';
+    description: "添加过期时间字段，默认1小时后过期"
+
+  - type: "ALTER_TABLE"
+    name: "token_reservations"
+    sql: |
+      ALTER TABLE "token_reservations" ADD COLUMN IF NOT EXISTS "confirmed_at" TIMESTAMPTZ;
+    description: "添加确认时间字段，记录代币实际使用时间"
+
+  - type: "ALTER_TABLE"
+    name: "token_reservations"
+    sql: |
+      ALTER TABLE "token_reservations" ADD COLUMN IF NOT EXISTS "refunded_at" TIMESTAMPTZ;
+    description: "添加退款时间字段，记录代币退款时间"
+
+  - type: "ALTER_TABLE"
+    name: "token_reservations"
+    sql: |
+      ALTER TABLE "token_reservations" ADD COLUMN IF NOT EXISTS "is_demo" BOOLEAN DEFAULT FALSE;
+    description: "添加演示数据标记字段"
+
+  # 为新增字段创建相应的索引
+  - type: "CREATE_INDEX"
+    name: "idx_offer_evaluations_user_demo"
+    table: "offer_evaluations"
+    sql: |
+      CREATE INDEX IF NOT EXISTS "idx_offer_evaluations_user_demo" ON "offer_evaluations"("user_id", "is_demo");
+    description: "为演示数据查询创建复合索引"
+
+rollback:
+  - type: "DROP_COLUMN"
+    name: "offer_evaluations"
+    column: "url_hash"
+    sql: |
+      ALTER TABLE "offer_evaluations" DROP COLUMN IF EXISTS "url_hash";
+    description: "回滚：删除URL哈希字段"
+
+  - type: "DROP_COLUMN"
+    name: "offer_evaluations"
+    column: "cache_ttl_until"
+    sql: |
+      ALTER TABLE "offer_evaluations" DROP COLUMN IF EXISTS "cache_ttl_until";
+    description: "回滚：删除缓存TTL字段"
+
+  - type: "DROP_COLUMN"
+    name: "offer_evaluations"
+    column: "is_demo"
+    sql: |
+      ALTER TABLE "offer_evaluations" DROP COLUMN IF EXISTS "is_demo";
+    description: "回滚：删除演示数据标记字段"
+
+  - type: "DROP_COLUMN"
+    name: "token_reservations"
+    column: "expires_at"
+    sql: |
+      ALTER TABLE "token_reservations" DROP COLUMN IF EXISTS "expires_at";
+    description: "回滚：删除过期时间字段"
+
+  - type: "DROP_COLUMN"
+    name: "token_reservations"
+    column: "confirmed_at"
+    sql: |
+      ALTER TABLE "token_reservations" DROP COLUMN IF EXISTS "confirmed_at";
+    description: "回滚：删除确认时间字段"
+
+  - type: "DROP_COLUMN"
+    name: "token_reservations"
+    column: "refunded_at"
+    sql: |
+      ALTER TABLE "token_reservations" DROP COLUMN IF EXISTS "refunded_at";
+    description: "回滚：删除退款时间字段"
+
+  - type: "DROP_COLUMN"
+    name: "token_reservations"
+    column: "is_demo"
+    sql: |
+      ALTER TABLE "token_reservations" DROP COLUMN IF EXISTS "is_demo";
+    description: "回滚：删除演示数据标记字段"
+
+  - type: "DROP_INDEX"
+    name: "idx_offer_evaluations_user_demo"
+    sql: DROP INDEX IF EXISTS "idx_offer_evaluations_user_demo";
+    description: "回滚：删除演示数据复合索引"
+
+validation:
+  - type: "column_exists"
+    name: "offer_evaluations"
+    column: "url_hash"
+    description: "验证url_hash字段已添加"
+
+  - type: "column_exists"
+    name: "offer_evaluations"
+    column: "cache_ttl_until"
+    description: "验证cache_ttl_until字段已添加"
+
+  - type: "column_exists"
+    name: "offer_evaluations"
+    column: "is_demo"
+    description: "验证is_demo字段已添加"
+
+  - type: "column_exists"
+    name: "token_reservations"
+    column: "expires_at"
+    description: "验证expires_at字段已添加"
+
+  - type: "column_exists"
+    name: "token_reservations"
+    column: "confirmed_at"
+    description: "验证confirmed_at字段已添加"
+
+  - type: "column_exists"
+    name: "token_reservations"
+    column: "refunded_at"
+    description: "验证refunded_at字段已添加"
+
+  - type: "column_exists"
+    name: "token_reservations"
+    column: "is_demo"
+    description: "验证is_demo字段已添加"
+
+  - type: "index_exists"
+    name: "idx_offer_evaluations_user_demo"
+    table: "offer_evaluations"
+    description: "验证演示数据复合索引已创建"
+
+  - type: "default_value_check"
+    name: "token_reservations"
+    column: "expires_at"
+    expected_default: "now() + interval '1 hour'"
+    description: "验证expires_at字段默认值正确"

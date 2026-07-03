@@ -1,0 +1,13 @@
+{
+  "projects": {
+    "default": "${GCP_PROJECT_ID}"
+  },
+  "targets": {
+    "${GCP_PROJECT_ID}": {
+      "hosting": {
+        "frontend-preview": ["gm-preview"],
+        "frontend-prod": ["gm-prod"]
+      }
+    }
+  }
+}

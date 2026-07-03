@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>告警规则管理</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, PingFang SC, Noto Sans, sans-serif; margin: 20px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #e5e7eb; padding: 8px; font-size: 13px; }
+    th { background: #f3f4f6; text-align: left; }
+    .row { display: flex; gap: 8px; margin-bottom: 8px; }
+    input, select { padding: 6px; font-size: 13px; }
+    button { padding: 6px 10px; font-size: 13px; cursor: pointer; }
+  </style>
+  <script>
+    async function fetchJSON(url, opt){ const r = await fetch(url, opt||{}); if(!r.ok) throw new Error(r.status); return r.json(); }
+    async function load(){
+      const params = new URLSearchParams(location.search);
+      const svc = params.get('service')||'';
+      const metric = params.get('metric')||'';
+      const url = `/api/v1/console/notifications/rules?service=${encodeURIComponent(svc)}&metric=${encodeURIComponent(metric)}`;
+      const data = await fetchJSON(url);
+      const tbody = document.querySelector('#list');
+      tbody.innerHTML = '';
+      for(const it of (data.items||[])){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${it.id}</td><td>${it.scope||''}</td><td>${it.userId||''}</td><td>${it.service}</td><td>${it.metric}</td><td>${it.comparator}</td><td>${it.threshold}</td><td>${it.windowSec}s</td><td>${it.enabled? '启用':'停用'}</td><td><code>${it.params||'{}'}</code></td><td>${it.createdAt}</td><td>${it.updatedAt}</td><td><button onclick="del(${it.id})">删除</button></td>`;
+        tbody.appendChild(tr);
+      }
+    }
+    async function createRule(){
+      const body = {
+        scope: document.querySelector('#scope').value,
+        userID: document.querySelector('#user').value,
+        service: document.querySelector('#service').value,
+        metric: document.querySelector('#metric').value,
+        comparator: document.querySelector('#cmp').value,
+        threshold: Number(document.querySelector('#th').value||0),
+        windowSec: Number(document.querySelector('#win').value||300),
+        enabled: document.querySelector('#en').checked,
+        params: JSON.parse(document.querySelector('#params').value||'{}')
+      };
+      await fetchJSON('/api/v1/console/notifications/rules', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(body) });
+      await load();
+    }
+    async function del(id){ if(!confirm('确认删除规则 '+id+' ?')) return; await fetch(`/api/v1/console/notifications/rules/${id}`, { method:'DELETE' }); await load(); }
+    window.addEventListener('DOMContentLoaded', load);
+  </script>
+</head>
+<body>
+  <h2>告警规则管理</h2>
+  <div class="row">
+    <select id="scope"><option value="system">system</option><option value="user">user</option></select>
+    <input id="user" placeholder="userId (scope=user)" />
+    <input id="service" placeholder="service (e.g., adscenter)" />
+    <input id="metric" placeholder="metric (e.g., p95_latency_ms)" />
+    <select id="cmp"><option>gt</option><option>lt</option><option>ge</option><option>le</option><option>eq</option><option>ne</option></select>
+    <input id="th" placeholder="threshold" type="number" step="any" />
+    <input id="win" placeholder="windowSec" type="number" value="300" />
+    <label><input id="en" type="checkbox" checked /> 启用</label>
+  </div>
+  <div class="row">
+    <input id="params" placeholder='params JSON (如 {"path":"/api/..."})' style="width: 60%" />
+    <button onclick="createRule()">新建规则</button>
+    <button onclick="load()">刷新列表</button>
+  </div>
+  <table>
+    <thead>
+      <tr><th>ID</th><th>scope</th><th>user</th><th>service</th><th>metric</th><th>cmp</th><th>阈值</th><th>窗口</th><th>状态</th><th>params</th><th>创建</th><th>更新</th><th>操作</th></tr>
+    </thead>
+    <tbody id="list"></tbody>
+  </table>
+  <p style="color:#6b7280; font-size:12px; margin-top:10px;">需管理员权限；API 由 /api/v1/console/notifications/rules 提供。</p>
+</body>
+</html>
+

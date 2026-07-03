@@ -1,0 +1,56 @@
+steps:
+  # Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'asia-northeast1-docker.pkg.dev/$PROJECT_ID/gm/bff:$COMMIT_SHA'
+      - '-t'
+      - 'asia-northeast1-docker.pkg.dev/$PROJECT_ID/gm/bff:latest'
+      - '-f'
+      - 'services/bff/Dockerfile'
+      - '.'
+    id: 'build-image'
+
+  # Push Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'asia-northeast1-docker.pkg.dev/$PROJECT_ID/gm/bff:$COMMIT_SHA'
+    id: 'push-image'
+
+  # Push latest tag
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'asia-northeast1-docker.pkg.dev/$PROJECT_ID/gm/bff:latest'
+    id: 'push-latest'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'bff'
+      - '--image=asia-northeast1-docker.pkg.dev/$PROJECT_ID/gm/bff:$COMMIT_SHA'
+      - '--region=asia-northeast1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--service-account=codex-dev@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--vpc-connector=cr-conn-default-ane1'
+      - '--set-env-vars=REDIS_URL=10.0.0.3:6379'
+      - '--set-env-vars=OFFER_SERVICE_URL=http://offer:8080'
+      - '--set-env-vars=SITERANK_SERVICE_URL=http://siterank:8080'
+      - '--set-env-vars=BILLING_SERVICE_URL=http://billing:8080'
+      - '--set-env-vars=ADSCENTER_SERVICE_URL=http://adscenter:8080'
+      - '--set-env-vars=USERACTIVITY_SERVICE_URL=http://useractivity:8080'
+    id: 'deploy-cloud-run'
+
+images:
+  - 'asia-northeast1-docker.pkg.dev/$PROJECT_ID/gm/bff:$COMMIT_SHA'
+  - 'asia-northeast1-docker.pkg.dev/$PROJECT_ID/gm/bff:latest'
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY

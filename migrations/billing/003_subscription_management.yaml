@@ -1,0 +1,154 @@
+# 订阅管理系统增强
+# 合并订阅相关的迁移文件
+
+version: "003"
+service: "billing"
+description: "增强订阅管理系统，包括配置表、试用订阅和待处理订阅"
+
+up: |
+  -- 创建订阅计划配置表
+  CREATE TABLE IF NOT EXISTS subscription_plan_configs (
+      id TEXT PRIMARY KEY,
+      tier TEXT NOT NULL, -- 'starter', 'professional', 'enterprise'
+      plan_name TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      description TEXT,
+      monthly_price INTEGER NOT NULL DEFAULT 0,
+      yearly_price INTEGER NOT NULL DEFAULT 0,
+      token_allowance INTEGER NOT NULL DEFAULT 0,
+      features JSONB NOT NULL DEFAULT '{}',
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_by TEXT
+  );
+
+  -- 创建订阅权限表
+  CREATE TABLE IF NOT EXISTS subscription_permissions (
+      id TEXT PRIMARY KEY,
+      category TEXT NOT NULL, -- 'offers', 'analytics', 'api', 'features'
+      feature TEXT NOT NULL,
+      allowed_tiers TEXT[] NOT NULL, -- 允许的订阅层级
+      description TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  -- 创建订阅Token费用表
+  CREATE TABLE IF NOT EXISTS subscription_token_costs (
+      id TEXT PRIMARY KEY,
+      category TEXT NOT NULL, -- 'offers', 'analysis', 'export', 'api'
+      action TEXT NOT NULL, -- 'create', 'analyze', 'export', 'call'
+      cost_per_unit INTEGER NOT NULL DEFAULT 1,
+      unit_type TEXT NOT NULL DEFAULT 'operation', -- 'operation', 'item', 'kb', 'request'
+      description TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  -- 创建订阅定价表
+  CREATE TABLE IF NOT EXISTS subscription_pricing (
+      id TEXT PRIMARY KEY,
+      plan TEXT NOT NULL, -- 'starter', 'professional', 'enterprise'
+      currency TEXT NOT NULL DEFAULT 'USD',
+      monthly_price INTEGER NOT NULL,
+      yearly_price INTEGER NOT NULL,
+      token_allowance INTEGER NOT NULL,
+      overage_price_per_token INTEGER NOT NULL DEFAULT 1,
+      is_recommended BOOLEAN NOT NULL DEFAULT false,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  -- 创建订阅配置历史表
+  CREATE TABLE IF NOT EXISTS subscription_config_history (
+      id BIGSERIAL PRIMARY KEY,
+      config_type TEXT NOT NULL, -- 'plan_config', 'permission', 'pricing', 'token_cost'
+      config_id TEXT NOT NULL,
+      changed_by TEXT,
+      old_data JSONB,
+      new_data JSONB,
+      changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  -- 添加试用相关字段到订阅表
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS trial_plan TEXT;
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS trial_token_allowance INTEGER DEFAULT 0;
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS converted_from_trial TEXT;
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS auto_renew BOOLEAN DEFAULT true;
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+  ALTER TABLE "Subscription" ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;
+
+  -- 创建待处理订阅表
+  CREATE TABLE IF NOT EXISTS "PendingSubscription" (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      plan_name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'processing', 'completed', 'failed'
+      payment_method TEXT,
+      payment_id TEXT,
+      amount INTEGER NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'USD',
+      billing_cycle TEXT NOT NULL DEFAULT 'monthly', -- 'monthly', 'yearly'
+      trial_days INTEGER DEFAULT 0,
+      activation_check TIMESTAMPTZ,
+      blocking_reason TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      FOREIGN KEY (user_id) REFERENCES "User"(id) ON DELETE CASCADE
+  );
+
+  -- 创建索引
+  CREATE INDEX IF NOT EXISTS idx_plan_tier_active ON subscription_plan_configs(tier) WHERE is_active = true;
+  CREATE INDEX IF NOT EXISTS idx_plan_display_order ON subscription_plan_configs(display_order) WHERE is_active = true;
+  CREATE INDEX IF NOT EXISTS idx_permissions_category ON subscription_permissions(category);
+  CREATE INDEX IF NOT EXISTS idx_permissions_feature ON subscription_permissions(feature);
+  CREATE INDEX IF NOT EXISTS idx_token_costs_category ON subscription_token_costs(category);
+  CREATE INDEX IF NOT EXISTS idx_token_costs_action ON subscription_token_costs(action);
+  CREATE INDEX IF NOT EXISTS idx_pricing_plan ON subscription_pricing(plan);
+  CREATE INDEX IF NOT EXISTS idx_pricing_recommended ON subscription_pricing(recommended);
+  CREATE INDEX IF NOT EXISTS idx_config_history_type ON subscription_config_history(config_type, changed_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_config_history_config_id ON subscription_config_history(config_id, changed_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_config_history_admin ON subscription_config_history(changed_by, changed_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_pending_subscriptions_activation_check ON "PendingSubscription"(activation_check);
+  CREATE INDEX IF NOT EXISTS idx_pending_subscriptions_blocking ON "PendingSubscription"(blocking_reason);
+  CREATE INDEX IF NOT EXISTS idx_pending_subscriptions_status ON "PendingSubscription"(status);
+  CREATE INDEX IF NOT EXISTS idx_pending_subscriptions_user_id ON "PendingSubscription"(user_id);
+
+down: |
+  -- 删除新增的索引
+  DROP INDEX IF EXISTS idx_pending_subscriptions_user_id;
+  DROP INDEX IF EXISTS idx_pending_subscriptions_status;
+  DROP INDEX IF EXISTS idx_pending_subscriptions_blocking;
+  DROP INDEX IF EXISTS idx_pending_subscriptions_activation_check;
+  DROP INDEX IF EXISTS idx_config_history_admin;
+  DROP INDEX IF EXISTS idx_config_history_config_id;
+  DROP INDEX IF EXISTS idx_config_history_type;
+  DROP INDEX IF EXISTS idx_pricing_recommended;
+  DROP INDEX IF EXISTS idx_pricing_plan;
+  DROP INDEX IF EXISTS idx_token_costs_action;
+  DROP INDEX IF EXISTS idx_token_costs_category;
+  DROP INDEX IF EXISTS idx_permissions_feature;
+  DROP INDEX IF EXISTS idx_permissions_category;
+  DROP INDEX IF EXISTS idx_plan_display_order;
+  DROP INDEX IF EXISTS idx_plan_tier_active;
+
+  -- 删除新增的表
+  DROP TABLE IF EXISTS "PendingSubscription";
+  DROP TABLE IF EXISTS subscription_config_history;
+  DROP TABLE IF EXISTS subscription_pricing;
+  DROP TABLE IF EXISTS subscription_token_costs;
+  DROP TABLE IF EXISTS subscription_permissions;
+  DROP TABLE IF EXISTS subscription_plan_configs;
+
+  -- 删除新增的字段
+  ALTER TABLE "Subscription" DROP COLUMN IF EXISTS cancellation_reason;
+  ALTER TABLE "Subscription" DROP COLUMN IF EXISTS cancelled_at;
+  ALTER TABLE "Subscription" DROP COLUMN IF EXISTS auto_renew;
+  ALTER TABLE "Subscription" DROP COLUMN IF EXISTS converted_from_trial;
+  ALTER TABLE "Subscription" DROP COLUMN IF EXISTS trial_token_allowance;
+  ALTER TABLE "Subscription" DROP COLUMN IF EXISTS trial_plan;
+
+dependencies: ["002"]

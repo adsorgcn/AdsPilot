@@ -1,0 +1,15 @@
+{
+  "setupOrganization": "设置组织",
+  "setupOrganizationDescription": "欢迎！首先，让我们设置您的组织。",
+  "organizationNameLabel": "组织名称",
+  "errorAlertHeading": "完成入职流程时出错。",
+  "inviteMembers": "邀请成员",
+  "inviteMembersDescription": "邀请您的团队成员加入组织。",
+  "info": "详情",
+  "invites": "邀请",
+  "complete": "完成",
+  "successStepHeading": "一切就绪！您现在可以开始使用应用了。",
+  "continue": "继续到仪表盘",
+  "settingAccount": "我们正在设置您的账号。请稍候...",
+  "organizationNamePlaceholder": "例如：Acme Inc."
+}

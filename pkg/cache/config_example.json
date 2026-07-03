@@ -1,0 +1,89 @@
+{
+  "redis": {
+    "addresses": ["localhost:6379"],
+    "password": "",
+    "database": 0,
+    "max_retries": 3,
+    "pool_size": 10,
+    "dial_timeout": 5,
+    "read_timeout": 3,
+    "write_timeout": 3,
+    "idle_timeout": 300,
+    "pool_timeout": 30,
+    "max_conn_age": 1440
+  },
+  "default_ttl": "1h",
+  "max_memory": 1073741824,
+  "eviction_policy": "allkeys-lru",
+  "compression": false,
+  "encryption": false,
+  "metrics": {
+    "enabled": true,
+    "interval": "5m",
+    "retention": "24h",
+    "export_format": "json",
+    "export_targets": ["prometheus", "grafana"]
+  },
+  "domains": {
+    "user": {
+      "name": "user",
+      "ttl": "30m",
+      "max_keys": 10000,
+      "priority": 1,
+      "preload": [
+        "profile:admin",
+        "permissions:admin"
+      ],
+      "hot_key_boost": 1.5,
+      "cold_key_penalty": 0.5
+    },
+    "billing": {
+      "name": "billing",
+      "ttl": "5m",
+      "max_keys": 5000,
+      "priority": 2,
+      "preload": [],
+      "hot_key_boost": 2.0,
+      "cold_key_penalty": 0.3
+    },
+    "offer": {
+      "name": "offer",
+      "ttl": "10m",
+      "max_keys": 15000,
+      "priority": 3,
+      "preload": [],
+      "hot_key_boost": 1.2,
+      "cold_key_penalty": 0.7
+    },
+    "ads": {
+      "name": "ads",
+      "ttl": "1h",
+      "max_keys": 20000,
+      "priority": 4,
+      "preload": [],
+      "hot_key_boost": 1.0,
+      "cold_key_penalty": 0.8
+    },
+    "activity": {
+      "name": "activity",
+      "ttl": "1m",
+      "max_keys": 8000,
+      "priority": 2,
+      "preload": [],
+      "hot_key_boost": 1.8,
+      "cold_key_penalty": 0.4
+    },
+    "admin": {
+      "name": "admin",
+      "ttl": "15m",
+      "max_keys": 1000,
+      "priority": 5,
+      "preload": [
+        "config:system",
+        "metrics:overview"
+      ],
+      "hot_key_boost": 1.3,
+      "cold_key_penalty": 0.6
+    }
+  }
+}

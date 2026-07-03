@@ -1,0 +1,28 @@
+{
+  "title": "Contact our team",
+  "intro": "Whether you need a product walkthrough, partnership discussion, or technical support, we are here to help within one business day.",
+  "sections": {
+    "sales": {
+      "title": "Sales & partnerships",
+      "description": {
+        "prefix": "For commercial cooperation, channel partnerships or custom requirements, reach out at ",
+        "suffix": "."
+      }
+    },
+    "product": {
+      "title": "Product enquiries",
+      "description": "Book a demo or connect with our consultants:",
+      "items": {
+        "demo": "Request a demo",
+        "wechat": "WeChat concierge: search “Google-Monetize Growth Consultant”"
+      }
+    },
+    "support": {
+      "title": "Technical support",
+      "description": {
+        "prefix": "Submit a ticket or email ",
+        "suffix": "with your organisation ID and a short description."
+      }
+    }
+  }
+}

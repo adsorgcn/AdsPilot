@@ -1,0 +1,89 @@
+{
+  "commandPalette": {
+    "buttonLabel": "快速导航",
+    "dialogTitle": "搜索设置",
+    "dialogDescription": "输入关键词，快速跳转至目标设置页面。",
+    "inputPlaceholder": "搜索：Token、订阅、MFA...",
+    "empty": "未找到匹配的设置项，换个关键字试试。",
+    "items": {
+      "profile": {
+        "title": "个人资料",
+        "description": "更新头像、昵称与基本信息",
+        "keywords": ["profile", "资料", "昵称", "头像"]
+      },
+      "authentication": {
+        "title": "账号安全 · 多因素认证",
+        "description": "配置 MFA 与安全验证因子",
+        "keywords": ["mfa", "安全", "authentication", "二次验证"]
+      },
+      "email": {
+        "title": "邮箱设置",
+        "description": "修改登录邮箱并接收验证邮件",
+        "keywords": ["邮箱", "email"]
+      },
+      "password": {
+        "title": "密码管理",
+        "description": "更新登录密码，保持账号安全",
+        "keywords": ["password", "密码"]
+      },
+      "tokens": {
+        "title": "Token 使用 & 智能提醒",
+        "description": "查看余额、续费预测与使用趋势",
+        "keywords": ["token", "余额", "续费", "消耗"]
+      },
+      "subscription": {
+        "title": "订阅与账单",
+        "description": "升级套餐、管理账单与开票信息",
+        "keywords": ["订阅", "账单", "subscription", "plan"]
+      },
+      "checkin": {
+        "title": "每日签到",
+        "description": "签到领取代币，保持连续签到",
+        "keywords": ["签到", "checkin", "代币", "奖励"]
+      },
+      "referral": {
+        "title": "邀请计划",
+        "description": "邀请好友获取试用期和奖励",
+        "keywords": ["邀请", "referral", "推荐", "奖励"]
+      },
+      "dashboard": {
+        "title": "返回仪表盘",
+        "description": "回到产品概览与核心功能",
+        "keywords": ["dashboard", "仪表盘", "home"]
+      }
+    }
+  },
+  "title": "设置",
+  "description": "管理您的账号设置和偏好",
+  "loading": "加载设置中...",
+  "profile": {
+    "title": "个人信息",
+    "email": "邮箱",
+    "name": "姓名",
+    "subscription": "订阅套餐",
+    "tokens": "代币余额"
+  },
+  "subscription": {
+    "title": "订阅管理",
+    "description": "管理您的订阅套餐和账单",
+    "manage": "管理订阅"
+  },
+  "checkin": {
+    "title": "每日签到",
+    "streak": "连续签到",
+    "totalTokens": "累计获得",
+    "completed": "今日已签到",
+    "checkin": "立即签到"
+  },
+  "referral": {
+    "title": "邀请计划",
+    "totalReferrals": "邀请人数",
+    "rewards": "获得奖励",
+    "invite": "邀请好友"
+  },
+  "admin": {
+    "title": "管理后台",
+    "description": "管理用户、订阅和系统设置",
+    "manage": "打开管理后台"
+  }
+}

@@ -1,0 +1,95 @@
+# 性能优化和事件处理
+# 合并性能优化和事件处理相关的迁移
+
+version: "004"
+service: "billing"
+description: "数据库性能优化和事件处理系统"
+
+up: |
+  -- 创建已处理事件表
+  CREATE TABLE IF NOT EXISTS processed_events (
+      id TEXT PRIMARY KEY,
+      event_type TEXT NOT NULL,
+      event_id TEXT NOT NULL,
+      processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      service TEXT,
+      UNIQUE(event_type, event_id)
+  );
+
+  -- 性能优化索引 - Offer相关
+  CREATE INDEX IF NOT EXISTS idx_offer_user_status ON offers(user_id, status) WHERE status IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_offer_created_at ON offers(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_offer_user_created ON offers(user_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_offer_is_demo ON offers(is_demo) WHERE is_demo = true;
+
+  -- 性能优化索引 - TokenTransaction相关
+  CREATE INDEX IF NOT EXISTS idx_token_tx_user_created ON "TokenTransaction"(user_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_token_tx_amount ON "TokenTransaction"(amount) WHERE amount < 0;
+  CREATE INDEX IF NOT EXISTS idx_token_tx_refund ON "TokenTransaction"(type, source) WHERE type = 'refund';
+
+  -- 性能优化索引 - Subscription相关
+  CREATE INDEX IF NOT EXISTS idx_subscription_user_status ON "Subscription"(user_id, status);
+  CREATE INDEX IF NOT EXISTS idx_subscription_trial_end ON "Subscription"(trial_ends_at) WHERE trial_ends_at IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_subscription_cancelled ON "Subscription"(cancelled_at DESC) WHERE cancelled_at IS NOT NULL;
+
+  -- Token相关复合索引
+  CREATE INDEX IF NOT EXISTS idx_token_user_balance ON "UserToken"(user_id, token_balance);
+  CREATE INDEX IF NOT EXISTS idx_token_pool_available ON "UserTokenPool"(user_id, available_tokens) WHERE available_tokens > 0;
+
+  -- 审计相关索引
+  CREATE INDEX IF NOT EXISTS idx_repair_audit_user ON "TokenRepairAudit"(user_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_repair_audit_admin ON "TokenRepairAudit"(created_by, created_at DESC);
+
+  -- 事件处理索引
+  CREATE INDEX IF NOT EXISTS idx_processed_events_type ON processed_events(event_type, processed_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_processed_events_service ON processed_events(service, processed_at DESC);
+
+  -- 统计更新视图（可选）
+  CREATE OR REPLACE VIEW user_token_summary AS
+  SELECT
+      u.id as user_id,
+      u.email,
+      COALESCE(ut.token_balance, 0) as current_balance,
+      COALESCE(pool_sum.available_total, 0) as pool_balance,
+      COUNT(CASE WHEN tt.amount < 0 THEN 1 END) as debit_count,
+      COUNT(CASE WHEN tt.amount > 0 THEN 1 END) as credit_count,
+      COALESCE(s.plan_name, 'none') as current_plan,
+      s.status as subscription_status
+  FROM "User" u
+  LEFT JOIN "UserToken" ut ON u.id = ut.user_id
+  LEFT JOIN (
+      SELECT user_id, SUM(available_tokens) as available_total
+      FROM "UserTokenPool"
+      WHERE expires_at IS NULL OR expires_at > NOW()
+      GROUP BY user_id
+  ) pool_sum ON u.id = pool_sum.user_id
+  LEFT JOIN "TokenTransaction" tt ON u.id = tt.user_id
+  LEFT JOIN "Subscription" s ON u.id = s.user_id AND s.status = 'active'
+  GROUP BY u.id, u.email, ut.token_balance, pool_sum.available_total, s.plan_name, s.status;
+
+down: |
+  -- 删除视图
+  DROP VIEW IF EXISTS user_token_summary;
+
+  -- 删除新增的索引
+  DROP INDEX IF EXISTS idx_repair_audit_admin;
+  DROP INDEX IF EXISTS idx_repair_audit_user;
+  DROP INDEX IF EXISTS idx_token_pool_available;
+  DROP INDEX IF EXISTS idx_token_user_balance;
+  DROP INDEX IF EXISTS idx_subscription_cancelled;
+  DROP INDEX IF EXISTS idx_subscription_trial_end;
+  DROP INDEX IF EXISTS idx_subscription_user_status;
+  DROP INDEX IF EXISTS idx_token_tx_refund;
+  DROP INDEX IF EXISTS idx_token_tx_amount;
+  DROP INDEX IF EXISTS idx_token_tx_user_created;
+  DROP INDEX IF EXISTS idx_offer_is_demo;
+  DROP INDEX IF EXISTS idx_offer_user_created;
+  DROP INDEX IF EXISTS idx_offer_created_at;
+  DROP INDEX IF EXISTS idx_offer_user_status;
+  DROP INDEX IF EXISTS idx_processed_events_service;
+  DROP INDEX IF EXISTS idx_processed_events_type;
+
+  -- 删除已处理事件表
+  DROP TABLE IF EXISTS processed_events;
+
+dependencies: ["003"]

@@ -1,0 +1,221 @@
+version: '3.8'
+
+services:
+  # Frontend Service
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_SUPABASE_URL=http://supabase:32121
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - NEXT_PUBLIC_API_URL=http://api:8080
+    volumes:
+      - ./apps/frontend:/app
+      - /app/node_modules
+    networks:
+      - local-testing
+    depends_on:
+      - api
+      - supabase
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./services/gateway-middleware
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - CONFIG_PATH=/app/config
+      - LOG_LEVEL=debug
+    networks:
+      - local-testing
+    depends_on:
+      - redis
+
+  # Backend Services
+  billing:
+    build:
+      context: ./services/billing
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/gm_local
+      - REDIS_URL=redis://redis:6379
+      - PORT=8081
+    networks:
+      - local-testing
+    depends_on:
+      - postgres
+      - redis
+
+  offer:
+    build:
+      context: ./services/offer
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/gm_local
+      - PORT=8082
+    networks:
+      - local-testing
+    depends_on:
+      - postgres
+
+  siterank:
+    build:
+      context: ./services/siterank
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/gm_local
+      - PORT=8083
+      - SIMILARWEB_API_KEY=your-test-key
+      - GEMINI_API_KEY=your-test-key
+    networks:
+      - local-testing
+    depends_on:
+      - postgres
+
+  useractivity:
+    build:
+      context: ./services/useractivity
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/gm_local
+      - PORT=8084
+    networks:
+      - local-testing
+    depends_on:
+      - postgres
+
+  console:
+    build:
+      context: ./services/console
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/gm_local
+      - PORT=8085
+    networks:
+      - local-testing
+    depends_on:
+      - postgres
+
+  bff:
+    build:
+      context: ./services/bff
+      dockerfile: Dockerfile
+    environment:
+      - OFFER_SERVICE_URL=http://offer:8082
+      - SITERANK_SERVICE_URL=http://siterank:8083
+      - BILLING_SERVICE_URL=http://billing:8081
+      - USERACTIVITY_SERVICE_URL=http://useractivity:8084
+      - REDIS_URL=redis://redis:6379
+      - PORT=8086
+    networks:
+      - local-testing
+    depends_on:
+      - offer
+      - siterank
+      - billing
+      - useractivity
+      - redis
+
+  adscenter:
+    build:
+      context: ./services/adscenter
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/gm_local
+      - PORT=8087
+    networks:
+      - local-testing
+    depends_on:
+      - postgres
+
+  # Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=gm_local
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/local-db-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - local-testing
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - local-testing
+
+  # Supabase Local
+  supabase:
+    image: supabase/cli:latest
+    command: start --db.port 32121 --studio.port 32122
+    ports:
+      - "32121:32121"  # Database
+      - "32122:32122"  # Studio
+    environment:
+      - SUPABASE_DB_PASSWORD=password
+      - SUPABASE_DB_URL=postgresql://postgres:password@postgres:5432/postgres
+    volumes:
+      - supabase_data:/var/lib/supabase
+    networks:
+      - local-testing
+    depends_on:
+      - postgres
+
+  # Nginx Reverse Proxy (for domain mapping)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/local-testing.conf:/etc/nginx/nginx.conf
+      - ./docker/certs:/etc/nginx/certs
+    networks:
+      - local-testing
+    depends_on:
+      - frontend
+      - api-gateway
+
+  # Local Testing Tools
+  test-runner:
+    build:
+      context: .
+      dockerfile: docker/test-runner.Dockerfile
+    environment:
+      - PREVIEW_BASE=http://www.urlchecker.dev
+      - API_BASE_URL=http://api.urlchecker.dev
+      - HEADLESS=false
+    volumes:
+      - ./scripts/tests:/app/tests
+      - ./test-results:/app/results
+    networks:
+      - local-testing
+    depends_on:
+      - nginx
+      - frontend
+      - api-gateway
+
+volumes:
+  postgres_data:
+  redis_data:
+  supabase_data:
+
+networks:
+  local-testing:
+    driver: bridge

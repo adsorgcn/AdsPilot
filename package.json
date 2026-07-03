@@ -1,0 +1,76 @@
+{
+  "name": "google-monetize",
+  "version": "3.0.0",
+  "description": "Google-Monetize SaaS Platform - Go Backend + Next.js Frontend",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm:dev:services\" \"npm:dev:frontend\"",
+    "dev:frontend": "cd apps/frontend && npm run dev",
+    "dev:services": "concurrently \"go run services/billing/main.go\" \"go run services/offer/main.go\" \"go run services/siterank/main.go\" \"go run services/batchopen/main.go\" \"go run services/adscenter/main.go\" \"go run services/console/main.go\"",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "npm run test:frontend",
+    "test:frontend": "cd apps/frontend && npm test",
+    "test:backend": "cd services && go test ./...",
+    "docker:build": "docker build -f configs/docker/Dockerfile.monorepo -t gm:latest .",
+    "docker:dev": "docker-compose up -d",
+    "docker:prod": "docker-compose -f deployments/docker-compose/docker-compose.prod.yml up -d",
+    "deploy:preview": "./deployments/scripts/deploy.sh preview",
+    "deploy:production": "./deployments/scripts/deploy.sh production",
+    "health:check": "./deployments/scripts/health-check.sh",
+    "test:firebase:admin": "node scripts/tests/admin-sdk-smoke.mjs",
+    "clean": "rm -rf apps/frontend/.next apps/frontend/node_modules",
+    "setup": "npm install",
+    "prepare": "bash scripts/security/enable-hooks.sh || true",
+    "security:scan": "bash scripts/security/scan-secrets.sh scan-tree"
+  },
+  "devDependencies": {
+    "chrome-devtools-mcp": "^0.4.0",
+    "concurrently": "8.2.2",
+    "playwright": "^1.55.1",
+    "puppeteer": "^22.13.1",
+    "turbo": "^2.0.9"
+  },
+  "overrides": {
+    "chrome-devtools-mcp": {
+      "debug": "4.3.4",
+      "puppeteer-core": "24.3.0"
+    },
+    "debug": "4.3.4"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ScientificInternet/Google-Monetize.git"
+  },
+  "keywords": [
+    "saas",
+    "go",
+    "nextjs",
+    "docker",
+    "gm"
+  ],
+  "author": "Google-Monetize Team",
+  "license": "MIT",
+  "packageManager": "npm@10.8.2",
+  "dependencies": {
+    "@playwright/test": "^1.55.1",
+    "@supabase/supabase-js": "^2.58.0",
+    "dotenv": "^17.2.3",
+    "gray-matter": "^4.0.3",
+    "react-markdown": "^10.1.0",
+    "rehype-raw": "^7.0.0",
+    "rehype-sanitize": "^6.0.0",
+    "remark-gfm": "^4.0.1",
+    "tailwindcss": "^3.4.10"
+  }
+}

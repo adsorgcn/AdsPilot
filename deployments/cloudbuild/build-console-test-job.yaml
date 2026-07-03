@@ -1,0 +1,43 @@
+# Cloud Build configuration for Console Service Integration Test Job
+# This builds a test image that runs Cloud SQL integration tests in Cloud Run Job environment
+# Using optimized tarball strategy from monorepo-build-best-practices.md
+
+steps:
+  # Step 1: Extract tarball (uploaded from GitHub Actions)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Extracting source tarball..."
+        tar -xzf /workspace/source.tar.gz -C /workspace
+        ls -lah /workspace
+    id: 'extract-tarball'
+
+  # Step 2: Build test Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '${_IMAGE}'
+      - '-f'
+      - 'services/console/test/Dockerfile.test'
+      - '.'
+    id: 'build-test-image'
+
+  # Step 3: Push image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '${_IMAGE}'
+    id: 'push-test-image'
+
+substitutions:
+  _IMAGE: 'asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/console-integration-tests:latest'
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+  logStreamingOption: STREAM_ON
+
+timeout: 1800s

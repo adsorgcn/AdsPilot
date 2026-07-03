@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Token 余额管理</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; margin: 20px; background: #f9fafb; }
+    h2, h3 { margin: 16px 0; color: #111827; }
+    .row { display:flex; gap:8px; align-items:center; margin-bottom: 12px; flex-wrap: wrap; }
+    button { padding:8px 16px; font-size: 13px; cursor:pointer; border: none; border-radius: 6px; font-weight: 500; }
+    button.primary { background: #3b82f6; color: white; }
+    button.secondary { background: #6b7280; color: white; }
+    button.success { background: #10b981; color: white; }
+    button.danger { background: #ef4444; color: white; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
+    .card { background: white; border-radius: 8px; padding: 20px; border: 1px solid #e5e7eb; margin-bottom: 16px; }
+    .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; }
+    .alert.warning { background: #fef3c7; border-left: 4px solid #f59e0b; color: #92400e; }
+    .alert.info { background: #dbeafe; border-left: 4px solid #3b82f6; color: #1e40af; }
+    .alert.success { background: #d1fae5; border-left: 4px solid #10b981; color: #065f46; }
+    .alert.error { background: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b; }
+    table { width:100%; border-collapse: collapse; background: white; }
+    th, td { border:1px solid #e5e7eb; padding:12px; font-size: 13px; text-align: left; }
+    th { background:#f3f4f6; font-weight: 600; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge.positive { background: #d1fae5; color: #065f46; }
+    .badge.negative { background: #fee2e2; color: #991b1b; }
+    .badge.zero { background: #f3f4f6; color: #6b7280; }
+    input, select { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; }
+    textarea { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; font-family: inherit; }
+    .muted { color:#6b7280; font-size:12px; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+    .modal.show { display: flex; align-items: center; justify-content: center; }
+    .modal-content { background: white; border-radius: 8px; padding: 24px; max-width: 500px; width: 90%; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-weight: 500; margin-bottom: 6px; font-size: 14px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; }
+    .stat-value { font-size: 28px; font-weight: 600; color: #111827; }
+    .stat-label { font-size: 13px; color: #6b7280; margin-top: 4px; }
+  </style>
+  <script>
+    async function fetchJSON(u, opt){ const r = await fetch(u, opt||{}); if(!r.ok) throw new Error(await r.text()); return r.json(); }
+
+    let balances = [];
+    let stats = null;
+    let currentPage = 1;
+    let totalPages = 1;
+
+    async function load(){
+      try {
+        // Load stats
+        const statsRes = await fetchJSON('/api/v1/console/tokens/stats');
+        stats = statsRes;
+        renderStats();
+
+        // Load balances
+        await loadBalances();
+      } catch(e){
+        showAlert('加载失败: ' + e.message, 'error');
+      }
+    }
+
+    async function loadBalances(){
+      try {
+        const search = document.querySelector('#searchInput').value;
+        const params = new URLSearchParams({
+          page: currentPage,
+          pageSize: 20,
+          search: search
+        });
+
+        const res = await fetchJSON(`/api/v1/console/tokens/balances?${params}`);
+        balances = res.balances || [];
+        totalPages = Math.ceil((res.totalCount || 0) / 20);
+
+        renderTable();
+        renderPagination();
+      } catch(e){
+        showAlert('加载余额失败: ' + e.message, 'error');
+      }
+    }
+
+    function renderStats(){
+      if (!stats) return;
+
+      document.querySelector('#statTotalUsers').textContent = stats.totalUsers || 0;
+      document.querySelector('#statTotalBalance').textContent = formatNumber(stats.totalBalance || 0);
+      document.querySelector('#statAvgBalance').textContent = formatNumber(stats.avgBalance || 0);
+      document.querySelector('#statNegativeCount').textContent = stats.negativeBalanceUsers || 0;
+    }
+
+    function renderTable(){
+      const tbody = document.querySelector('#balancesList');
+      tbody.innerHTML = '';
+
+      if (balances.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#6b7280; padding:40px;">无数据</td></tr>';
+        return;
+      }
+
+      for(const item of balances){
+        const tr = document.createElement('tr');
+
+        let balanceBadge = '';
+        if (item.balance > 0) {
+          balanceBadge = `<span class="badge positive">${formatNumber(item.balance)}</span>`;
+        } else if (item.balance < 0) {
+          balanceBadge = `<span class="badge negative">${formatNumber(item.balance)}</span>`;
+        } else {
+          balanceBadge = `<span class="badge zero">0</span>`;
+        }
+
+        tr.innerHTML = `
+          <td>
+            <div><strong>${item.email || item.userId}</strong></div>
+            <div class="muted">${item.userId}</div>
+          </td>
+          <td>${balanceBadge}</td>
+          <td class="muted">${new Date(item.updatedAt).toLocaleString()}</td>
+          <td>
+            <button class="success" onclick="openAdjustModal('${item.userId}', '${item.email}', ${item.balance}, 'topup')">充值</button>
+            <button class="danger" onclick="openAdjustModal('${item.userId}', '${item.email}', ${item.balance}, 'deduct')">扣减</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function renderPagination(){
+      const container = document.querySelector('#pagination');
+      container.innerHTML = '';
+
+      if (totalPages <= 1) return;
+
+      const prev = document.createElement('button');
+      prev.textContent = '上一页';
+      prev.className = 'secondary';
+      prev.disabled = currentPage === 1;
+      prev.onclick = () => { currentPage--; loadBalances(); };
+      container.appendChild(prev);
+
+      const info = document.createElement('span');
+      info.textContent = `第 ${currentPage} / ${totalPages} 页`;
+      info.style.margin = '0 12px';
+      container.appendChild(info);
+
+      const next = document.createElement('button');
+      next.textContent = '下一页';
+      next.className = 'secondary';
+      next.disabled = currentPage === totalPages;
+      next.onclick = () => { currentPage++; loadBalances(); };
+      container.appendChild(next);
+    }
+
+    function openAdjustModal(userId, email, currentBalance, type){
+      document.querySelector('#adjustUserId').value = userId;
+      document.querySelector('#adjustUserEmail').textContent = email || userId;
+      document.querySelector('#adjustCurrentBalance').textContent = formatNumber(currentBalance);
+      document.querySelector('#adjustType').value = type;
+      document.querySelector('#adjustAmount').value = '';
+      document.querySelector('#adjustReason').value = '';
+
+      if (type === 'topup') {
+        document.querySelector('#modalTitle').textContent = '充值 Token';
+        document.querySelector('#adjustAmount').placeholder = '输入充值数量（正整数）';
+      } else {
+        document.querySelector('#modalTitle').textContent = '扣减 Token';
+        document.querySelector('#adjustAmount').placeholder = '输入扣减数量（正整数）';
+      }
+
+      document.querySelector('#adjustModal').classList.add('show');
+    }
+
+    function closeAdjustModal(){
+      document.querySelector('#adjustModal').classList.remove('show');
+    }
+
+    async function submitAdjust(){
+      const userId = document.querySelector('#adjustUserId').value;
+      const type = document.querySelector('#adjustType').value;
+      const amountInput = parseInt(document.querySelector('#adjustAmount').value);
+      const reason = document.querySelector('#adjustReason').value.trim();
+
+      if (!amountInput || amountInput <= 0) {
+        showAlert('请输入有效的数量', 'error');
+        return;
+      }
+
+      if (!reason || reason.length < 10) {
+        showAlert('请填写原因（至少10个字符）', 'error');
+        return;
+      }
+
+      const amount = type === 'deduct' ? -amountInput : amountInput;
+
+      const btn = document.querySelector('#submitBtn');
+      btn.disabled = true;
+      btn.textContent = '处理中...';
+
+      try {
+        await fetchJSON('/api/v1/console/tokens/topup', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ userId, amount, reason })
+        });
+
+        showAlert(`✓ ${type === 'topup' ? '充值' : '扣减'}成功`, 'success');
+        closeAdjustModal();
+        await load();
+      } catch(e) {
+        showAlert('操作失败: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '确认';
+      }
+    }
+
+    function showAlert(message, type){
+      const alertEl = document.querySelector('#alertBox');
+      alertEl.className = 'alert ' + type;
+      alertEl.textContent = message;
+      alertEl.style.display = 'block';
+
+      setTimeout(() => {
+        alertEl.style.display = 'none';
+      }, 5000);
+    }
+
+    function formatNumber(n){
+      return new Intl.NumberFormat('zh-CN').format(n);
+    }
+
+    function handleSearch(){
+      currentPage = 1;
+      loadBalances();
+    }
+
+    window.addEventListener('DOMContentLoaded', load);
+  </script>
+</head>
+<body>
+  <h2>💰 Token 余额管理</h2>
+
+  <div class="row">
+    <button class="secondary" onclick="window.location.href='/manage/index.html'">← 返回仪表盘</button>
+    <button class="secondary" onclick="load()">🔄 刷新</button>
+  </div>
+
+  <div id="alertBox" class="alert" style="display:none;"></div>
+
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" id="statTotalUsers">0</div>
+      <div class="stat-label">总用户数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statTotalBalance">0</div>
+      <div class="stat-label">Token 总量</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statAvgBalance">0</div>
+      <div class="stat-label">平均余额</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statNegativeCount" style="color:#ef4444;">0</div>
+      <div class="stat-label">负余额用户</div>
+    </div>
+  </div>
+
+  <div class="alert info">
+    💡 <strong>Token 调整说明：</strong><br>
+    • 充值：增加用户 Token 余额（例如：客服补偿、活动奖励）<br>
+    • 扣减：减少用户 Token 余额（例如：误充值纠正、违规处罚）<br>
+    • 所有操作需填写理由，并记录审计日志
+  </div>
+
+  <!-- Search Bar -->
+  <div class="card">
+    <div class="row">
+      <input type="text" id="searchInput" placeholder="搜索用户邮箱或 ID" style="flex:1; max-width:400px;" />
+      <button class="primary" onclick="handleSearch()">搜索</button>
+    </div>
+  </div>
+
+  <!-- Balances Table -->
+  <div class="card">
+    <h3>用户余额列表</h3>
+    <table style="margin-top:12px;">
+      <thead>
+        <tr>
+          <th>用户</th>
+          <th>Token 余额</th>
+          <th>更新时间</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="balancesList">
+        <tr><td colspan="5" style="text-align:center; padding:40px;">加载中...</td></tr>
+      </tbody>
+    </table>
+
+    <div class="row" id="pagination" style="margin-top:16px; justify-content:center;"></div>
+  </div>
+
+  <!-- Adjust Modal -->
+  <div id="adjustModal" class="modal" onclick="if(event.target===this) closeAdjustModal()">
+    <div class="modal-content">
+      <h3 id="modalTitle">调整 Token</h3>
+
+      <div class="form-group">
+        <label>用户</label>
+        <div class="muted" id="adjustUserEmail"></div>
+      </div>
+
+      <div class="form-group">
+        <label>当前余额</label>
+        <div id="adjustCurrentBalance" style="font-size:20px; font-weight:600;"></div>
+      </div>
+
+      <div class="form-group">
+        <label>数量</label>
+        <input type="number" id="adjustAmount" min="1" placeholder="输入数量" />
+      </div>
+
+      <div class="form-group">
+        <label>原因（必填，至少10字）</label>
+        <textarea id="adjustReason" rows="3" placeholder="请详细说明调整原因..."></textarea>
+      </div>
+
+      <input type="hidden" id="adjustUserId" />
+      <input type="hidden" id="adjustType" />
+
+      <div style="margin-top:16px; text-align:right; display:flex; gap:8px; justify-content:flex-end;">
+        <button class="secondary" onclick="closeAdjustModal()">取消</button>
+        <button class="primary" id="submitBtn" onclick="submitAdjust()">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert warning">
+    ⚠️ <strong>安全提示：</strong><br>
+    1. Token 调整操作会立即生效，请谨慎操作<br>
+    2. 所有操作会记录审计日志（操作人、原因、变更前后余额）<br>
+    3. 扣减操作可能导致余额为负，请确认用户状态<br>
+    4. 建议定期检查负余额用户，及时处理异常情况
+  </div>
+</body>
+</html>

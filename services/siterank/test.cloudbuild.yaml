@@ -1,0 +1,29 @@
+# Cloud Build配置 - 运行测试
+steps:
+  # 1. 运行单元测试
+  - name: 'golang:1.21'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd services/siterank
+        go mod download
+        go test -v -coverprofile=coverage.out ./...
+        go tool cover -func=coverage.out
+    id: 'run-tests'
+
+  # 2. 生成测试报告
+  - name: 'golang:1.21'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd services/siterank
+        go test -json ./... > test-results.json
+        echo "Test results saved to test-results.json"
+    id: 'generate-report'
+
+timeout: 600s
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'N1_HIGHCPU_8'

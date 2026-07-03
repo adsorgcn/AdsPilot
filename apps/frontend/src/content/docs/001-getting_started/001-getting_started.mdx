@@ -1,0 +1,85 @@
+---
+title: Installing Makerkit
+label: Installing Makerkit
+description: Learn how to install Makerkit on your local machine
+---
+
+If you have bought a license for MakerKit, you have access to all the
+repositories built by the MakerKit team. In this document, we will learn how
+to fetch and install the codebase.
+
+### Requirements
+
+To get started with the Next.js and Supabase SaaS template, we need to ensure
+you install the required software.
+
+- Node.js
+- Git
+- Docker
+
+### Getting Started with MakerKit
+
+You have two choices for cloning the repository:
+
+1. forking the original repository and cloning it from your fork
+2. cloning it manually from the original repository
+
+#### Clone the repository
+
+To get the codebase on your local machine using the original repository, clone the repository with the
+following command:
+
+```
+git clone --depth=1 git@github.com:makerkit/next-supabase-saas-kit-lite.git my-saas
+```
+
+The command above clones the repository in the folder `my-saas` which
+you can rename it with the name of your project.
+
+If you forked the repository, point it to your fork instead of the original.
+
+#### Initializing Git
+
+Now, run the following commands for:
+
+1. Moving into the folder
+2. Reinitialize your git repository
+
+Personally I re-initialize the Git repository, but it's not required.
+
+```
+cd my-saas
+rm -rf .git
+git init
+```
+
+### Setting the Upstream repository, and fetching updates
+
+Now, we can add the original Makerkit repository as "upstream" so we can fetch updates from the main repository:
+
+```
+git remote add upstream git@github.com:makerkit/next-supabase-saas-kit-lite.git
+git add .
+git commit -a -m "Initial Commit"
+```
+
+In this way, to fetch updates (after committing your files), simply run:
+
+```
+git pull upstream main --allow-unrelated-histories
+```
+
+You'll likely run into conflicts when running this command, so carefully choose the changes (sorry!).
+
+### Installing the Node dependencies
+
+Finally, we can install the NodeJS dependencies with `npm`:
+
+```
+npm i
+```
+
+While the application code is fully working, we now need to set up your Supabase
+project.
+
+So let's jump on to the next step!

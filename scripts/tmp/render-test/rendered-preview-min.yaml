@@ -1,0 +1,115 @@
+swagger: "2.0"
+info:
+  title: gm-gateway-v2-min
+  version: 2.0.0
+schemes:
+  - https
+produces:
+  - application/json
+securityDefinitions:
+  firebase:
+    type: oauth2
+    flow: implicit
+    authorizationUrl: ""
+    x-google-issuer: "https://securetoken.google.com/${GCP_PROJECT_ID}"
+    x-google-jwks_uri: "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com"
+    x-google-audiences: "${GCP_PROJECT_ID}"
+paths:
+  /readyz:
+    get:
+      operationId: readyz
+      security: []
+      x-google-backend:
+        address: https://console-preview-yt54xvsg5q-an.a.run.app/health
+        path_translation: CONSTANT_ADDRESS
+      responses: { '200': { description: OK } }
+  /api/health:
+    get:
+      operationId: healthAggregate
+      security: []
+      x-google-backend:
+        address: https://console-preview-yt54xvsg5q-an.a.run.app/health
+        path_translation: CONSTANT_ADDRESS
+      responses: { '200': { description: OK } }
+  /api/v1/adscenter/oauth/callback:
+    get:
+      operationId: adscenterOauthCallback
+      security: []
+      x-google-backend:
+        address: https://adscenter-preview-yt54xvsg5q-an.a.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses: { '200': { description: OK } }
+
+  # Offers
+  /api/v1/offers:
+    get:
+      operationId: offersList
+      security: [ { firebase: [] } ]
+      x-google-backend:
+        address: https://offer-preview-yt54xvsg5q-an.a.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses: { '200': { description: OK } }
+    post:
+      operationId: offersCreate
+      security: [ { firebase: [] } ]
+      x-google-backend:
+        address: https://offer-preview-yt54xvsg5q-an.a.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses: { '202': { description: Accepted } }
+  /api/v1/offers/{id}:
+    get:
+      operationId: offersGet
+      security: [ { firebase: [] } ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          type: string
+      x-google-backend:
+        address: https://offer-preview-yt54xvsg5q-an.a.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses: { '200': { description: OK } }
+
+  # Siterank
+  /api/v1/siterank/analyze:
+    post:
+      operationId: siterankAnalyze
+      security: [ { firebase: [] } ]
+      x-google-backend:
+        address: https://siterank-preview-yt54xvsg5q-an.a.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses: { '202': { description: Accepted } }
+  /api/v1/siterank/{offerId}:
+    get:
+      operationId: siterankGetLatest
+      security: [ { firebase: [] } ]
+      parameters:
+        - name: offerId
+          in: path
+          required: true
+          type: string
+      x-google-backend:
+        address: https://siterank-preview-yt54xvsg5q-an.a.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses: { '200': { description: OK } }
+
+  # Batchopen
+  /api/v1/batchopen/tasks:
+    post:
+      operationId: batchopenCreateTask
+      security: [ { firebase: [] } ]
+      x-google-backend:
+        address: https://batchopen-preview-yt54xvsg5q-an.a.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses: { '202': { description: Accepted } }
+
+  # Adscenter
+  /api/v1/adscenter/preflight:
+    post:
+      operationId: adscenterPreflight
+      security: [ { firebase: [] } ]
+      x-google-backend:
+        address: https://adscenter-preview-yt54xvsg5q-an.a.run.app
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses: { '200': { description: OK } }
+

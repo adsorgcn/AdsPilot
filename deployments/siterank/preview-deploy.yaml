@@ -1,0 +1,78 @@
+# Siterank Service - Preview环境部署配置
+# 部署命令: gcloud run services replace preview-deploy.yaml
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: siterank-preview
+  annotations:
+    run.googleapis.com/ingress: internal-and-cloud-load-balancing
+    run.googleapis.com/launch-stage: BETA
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: '1'
+        autoscaling.knative.dev/maxScale: '10'
+        # 🔥 Cloud SQL Proxy配置 - 替代VPC Connector
+        run.googleapis.com/cloudsql-instances: ${GCP_PROJECT_ID}:asia-northeast1:gm
+        run.googleapis.com/startup-cpu-boost: 'true'
+    spec:
+      serviceAccountName: codex-dev@${GCP_PROJECT_ID}.iam.gserviceaccount.com
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      containers:
+      - image: asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/siterank:preview-latest
+        ports:
+        - name: http1
+          containerPort: 8080
+        resources:
+          limits:
+            cpu: '2'
+            memory: 2Gi
+        env:
+        # 🔥 数据库连接（通过Cloud SQL Proxy Unix Socket）
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: DATABASE_URL
+              key: latest
+
+        # 🔥 数据库连接模式
+        - name: DB_CONNECTION_MODE
+          value: "cloudsql"
+
+        # Redis连接（内网访问）
+        - name: REDIS_ADDR
+          value: "10.0.0.3:6379"  # Memorystore for Redis内网地址
+
+        # Browser-exec服务URL
+        - name: BROWSER_EXEC_URL
+          value: "https://browser-exec-preview-885pd7lz.a.run.app"
+
+        # Billing API URL
+        - name: BILLING_API_URL
+          value: "https://gm-gw-preview-885pd7lz.an.gateway.dev/api/v1/billing"
+
+        # SimilarWeb API Base URL
+        - name: SIMILARWEB_BASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: SIMILARWEB_BASE_URL
+              key: latest
+
+        # GCP项目ID
+        - name: GCP_PROJECT_ID
+          value: "${GCP_PROJECT_ID}"
+
+        # Pub/Sub订阅配置
+        - name: PUBSUB_SUBSCRIPTION
+          value: "siterank-events-sub"
+
+        # 日志级别
+        - name: LOG_LEVEL
+          value: "info"
+
+        # 环境标识
+        - name: ENVIRONMENT
+          value: "preview"

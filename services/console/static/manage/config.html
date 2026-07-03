@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>动态配置管理</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, PingFang SC, Noto Sans, sans-serif; margin: 20px; background: #f9fafb; }
+    h2 { margin: 16px 0; color: #111827; }
+    h3 { margin: 12px 0; color: #374151; font-size: 16px; }
+    .row { display:flex; gap:8px; align-items:center; margin-bottom: 12px; }
+    .form-row { display:flex; gap:10px; margin-bottom: 10px; align-items: flex-end; background: white; padding: 16px; border-radius: 8px; border: 1px solid #e5e7eb; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: 12px; font-weight: 500; color: #374151; }
+    input, select, textarea { padding:8px 12px; font-size: 13px; border: 1px solid #d1d5db; border-radius: 6px; font-family: 'Monaco', 'Menlo', monospace; }
+    textarea { resize: vertical; min-height: 100px; }
+    button { padding:8px 16px; font-size: 13px; cursor:pointer; border: none; border-radius: 6px; font-weight: 500; }
+    button.primary { background: #3b82f6; color: white; }
+    button.primary:hover { background: #2563eb; }
+    button.secondary { background: #6b7280; color: white; }
+    button.secondary:hover { background: #4b5563; }
+    button.danger { background: #ef4444; color: white; }
+    button.danger:hover { background: #dc2626; }
+    table { width:100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
+    th, td { border:1px solid #e5e7eb; padding:12px; font-size: 13px; }
+    th { background:#f3f4f6; text-align:left; font-weight: 600; color: #374151; }
+    tr:hover { background: #f9fafb; }
+    .muted { color:#6b7280; font-size:12px; }
+    .card { background: white; border-radius: 8px; padding: 20px; border: 1px solid #e5e7eb; margin-bottom: 16px; }
+    .config-key { font-family: 'Monaco', 'Menlo', monospace; background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+    .config-value { font-family: 'Monaco', 'Menlo', monospace; font-size: 12px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+    .modal.show { display: flex; align-items: center; justify-content: center; }
+    .modal-content { background: white; border-radius: 8px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .modal-title { font-size: 18px; font-weight: 700; color: #111827; }
+    .close { cursor: pointer; font-size: 24px; color: #6b7280; }
+    .close:hover { color: #111827; }
+  </style>
+  <script>
+    async function fetchJSON(u, opt){
+      const r = await fetch(u, opt||{});
+      if(!r.ok) {
+        const text = await r.text();
+        throw new Error(text || r.status);
+      }
+      return r.json();
+    }
+
+    let configs = [];
+
+    async function load(){
+      try {
+        const res = await fetchJSON('/api/v1/console/config');
+        configs = res.items || [];
+        renderTable();
+      } catch(e){
+        console.error('Failed to load configs:', e);
+        alert('加载配置失败: ' + e.message);
+      }
+    }
+
+    function renderTable(){
+      const tbody = document.querySelector('#configList');
+      tbody.innerHTML = '';
+
+      if (configs.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="4" style="text-align:center; color:#6b7280; padding:40px;">暂无配置，请添加第一个配置项</td>';
+        tbody.appendChild(tr);
+        return;
+      }
+
+      for(const config of configs){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><code class="config-key">${config.key}</code></td>
+          <td class="muted">${new Date(config.updatedAt).toLocaleString()}</td>
+          <td>
+            <div class="row" style="gap:4px; margin:0;">
+              <button class="secondary" style="padding:4px 8px; font-size:12px;" onclick="viewConfig('${config.key}')">查看</button>
+              <button class="secondary" style="padding:4px 8px; font-size:12px;" onclick="editConfig('${config.key}')">编辑</button>
+              <button class="secondary" style="padding:4px 8px; font-size:12px;" onclick="viewHistory('${config.key}')">历史</button>
+              <button class="danger" style="padding:4px 8px; font-size:12px;" onclick="deleteConfig('${config.key}')">删除</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function createConfig(){
+      const key = document.querySelector('#configKey').value.trim();
+      const valueStr = document.querySelector('#configValue').value.trim();
+
+      if (!key || !valueStr) {
+        alert('请填写完整的配置信息');
+        return;
+      }
+
+      // Validate JSON
+      let value;
+      try {
+        value = JSON.parse(valueStr);
+      } catch(e) {
+        alert('配置值必须是有效的 JSON 格式: ' + e.message);
+        return;
+      }
+
+      try {
+        await fetchJSON(`/api/v1/console/config/${key}`, {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ value })
+        });
+
+        // Clear form
+        document.querySelector('#configKey').value = '';
+        document.querySelector('#configValue').value = '';
+
+        alert('✓ 配置已创建');
+        await load();
+      } catch(e){
+        alert('创建失败: ' + e.message);
+      }
+    }
+
+    async function viewConfig(key){
+      try {
+        const res = await fetchJSON(`/api/v1/console/config/${key}`);
+        showModal(`配置详情: ${key}`, `
+          <div style="margin-bottom:12px;"><strong>Key:</strong> <code>${key}</code></div>
+          <div style="margin-bottom:12px;"><strong>更新时间:</strong> ${new Date(res.updatedAt).toLocaleString()}</div>
+          <div style="margin-bottom:8px;"><strong>Value (JSON):</strong></div>
+          <textarea readonly style="width:100%; min-height:200px; background:#f9fafb;">${JSON.stringify(res.value, null, 2)}</textarea>
+        `);
+      } catch(e){
+        alert('查看失败: ' + e.message);
+      }
+    }
+
+    async function editConfig(key){
+      try {
+        const res = await fetchJSON(`/api/v1/console/config/${key}`);
+        const currentValue = JSON.stringify(res.value, null, 2);
+
+        showModal(`编辑配置: ${key}`, `
+          <div style="margin-bottom:12px;"><strong>Key:</strong> <code>${key}</code></div>
+          <div style="margin-bottom:8px;"><strong>Value (JSON):</strong></div>
+          <textarea id="editValue" style="width:100%; min-height:200px;">${currentValue}</textarea>
+          <div style="margin-top:16px; display:flex; gap:8px; justify-content:flex-end;">
+            <button class="secondary" onclick="closeModal()">取消</button>
+            <button class="primary" onclick="saveEdit('${key}')">保存</button>
+          </div>
+        `);
+      } catch(e){
+        alert('加载失败: ' + e.message);
+      }
+    }
+
+    async function saveEdit(key){
+      const valueStr = document.querySelector('#editValue').value.trim();
+
+      // Validate JSON
+      let value;
+      try {
+        value = JSON.parse(valueStr);
+      } catch(e) {
+        alert('配置值必须是有效的 JSON 格式: ' + e.message);
+        return;
+      }
+
+      try {
+        await fetchJSON(`/api/v1/console/config/${key}`, {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ value })
+        });
+
+        closeModal();
+        alert('✓ 配置已更新');
+        await load();
+      } catch(e){
+        alert('保存失败: ' + e.message);
+      }
+    }
+
+    async function deleteConfig(key){
+      if (!confirm(`确定要删除配置 "${key}" 吗？此操作不可恢复。`)) return;
+
+      try {
+        await fetchJSON(`/api/v1/console/config/${key}`, {
+          method: 'DELETE'
+        });
+
+        alert('✓ 配置已删除');
+        await load();
+      } catch(e){
+        alert('删除失败: ' + e.message);
+      }
+    }
+
+    async function viewHistory(key){
+      try {
+        const res = await fetchJSON(`/api/v1/console/config/history?key=${key}&pageSize=20`);
+        const history = res.items || [];
+
+        if (history.length === 0) {
+          showModal(`配置历史: ${key}`, '<p class="muted">暂无历史记录</p>');
+          return;
+        }
+
+        const rows = history.map(h => `
+          <tr>
+            <td class="muted" style="font-size:11px;">${new Date(h.changedAt).toLocaleString()}</td>
+            <td class="config-value" title="${JSON.stringify(h.oldValue)}">${JSON.stringify(h.oldValue)}</td>
+            <td class="config-value" title="${JSON.stringify(h.newValue)}">${JSON.stringify(h.newValue)}</td>
+            <td class="muted" style="font-size:11px;">${h.changedBy || '-'}</td>
+          </tr>
+        `).join('');
+
+        showModal(`配置历史: ${key}`, `
+          <div class="muted" style="margin-bottom:12px;">显示最近 ${history.length} 条变更记录</div>
+          <table style="margin-top:8px; font-size:12px;">
+            <thead>
+              <tr>
+                <th style="width:160px;">变更时间</th>
+                <th>旧值</th>
+                <th>新值</th>
+                <th style="width:120px;">操作人</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `);
+      } catch(e){
+        alert('查看历史失败: ' + e.message);
+      }
+    }
+
+    function showModal(title, content){
+      document.querySelector('#modalTitle').textContent = title;
+      document.querySelector('#modalBody').innerHTML = content;
+      document.querySelector('#configModal').classList.add('show');
+    }
+
+    function closeModal(){
+      document.querySelector('#configModal').classList.remove('show');
+    }
+
+    // Preset config templates
+    function useTemplate(){
+      const template = document.querySelector('#templateSelect').value;
+      if (!template) return;
+
+      const templates = {
+        rate_limit: {
+          key: 'rate_limit',
+          value: JSON.stringify({
+            maxRequestsPerMinute: 60,
+            maxRequestsPerHour: 1000,
+            burstSize: 10
+          }, null, 2)
+        },
+        feature_flags: {
+          key: 'feature_flags',
+          value: JSON.stringify({
+            enableAIEvaluation: true,
+            enableBatchOperations: true,
+            enableAdvancedAnalytics: false
+          }, null, 2)
+        },
+        email_settings: {
+          key: 'email_settings',
+          value: JSON.stringify({
+            smtpHost: 'smtp.gmail.com',
+            smtpPort: 587,
+            fromEmail: 'noreply@autoads.dev',
+            fromName: 'Google-Monetize'
+          }, null, 2)
+        }
+      };
+
+      if (templates[template]) {
+        document.querySelector('#configKey').value = templates[template].key;
+        document.querySelector('#configValue').value = templates[template].value;
+      }
+
+      document.querySelector('#templateSelect').value = '';
+    }
+
+    window.addEventListener('DOMContentLoaded', load);
+  </script>
+</head>
+<body>
+  <h2>⚙️ 动态配置管理</h2>
+
+  <div class="row">
+    <button class="secondary" onclick="window.location.href='/console/manage/index.html'">← 返回仪表盘</button>
+    <button class="secondary" onclick="load()">🔄 刷新</button>
+  </div>
+
+  <!-- Create Config Form -->
+  <div class="card">
+    <h3>➕ 新增配置</h3>
+    <div class="form-row">
+      <div class="form-group" style="width:200px;">
+        <label>配置模板 (可选)</label>
+        <select id="templateSelect" onchange="useTemplate()">
+          <option value="">选择预设模板...</option>
+          <option value="rate_limit">限流配置</option>
+          <option value="feature_flags">功能开关</option>
+          <option value="email_settings">邮件设置</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="width:250px;">
+        <label>配置键 (Key)</label>
+        <input id="configKey" placeholder="feature_flags" />
+      </div>
+
+      <div class="form-group" style="flex:1;">
+        <label>配置值 (JSON 格式)</label>
+        <textarea id="configValue" placeholder='{"enableFeatureX": true, "maxLimit": 100}' rows="3"></textarea>
+      </div>
+
+      <button class="primary" style="align-self: flex-end;" onclick="createConfig()">创建配置</button>
+    </div>
+    <div class="muted" style="margin-top:8px;">
+      💡 提示: 配置值必须是有效的 JSON 格式。支持对象、数组、字符串、数字、布尔值等类型。
+    </div>
+  </div>
+
+  <!-- Config Table -->
+  <div class="card">
+    <h3>📋 配置列表</h3>
+    <table style="margin-top:12px;">
+      <thead>
+        <tr>
+          <th>配置键</th>
+          <th style="width:180px;">更新时间</th>
+          <th style="width:280px;">操作</th>
+        </tr>
+      </thead>
+      <tbody id="configList">
+        <tr><td colspan="4" style="text-align:center; padding:40px;">加载中...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="muted" style="margin-top:16px;">
+    ℹ️ 说明: 动态配置支持热更新，无需重启服务。所有变更会自动记录历史，可通过"历史"按钮查看。
+  </div>
+
+  <!-- Modal -->
+  <div id="configModal" class="modal" onclick="if(event.target===this) closeModal()">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title" id="modalTitle">配置详情</div>
+        <span class="close" onclick="closeModal()">&times;</span>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+</body>
+</html>

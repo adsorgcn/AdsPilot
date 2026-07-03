@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>审计日志 - Admin Audit Logs</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; margin: 20px; background: #f9fafb; }
+    h2, h3 { margin: 16px 0; color: #111827; }
+    .row { display:flex; gap:8px; align-items:center; margin-bottom: 12px; flex-wrap: wrap; }
+    button { padding:8px 16px; font-size: 13px; cursor:pointer; border: none; border-radius: 6px; font-weight: 500; }
+    button.primary { background: #3b82f6; color: white; }
+    button.secondary { background: #6b7280; color: white; }
+    button.danger { background: #ef4444; color: white; }
+    .card { background: white; border-radius: 8px; padding: 20px; border: 1px solid #e5e7eb; margin-bottom: 16px; }
+    .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; }
+    .alert.warning { background: #fef3c7; border-left: 4px solid #f59e0b; color: #92400e; }
+    .alert.info { background: #dbeafe; border-left: 4px solid #3b82f6; color: #1e40af; }
+    table { width:100%; border-collapse: collapse; background: white; }
+    th, td { border:1px solid #e5e7eb; padding:12px; font-size: 13px; text-align: left; }
+    th { background:#f3f4f6; font-weight: 600; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge.critical { background: #fee2e2; color: #991b1b; }
+    .badge.normal { background: #e0e7ff; color: #3730a3; }
+    .muted { color:#6b7280; font-size:12px; }
+    .code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 12px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid #e5e7eb; }
+    .tab { padding: 10px 16px; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; font-weight: 500; }
+    .tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+    .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    input, select { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; }
+    .diff { margin: 8px 0; padding: 12px; background: #fafafa; border-radius: 6px; }
+    .diff-old { color: #dc2626; text-decoration: line-through; }
+    .diff-new { color: #16a34a; font-weight: 500; }
+    pre { margin: 0; white-space: pre-wrap; word-break: break-all; font-size: 12px; }
+  </style>
+  <script>
+    async function fetchJSON(u, opt){ const r = await fetch(u, opt||{}); if(!r.ok) throw new Error(await r.text()); return r.json(); }
+
+    let currentTab = 'enhanced';
+    let logs = [];
+    let filters = { action: '', resource: '', userEmail: '', days: 7 };
+
+    async function load(){
+      try {
+        if (currentTab === 'enhanced') {
+          await loadEnhancedLogs();
+        } else if (currentTab === 'critical') {
+          await loadCriticalActions();
+        }
+      } catch(e){ alert('加载失败: ' + e.message); }
+    }
+
+    async function loadEnhancedLogs(){
+      const params = new URLSearchParams();
+      if (filters.action) params.append('action', filters.action);
+      if (filters.resource) params.append('resource', filters.resource);
+      if (filters.userEmail) params.append('userEmail', filters.userEmail);
+      params.append('days', filters.days);
+      params.append('limit', 100);
+
+      const res = await fetchJSON(`/api/v1/console/audit-logs/enhanced?${params}`);
+      logs = res.items || [];
+      renderEnhancedTable();
+    }
+
+    async function loadCriticalActions(){
+      const params = new URLSearchParams();
+      params.append('days', filters.days);
+      params.append('limit', 100);
+
+      const res = await fetchJSON(`/api/v1/console/audit-logs/critical?${params}`);
+      logs = res.items || [];
+      renderCriticalTable();
+    }
+
+    function renderEnhancedTable(){
+      const tbody = document.querySelector('#logsList');
+      tbody.innerHTML = '';
+
+      if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#6b7280; padding:40px;">无审计日志</td></tr>';
+        return;
+      }
+
+      for(const log of logs){
+        const tr = document.createElement('tr');
+
+        const isCritical = ['DELETE_USER', 'UPDATE_USER_ROLE', 'DELETE_CONFIG', 'UPDATE_PACKAGE_PRICE',
+                           'GENERATE_RECOVERY_CODES', 'USE_RECOVERY_CODE'].includes(log.action);
+        const badge = isCritical
+          ? `<span class="badge critical">敏感</span>`
+          : `<span class="badge normal">普通</span>`;
+
+        const diffHTML = renderDiff(log.oldValue, log.newValue);
+
+        tr.innerHTML = `
+          <td>${badge}</td>
+          <td>
+            <div><strong>${log.action}</strong></div>
+            <div class="muted">${log.resource}${log.resourceId ? ' · ' + log.resourceId : ''}</div>
+          </td>
+          <td>
+            <div>${log.userEmail}</div>
+            <div class="muted">${log.userId}</div>
+          </td>
+          <td>${diffHTML}</td>
+          <td>
+            <div class="muted">${log.reason || '-'}</div>
+            <div class="muted">IP: ${log.ipAddress || '-'}</div>
+          </td>
+          <td class="muted">${new Date(log.createdAt).toLocaleString()}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function renderCriticalTable(){
+      const tbody = document.querySelector('#logsList');
+      tbody.innerHTML = '';
+
+      if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#6b7280; padding:40px;">无敏感操作记录</td></tr>';
+        return;
+      }
+
+      for(const log of logs){
+        const tr = document.createElement('tr');
+        const diffHTML = renderDiff(log.oldValue, log.newValue);
+
+        tr.innerHTML = `
+          <td><span class="badge critical">敏感</span></td>
+          <td>
+            <div><strong>${log.action}</strong></div>
+            <div class="muted">${log.resource}${log.resourceId ? ' · ' + log.resourceId : ''}</div>
+          </td>
+          <td>
+            <div>${log.userEmail}</div>
+            <div class="muted">IP: ${log.ipAddress || '-'}</div>
+          </td>
+          <td>${diffHTML}</td>
+          <td>
+            <div class="muted">${log.reason || '-'}</div>
+            <div class="muted">${new Date(log.createdAt).toLocaleString()}</div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function renderDiff(oldValue, newValue){
+      if (!oldValue && !newValue) return '-';
+
+      if (!oldValue) {
+        return `<div class="diff"><div class="diff-new">+ ${JSON.stringify(newValue, null, 2)}</div></div>`;
+      }
+
+      if (!newValue) {
+        return `<div class="diff"><div class="diff-old">- ${JSON.stringify(oldValue, null, 2)}</div></div>`;
+      }
+
+      // Simple diff rendering
+      const oldStr = JSON.stringify(oldValue, null, 2);
+      const newStr = JSON.stringify(newValue, null, 2);
+
+      if (oldStr === newStr) return '<div class="muted">无变更</div>';
+
+      return `<div class="diff">
+        <div class="diff-old">- ${oldStr}</div>
+        <div class="diff-new">+ ${newStr}</div>
+      </div>`;
+    }
+
+    function switchTab(tab){
+      currentTab = tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+
+      // Update table headers
+      if (tab === 'enhanced') {
+        document.querySelector('#tableHead').innerHTML = `
+          <tr>
+            <th>类型</th>
+            <th>操作</th>
+            <th>操作人</th>
+            <th>变更对比</th>
+            <th>原因 & IP</th>
+            <th>时间</th>
+          </tr>
+        `;
+      } else if (tab === 'critical') {
+        document.querySelector('#tableHead').innerHTML = `
+          <tr>
+            <th>类型</th>
+            <th>敏感操作</th>
+            <th>操作人</th>
+            <th>变更对比</th>
+            <th>原因 & 时间</th>
+          </tr>
+        `;
+      }
+
+      load();
+    }
+
+    function applyFilters(){
+      filters.action = document.querySelector('#filterAction').value;
+      filters.resource = document.querySelector('#filterResource').value;
+      filters.userEmail = document.querySelector('#filterUserEmail').value;
+      filters.days = parseInt(document.querySelector('#filterDays').value);
+      load();
+    }
+
+    function clearFilters(){
+      document.querySelector('#filterAction').value = '';
+      document.querySelector('#filterResource').value = '';
+      document.querySelector('#filterUserEmail').value = '';
+      document.querySelector('#filterDays').value = '7';
+      filters = { action: '', resource: '', userEmail: '', days: 7 };
+      load();
+    }
+
+    function exportCSV(){
+      if (logs.length === 0) {
+        alert('无数据可导出');
+        return;
+      }
+
+      const headers = ['时间', '操作人', '操作', '资源', '资源ID', '旧值', '新值', '原因', 'IP'];
+      const rows = logs.map(log => [
+        new Date(log.createdAt).toLocaleString(),
+        log.userEmail,
+        log.action,
+        log.resource,
+        log.resourceId || '',
+        JSON.stringify(log.oldValue || {}),
+        JSON.stringify(log.newValue || {}),
+        log.reason || '',
+        log.ipAddress || ''
+      ]);
+
+      const csv = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit_logs_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      switchTab('enhanced');
+    });
+  </script>
+</head>
+<body>
+  <h2>📊 审计日志 - Admin Audit Logs</h2>
+
+  <div class="row">
+    <button class="secondary" onclick="window.location.href='/manage/index.html'">← 返回仪表盘</button>
+    <button class="secondary" onclick="load()">🔄 刷新</button>
+    <button class="primary" onclick="exportCSV()">📥 导出 CSV</button>
+  </div>
+
+  <div class="alert info">
+    💡 <strong>审计日志功能：</strong><br>
+    • <strong>增强审计</strong>：记录所有管理员操作的变更前后对比（old_value/new_value）<br>
+    • <strong>敏感操作</strong>：仅显示高风险操作（删除用户、修改权限、生成恢复码等），已配置实时告警
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" data-tab="enhanced" onclick="switchTab('enhanced')">📋 增强审计</div>
+    <div class="tab" data-tab="critical" onclick="switchTab('critical')">🔴 敏感操作</div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card">
+    <h3>🔍 筛选条件</h3>
+    <div class="filter-bar">
+      <input type="text" id="filterAction" placeholder="操作类型 (如: DELETE_USER)" />
+      <input type="text" id="filterResource" placeholder="资源类型 (如: users)" />
+      <input type="text" id="filterUserEmail" placeholder="操作人邮箱" />
+      <select id="filterDays">
+        <option value="1">最近 1 天</option>
+        <option value="7" selected>最近 7 天</option>
+        <option value="30">最近 30 天</option>
+        <option value="90">最近 90 天</option>
+      </select>
+      <button class="primary" onclick="applyFilters()">应用筛选</button>
+      <button class="secondary" onclick="clearFilters()">清除筛选</button>
+    </div>
+  </div>
+
+  <!-- Logs Table -->
+  <div class="card">
+    <table style="margin-top:12px;">
+      <thead id="tableHead">
+        <tr>
+          <th>类型</th>
+          <th>操作</th>
+          <th>操作人</th>
+          <th>变更对比</th>
+          <th>原因 & IP</th>
+          <th>时间</th>
+        </tr>
+      </thead>
+      <tbody id="logsList">
+        <tr><td colspan="6" style="text-align:center; padding:40px;">加载中...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="alert warning">
+    ⚠️ <strong>安全提示：</strong><br>
+    1. 审计日志保留 90 天，过期自动清理<br>
+    2. 敏感操作已配置 Slack 实时告警，请关注告警通知<br>
+    3. 定期导出审计日志备份，用于合规审查<br>
+    4. 发现异常操作请立即联系安全团队
+  </div>
+</body>
+</html>

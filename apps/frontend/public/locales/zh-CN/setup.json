@@ -1,0 +1,17 @@
+{
+  "metadata": {
+    "title": "账户设置"
+  },
+  "page": {
+    "title": "需要完成账户设置",
+    "description": "我们需要一些额外信息，完成后即可开始使用 Google-Monetize。"
+  },
+  "form": {
+    "displayNameLabel": "显示名称",
+    "displayNamePlaceholder": "您的名称",
+    "submit": "完成设置",
+    "errors": {
+      "setupFailed": "设置未完成，请稍后重试。"
+    }
+  }
+}

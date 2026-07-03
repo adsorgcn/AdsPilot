@@ -1,0 +1,1322 @@
+{
+  "newsletter": {
+    "emailAriaLabel": "Your email address",
+    "emailPlaceholder": "your@email.com",
+    "successMessage": "You're in! Thank you for subscribing.",
+    "subscribeDescription": "Subscribe to our newsletter to receive updates"
+  },
+  "hero": {
+    "badge": "AI-powered affiliate automation",
+    "headline": {
+      "prefix": "Let AI uncover your",
+      "highlight": "highest-converting offers"
+    },
+    "description": "Google-Monetize blends SimilarWeb traffic insights with Vertex AI to evaluate landing pages, surface issues, and deliver actionable optimisation advice so every dollar works harder.",
+    "primaryCta": "Start free trial",
+    "secondaryCta": "Book a demo",
+    "sellingPoints": {
+      "noCreditCard": "No credit card required",
+      "quickSetup": "Go live in under 5 minutes"
+    },
+    "stats": {
+      "totalEvaluations": "Evaluations completed",
+      "averageRecommendation": "Average AI recommendation",
+      "activeAdvertisers": "Active advertiser teams",
+      "timeToValue": "Average time to value",
+      "timeToValueValue": "{{value}} minutes from onboarding"
+    }
+  },
+  "trustBar": {
+    "tagline": "Trusted by 1,000+ affiliate growth teams worldwide",
+    "stats": {
+      "activeAdvertisers": "Active advertiser teams",
+      "averageRecommendation": "Average AI recommendation",
+      "newOffers": "New Offers in the last 30 days",
+      "newOffersValue": "{{value}} new Offers"
+    },
+    "defaultLogos": [
+      "Nova Retail",
+      "Origin Labs",
+      "Dawn Studio"
+    ],
+    "industryHeadline": "Top-performing industries right now"
+  },
+  "features": {
+    "heading": "4 Core Capabilities for Smarter Ad Decisions",
+    "subheading": "From Offer evaluation, account management to budget optimization, Google-Monetize provides end-to-end intelligent tools for affiliate marketers.",
+    "defaults": [
+      {
+        "title": "AI Smart Landing Page Evaluation",
+        "description": "Complete 12-dimension deep analysis in 1 minute, accurately predict campaign ROI, and provide actionable budget recommendations.",
+        "icon": "SparklesIcon",
+        "highlights": [
+          "✅ Generate complete evaluation report in 1 minute (120× efficiency)",
+          "✅ 12-dimension intelligent analysis (traffic, LTV, competition, seasonality, etc.)",
+          "✅ Smart budget recommendations (testing phase + scaling strategy)"
+        ],
+        "cta": "Learn AI Evaluation"
+      },
+      {
+        "title": "Cross-Platform Unified Account Management",
+        "description": "Manage all ad accounts in one dashboard, real-time data sync, save 60%+ operational time.",
+        "icon": "LinkIcon",
+        "highlights": [
+          "✅ Support Google Ads, Meta, TikTok",
+          "✅ Auto data sync, no manual export needed",
+          "✅ Real-time alerts for account anomalies/overspending"
+        ],
+        "cta": "View Supported Platforms"
+      },
+      {
+        "title": "Global Proxy IP Testing",
+        "description": "Switch to any region worldwide with one click, simulate real user visits, discover geographical differences and compliance risks.",
+        "icon": "GlobeAltIcon",
+        "highlights": [
+          "✅ Support 50+ countries and regions",
+          "✅ Real user perspective, avoid bot detection",
+          "✅ Batch testing, quickly identify issues"
+        ],
+        "cta": "Learn Global Testing"
+      },
+      {
+        "title": "Intelligent Campaign Cockpit",
+        "description": "Cross-channel data integration, AI auto-generates optimization plans, batch operations support rollback.",
+        "icon": "ChartBarIcon",
+        "highlights": [
+          "✅ Unified ROI/ROAS metrics for accurate comparison",
+          "✅ AI-generated budget optimization recommendations",
+          "✅ Batch operations + rollback + full traceability"
+        ],
+        "cta": "View Data Dashboard"
+      }
+    ]
+  },
+  "howItWorks": {
+    "heading": "Three steps to automated growth",
+    "subheading": "Google-Monetize eliminates repetitive execution so your team can stay focused on strategy.",
+    "stepLabel": "Step {{index}}",
+    "steps": [
+      {
+        "title": "Connect landing pages and ad accounts",
+        "description": "Import URLs from affiliate dashboards or CSV and authorise Google Ads, Meta and TikTok in minutes.",
+        "icon": "ClipboardDocumentListIcon",
+        "highlights": [
+          "Bulk URL ingestion",
+          "Brand and domain detection",
+          "Account onboarding in under 10 minutes"
+        ]
+      },
+      {
+        "title": "Diagnose with multi-dimensional AI scoring",
+        "description": "Vertex AI and SimilarWeb signals identify conversion risks and craft optimisation playbooks instantly.",
+        "icon": "ArrowPathIcon",
+        "highlights": [
+          "Priority scores across experience, copy and performance",
+          "Action lists and experiment ideas generated automatically",
+          "Collaborative comments and reviews"
+        ]
+      },
+      {
+        "title": "Execute and optimise continuously",
+        "description": "Track ROI in the cockpit, let AI adjust bids and creatives, and synchronise updates across channels.",
+        "icon": "RocketLaunchIcon",
+        "highlights": [
+          "Real-time monitoring of key metrics",
+          "Budget anomalies trigger instant alerts",
+          "One-click sync back to Google Ads and Meta"
+        ]
+      }
+    ]
+  },
+  "benefits": {
+    "heading": "Solve the core challenges growth teams face",
+    "subheading": "Google-Monetize builds a reusable growth engine covering efficiency, quality and decision making.",
+    "painPoints": {
+      "defaults": [
+        {
+          "title": "Cross-channel execution is slow",
+          "description": "Switching between Google, Meta and TikTok drains hours and forces manual report stitching.",
+          "metric": "Save 68% of daily operations time"
+        },
+        {
+          "title": "Landing page quality is inconsistent",
+          "description": "Without an evaluation framework, teams struggle to spot issues hurting conversions.",
+          "metric": "AI surveillance and instant alerts"
+        },
+        {
+          "title": "Budget allocation lacks visibility",
+          "description": "Decisions rely on instinct instead of a unified ROI view across channels.",
+          "metric": "Centralised ROI / ROAS dashboard"
+        }
+      ]
+    },
+    "comparisons": {
+      "defaults": [
+        {
+          "title": "Traditional agency workflow",
+          "description": "Slow handoffs, opaque communication and expensive retainers make scaling impossible.",
+          "highlights": [
+            "Multiple disconnected systems",
+            "No landing page intelligence",
+            "Headcount-based pricing limits growth"
+          ]
+        },
+        {
+          "title": "Google-Monetize AI collaboration",
+          "description": "Unified account assets, landing page audits and campaign operations in one automated workflow.",
+          "highlights": [
+            "Account sync and asset import in 1 minute",
+            "GenAI-powered diagnostics and playbooks",
+            "Approvals, collaboration and archiving built-in"
+          ]
+        }
+      ]
+    },
+    "timeline": {
+      "heading": "A typical customer’s 30-day upgrade path",
+      "defaults": [
+        {
+          "title": "Day 1 · Connect data sources",
+          "description": "Link ad accounts, import landing pages and let the system harmonise historical signals.",
+          "result": "Deployment completed in 30 minutes"
+        },
+        {
+          "title": "Day 7 · Establish the review rhythm",
+          "description": "Roll out AI reports, optimise core landing pages and launch the first experiments.",
+          "result": "5 high-impact opportunities identified"
+        },
+        {
+          "title": "Day 30 · Automate budget allocation",
+          "description": "Use the cockpit to rebalance spend, run coordinated campaigns and document learnings.",
+          "result": "Overall conversion rate up by 18%"
+        }
+      ]
+    }
+  },
+  "pricing": {
+    "heading": "Choose the right plan for your affiliate business",
+    "subheading": "Google-Monetize offers three tiers designed for individual marketers and studios — from testing single markets to scaling across 50+ regions. Start with a 14-day free trial.",
+    "hero": {
+      "title": "Choose the right plan for your affiliate business",
+      "description": "Google-Monetize offers three tiers designed for individual marketers and studios — from testing single markets to scaling across 50+ regions. Start with a 7-day free trial, then unlock advanced AI and global proxy access.",
+      "ctaPrimary": "Start 7-day free trial",
+      "ctaSecondary": "Talk to sales",
+      "badge": "All plans include 50% off with annual billing"
+    },
+    "plans": {
+      "starter": {
+        "name": "Starter",
+        "price": "$298",
+        "priceAnnual": "$149",
+        "period": "per month",
+        "annualSaving": "50% off annual",
+        "description": "For individual affiliate marketers in the testing phase",
+        "features": [
+          "100 tokens/month",
+          "Basic evaluation (1 token per eval)",
+          "✅ Real click simulation",
+          "1 concurrent evaluation",
+          "Up to 3 ad accounts",
+          "✅ US proxy IP only",
+          "Email support",
+          "Basic reporting"
+        ],
+        "limitations": [
+          "❌ No AI smart evaluation",
+          "❌ US proxy IP only",
+          "❌ No priority support"
+        ],
+        "highlights": [
+          "Low-cost entry for US market testing",
+          "Perfect for small-scale offer validation",
+          "Real click simulation included"
+        ],
+        "cta": "Start free trial",
+        "popular": false
+      },
+      "professional": {
+        "name": "Professional",
+        "price": "$998",
+        "priceAnnual": "$499",
+        "period": "per month",
+        "annualSaving": "50% off annual",
+        "description": "For professional marketers and small studios",
+        "features": [
+          "1000 tokens/month",
+          "✅ AI smart evaluation (12-dimension analysis)",
+          "✅ Real click simulation",
+          "✅ 10+ global proxy IPs",
+          "5 concurrent evaluations",
+          "Up to 10 ad accounts",
+          "Priority email support",
+          "Advanced analytics"
+        ],
+        "limitations": [
+          "Limited to 10 ad accounts",
+          "5 concurrent evaluations max"
+        ],
+        "highlights": [
+          "AI-powered offer evaluation",
+          "Access to 10+ major markets (US, UK, DE, FR, JP, AU, etc.)",
+          "Priority support and advanced reporting",
+          "Best value for professional marketers"
+        ],
+        "cta": "Start free trial",
+        "popular": true,
+        "badge": "Most Popular"
+      },
+      "elite": {
+        "name": "Elite",
+        "price": "$2,998",
+        "priceAnnual": "$1,499",
+        "period": "per month",
+        "annualSaving": "50% off annual",
+        "description": "For high-volume marketers and medium-sized studios",
+        "features": [
+          "10000 tokens/month",
+          "✅ Unlimited AI evaluations",
+          "✅ Real click simulation",
+          "✅ 50+ global proxy IP pool",
+          "Unlimited concurrent evaluations",
+          "Unlimited ad accounts",
+          "Dedicated account manager",
+          "Custom reports & insights"
+        ],
+        "limitations": [],
+        "highlights": [
+          "Unlimited AI evaluations (highest value)",
+          "Global market coverage (50+ countries)",
+          "No concurrency limits (batch processing)",
+          "1-on-1 dedicated support",
+          "Perfect for agencies and studios"
+        ],
+        "cta": "Contact sales",
+        "popular": false
+      }
+    },
+    "comparison": {
+      "title": "Feature comparison",
+      "subtitle": "Detailed breakdown of features across all plans",
+      "categories": [
+        {
+          "name": "Core Evaluation",
+          "features": [
+            {
+              "name": "Monthly tokens",
+              "starter": "100 tokens",
+              "professional": "1000 tokens",
+              "elite": "10000 tokens"
+            },
+            {
+              "name": "AI smart evaluation",
+              "starter": false,
+              "professional": true,
+              "elite": true
+            },
+            {
+              "name": "Basic evaluation",
+              "starter": true,
+              "professional": true,
+              "elite": true
+            },
+            {
+              "name": "Concurrent evaluations",
+              "starter": "1",
+              "professional": "5",
+              "elite": "Unlimited"
+            }
+          ]
+        },
+        {
+          "name": "Global Proxy IP",
+          "features": [
+            {
+              "name": "Proxy IP access",
+              "starter": "US only",
+              "professional": "10+ regions",
+              "elite": "50+ regions"
+            },
+            {
+              "name": "Real click simulation",
+              "starter": true,
+              "professional": true,
+              "elite": true
+            }
+          ]
+        },
+        {
+          "name": "Ad Account Management",
+          "features": [
+            {
+              "name": "Connected ad accounts",
+              "starter": "Up to 3",
+              "professional": "Up to 10",
+              "elite": "Unlimited"
+            },
+            {
+              "name": "Cross-platform sync",
+              "starter": true,
+              "professional": true,
+              "elite": true
+            },
+            {
+              "name": "Budget alerts",
+              "starter": false,
+              "professional": true,
+              "elite": true
+            }
+          ]
+        },
+        {
+          "name": "Support & Services",
+          "features": [
+            {
+              "name": "Support level",
+              "starter": "Email",
+              "professional": "Priority email",
+              "elite": "Dedicated manager"
+            },
+            {
+              "name": "Response time",
+              "starter": "48 hours",
+              "professional": "24 hours",
+              "elite": "4 hours"
+            }
+          ]
+        }
+      ]
+    },
+    "features": {
+      "title": "What's included in each plan",
+      "subtitle": "Plans differ in AI depth, proxy coverage, and evaluation quotas. Scale resources as your business grows.",
+      "items": [
+        {
+          "title": "AI landing page diagnostics",
+          "description": "Professional and Elite plans include 12-dimension AI analysis to predict offer performance and provide actionable budget recommendations."
+        },
+        {
+          "title": "Global proxy IP access",
+          "description": "Test offers from real user perspectives across different markets. Starter supports US only, Professional covers 10+ regions, Elite provides 50+ countries."
+        },
+        {
+          "title": "Real click simulation",
+          "description": "All plans include real click simulation to verify tracking pixels and test landing page hotspots."
+        },
+        {
+          "title": "Ad account sync",
+          "description": "Connect Google Ads, Meta, TikTok and more. Sync performance data and get anomaly alerts."
+        }
+      ]
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "items": [
+        {
+          "question": "What's included during the trial?",
+          "answer": "New users get a 7-day free trial with access to AI evaluations and the ad collaboration hub. No credit card required."
+        },
+        {
+          "question": "How are tokens billed?",
+          "answer": "Basic evaluations consume 1 token, while AI smart evaluations (12-dimension analysis) use 3 tokens. Each plan includes a monthly token allowance."
+        },
+        {
+          "question": "Can I upgrade or downgrade my plan anytime?",
+          "answer": "Yes. Upgrades take effect immediately. Downgrades apply at the end of your current billing cycle. Annual billing offers 50% savings (buy 6 months, get 6 months free)."
+        },
+        {
+          "question": "What is 'Real click simulation'?",
+          "answer": "Real click simulation mimics authentic user click behavior to help you test landing page hotspots and verify that tracking pixels are working correctly."
+        },
+        {
+          "question": "Which regions are supported by global proxy IPs?",
+          "answer": "Starter plan supports US proxy IP only. Professional plan covers 10+ major markets (US, UK, Germany, France, Japan, Australia, etc.). Elite plan provides access to 50+ countries worldwide."
+        },
+        {
+          "question": "How many ad accounts can I connect?",
+          "answer": "Starter allows up to 3 accounts, Professional up to 10, and Elite supports unlimited ad accounts."
+        },
+        {
+          "question": "What payment methods do you accept?",
+          "answer": "We accept all major credit cards, PayPal, and corporate wire transfers. Contact sales for custom payment arrangements."
+        },
+        {
+          "question": "Is there enterprise pricing?",
+          "answer": "Yes. Enterprise plans include custom token packages, private deployment, SSO integration, and dedicated support. Contact our sales team for a tailored proposal."
+        }
+      ]
+    },
+    "cta": {
+      "title": "Ready to predict offer ROI in 1 minute with AI?",
+      "description": "Start your 7-day free trial and experience 12-dimension AI evaluation, real click simulation, and global proxy access.",
+      "primary": "Start free trial",
+      "secondary": "Contact sales"
+    }
+  },
+  "careers": {
+    "hero": {
+      "title": "Join our team",
+      "description": "Google-Monetize is built by people who love growth and automation. We’re looking for teammates who are excited about AI applications, growth strategy, and collaborative advertising."
+    },
+    "positions": [
+      {
+        "title": "Frontend Engineer (Next.js)",
+        "location": "Shanghai / Remote",
+        "description": "Upgrade the Google-Monetize frontend architecture and component system, improve the marketing site and workspace experience, and drive AI-assisted workflows."
+      },
+      {
+        "title": "Growth Strategy Consultant",
+        "location": "Beijing / Remote",
+        "description": "Provide landing-page diagnostics, marketing automation, and campaign strategy guidance. Help customers operationalise Google-Monetize best practices."
+      },
+      {
+        "title": "Product Operations Lead",
+        "location": "Shenzhen",
+        "description": "Own community operations, case studies, and content, bridging customer needs with product direction."
+      }
+    ],
+    "applyCta": "Submit your resume to {{email}}"
+  },
+  "caseStudies": {
+    "heading": "Customer stories and measurable impact",
+    "subheading": "From lean growth teams to enterprise ecommerce, Google-Monetize enables sustainable acceleration.",
+    "defaults": [
+      {
+        "name": "Siyu Chen",
+        "role": "Marketing Automation Lead",
+        "company": "Zhilian Cloud",
+        "avatar": "",
+        "quote": "Google-Monetize lets us invest more time in strategy and creativity. AI evaluations highlight landing page issues within 10 minutes, lifting conversions by 26%.",
+        "improvement": "Conversion rate +26%"
+      },
+      {
+        "name": "Liam Walker",
+        "role": "Growth Lead",
+        "company": "Nova Retail",
+        "avatar": "",
+        "quote": "We manage Google Ads, Meta and TikTok from a single control centre. Budget allocation and monitoring now run on autopilot every day.",
+        "improvement": "Operational efficiency 3×"
+      },
+      {
+        "name": "Jing Wang",
+        "role": "Head of Brand Ecommerce",
+        "company": "Origin Living",
+        "avatar": "",
+        "quote": "Marketing, design and media teams collaborate inside one workspace. Approvals are traceable and campaign launches are twice as fast.",
+        "improvement": "Launch time −50%"
+      }
+    ]
+  },
+  "caseStudiesPage": {
+    "hero": {
+      "title": "Case studies",
+      "description": "Teams across industries and sizes use Google-Monetize AI and automation to achieve measurable outcomes faster."
+    },
+    "items": [
+      {
+        "company": "Zhilian Cloud",
+        "industry": "B2B SaaS",
+        "improvement": "Conversion rate +26%",
+        "summary": "Landing page audits and automated experiments revealed three high-impact issues within a week.",
+        "details": [
+          "AI diagnostics uncovered performance and form experience bottlenecks",
+          "Design and acquisition teams iterated creatives in sync",
+          "ROI increased by 18% after changes shipped"
+        ]
+      },
+      {
+        "company": "Nova Retail",
+        "industry": "Cross-border ecommerce",
+        "improvement": "Ops efficiency 3×",
+        "summary": "Unified budget management across regions with daily automation and anomaly alerts.",
+        "details": [
+          "Consolidated Google / Meta / TikTok data and budgets",
+          "The AI cockpit rebalances spend and generates reports automatically",
+          "Ops teams saved 68% of reporting time"
+        ]
+      },
+      {
+        "company": "Origin Living",
+        "industry": "Brand ecommerce",
+        "improvement": "Launch time cut by 50%",
+        "summary": "Approval flows and asset collaboration accelerated go-live across design, merchandising and marketing.",
+        "details": [
+          "Creative assets, scripts and landing pages managed in one place",
+          "Transparent approval status reduced offline coordination",
+          "Major campaigns deployed in 1 week instead of 2"
+        ]
+      }
+    ]
+  },
+  "highValueOffers": {
+    "hero": {
+      "title": "High-Value Offer Recommendations",
+      "description": "Discover hand-picked, high-converting offers evaluated by AI across multiple dimensions to maximize your campaign ROI."
+    },
+    "scoreLabel": "Score",
+    "reasonLabel": "AI Insight:",
+    "items": [
+      {
+        "offerName": "Cross-border eCommerce SaaS Free Trial",
+        "advertiser": "ShopifyPlus",
+        "country": "United States",
+        "aiScore": 92,
+        "payout": "$85 / CPA",
+        "highlights": [
+          "Well-defined SMB audience with strong intent",
+          "Free trial lowers decision barrier significantly",
+          "Historical CR of 8.2%, 3× industry average"
+        ],
+        "reason": "High payout, clear funnel, and strong brand recognition make this ideal for targeting small business owners."
+      },
+      {
+        "offerName": "1-on-1 Online English Trial Lesson",
+        "advertiser": "VIPKid Global",
+        "country": "Canada",
+        "aiScore": 88,
+        "payout": "$45 / Lead",
+        "highlights": [
+          "Education offers drive high user LTV",
+          "Trial conversion consistently above 12%",
+          "Multi-language landing pages for global reach"
+        ],
+        "reason": "Strong education vertical performance, reliable trial-to-sale path, and geographic flexibility."
+      },
+      {
+        "offerName": "Fitness App Subscription Promo",
+        "advertiser": "FitPro+",
+        "country": "United Kingdom",
+        "aiScore": 85,
+        "payout": "$32 / Install + Trial",
+        "highlights": [
+          "Subscription model ensures recurring value",
+          "Peak traffic during New Year fitness season",
+          "Fast-loading mobile experience"
+        ],
+        "reason": "Fitness apps surge in Q1, subscription conversions are high, ideal for mobile feed placements."
+      },
+      {
+        "offerName": "Personal Finance Tool Registration",
+        "advertiser": "WealthWise",
+        "country": "Australia",
+        "aiScore": 90,
+        "payout": "$68 / Registration",
+        "highlights": [
+          "High-value finance audience with payment intent",
+          "Simple 3-step registration flow",
+          "Trusted advertiser with on-time payouts"
+        ],
+        "reason": "Finance users convert well, low barrier to entry, and short payout cycle improves cash flow."
+      },
+      {
+        "offerName": "Travel Booking Platform First Order Discount",
+        "advertiser": "TravelNow",
+        "country": "Singapore",
+        "aiScore": 83,
+        "payout": "$28 / First Booking",
+        "highlights": [
+          "Peak season traffic growth accelerating",
+          "First-order discount boosts CR to 9.5%",
+          "Multi-currency settlement supported"
+        ],
+        "reason": "Travel offers perform best during booking peaks, and first-order incentives drive immediate action."
+      },
+      {
+        "offerName": "Cloud Service Free Tier Sign-up",
+        "advertiser": "CloudX Solutions",
+        "country": "Germany",
+        "aiScore": 87,
+        "payout": "$52 / Sign-up",
+        "highlights": [
+          "B2B cloud demand growing steadily",
+          "Free-to-paid conversion rate of 22%",
+          "Strong technical support and retention"
+        ],
+        "reason": "Stable cloud demand, free tier attracts SMBs, high likelihood of upsell to paid plans."
+      }
+    ]
+  },
+  "finalCta": {
+    "heading": "Let AI handle repetitive campaign work today",
+    "subheading": "Sign up to experience AI-powered landing page diagnostics and creative collaboration, or book a strategy session with our growth consultants.",
+    "primaryCta": "Get started for free",
+    "secondaryCta": "Talk to us",
+    "note": "14-day trial · no credit card · cancel anytime"
+  },
+  "updates": {
+    "hero": {
+      "title": "Product Updates",
+      "description": "Stay informed about the latest features, roadmap, and future plans for Google-Monetize."
+    },
+    "tabs": {
+      "roadmap": "Roadmap",
+      "changelog": "Changelog"
+    }
+  },
+  "roadmap": {
+    "sections": [
+      {
+        "title": "In Progress",
+        "items": [
+          "Smart Offer Recommendations: AI-powered multi-dimensional evaluation for high-value offers",
+          "Multi-account budget coordination: Budget pool management for agencies and multi-brand teams",
+          "Real-time data pipeline: Edge streaming for improved campaign monitoring"
+        ]
+      },
+      {
+        "title": "Planned",
+        "items": [
+          "AI-powered creative generation and variant testing",
+          "CRM / CDP integration for complete conversion attribution",
+          "Support for more ad platforms (Bing Ads, YouTube Ads, etc.)"
+        ]
+      },
+      {
+        "title": "Completed",
+        "items": [
+          "AI Offer evaluation with automated diagnostic reports",
+          "Cross-channel campaign dashboard with budget anomaly alerts",
+          "Global 50+ region proxy IP testing"
+        ]
+      }
+    ]
+  },
+  "changelog": {
+    "releases": [
+      {
+        "version": "v1.2.0",
+        "date": "2025-01-15",
+        "highlights": [
+          "Launched High-Value Offers page with AI-powered multi-dimensional evaluation",
+          "Optimized theme selector by removing subtitles for cleaner interface",
+          "Applied glassmorphism effect to Footer matching Header design"
+        ]
+      },
+      {
+        "version": "v1.1.0",
+        "date": "2024-12-20",
+        "highlights": [
+          "Added global 50+ region proxy IP testing capability",
+          "Improved pricing page layout by removing unnecessary borders",
+          "Fixed inaccurate plan descriptions in FAQ page"
+        ]
+      },
+      {
+        "version": "v1.0.0",
+        "date": "2024-11-01",
+        "highlights": [
+          "Google-Monetize official launch",
+          "Released core AI Offer evaluation features",
+          "Support for Google Ads, Meta, and TikTok account management"
+        ]
+      }
+    ]
+  },
+  "featuresPage": {
+    "hero": {
+      "title": "Key Features",
+      "description": "Google-Monetize focuses on landing page evaluation, campaign collaboration, and cross-channel insights to help growth teams build continuous optimization capabilities."
+    },
+    "blocks": [
+      {
+        "title": "AI Landing Page Diagnostics",
+        "description": "Combines SimilarWeb traffic data, page experience metrics, and Vertex AI inference to identify conversion bottlenecks and deliver prioritized optimization recommendations.",
+        "highlights": [
+          "Generate multi-dimensional reports in 10 minutes",
+          "Auto-detect copy, UX, and loading issues",
+          "Build a reusable knowledge base from historical reports"
+        ]
+      },
+      {
+        "title": "Cross-Channel Campaign Collaboration",
+        "description": "Unified management of Google Ads, Meta, TikTok accounts and budget strategies, with role-based permissions and approval workflows for secure collaboration.",
+        "highlights": [
+          "Built-in account authorization and permissions",
+          "Budget allocation and anomaly alerts",
+          "Team collaboration with audit trails"
+        ]
+      },
+      {
+        "title": "Intelligent Campaign Dashboard",
+        "description": "Integrates ROI, ROAS, cost, and conversion metrics for real-time insights, and generates automated recommendations and scripts to execute strategies quickly.",
+        "highlights": [
+          "Unified metrics and trend analysis",
+          "AI-generated budget optimization suggestions",
+          "Custom views and report exports"
+        ]
+      }
+    ]
+  },
+  "docsPage": {
+    "hero": {
+      "title": "Documentation Center Under Migration",
+      "description": "We're migrating user guides, API docs, and best practices to a new Supabase-powered architecture."
+    },
+    "content": "The upcoming release will include: Quick Start, BFF API contracts, Go service deployment guides, and troubleshooting FAQs. For immediate help, contact our support team or check pinned posts in the Slack community."
+  },
+  "blogPage": {
+    "hero": {
+      "title": "Google-Monetize Blog",
+      "description": "Sharing growth strategies, product updates, and real-world case studies to help teams master AI-driven campaign methodologies."
+    },
+    "cta": {
+      "changelog": "View Product Updates",
+      "rss": "Subscribe to RSS",
+      "resources": "Visit Resource Center",
+      "readMore": "Read more →",
+      "title": "Ready to boost your campaign efficiency with AI?",
+      "description": "Start your 7-day free trial and experience 12-dimension AI evaluation, real click simulation, and global proxy access.",
+      "backToBlog": "Back to Blog"
+    },
+    "migration": "Blog content is still being migrated. We'll be publishing best practices and customer case studies soon. Subscribe to our newsletter or join the community to stay updated.",
+    "featuredPosts": [
+      {
+        "title": "Brand Bidding Complete Guide: Predict Offer ROI in 1 Minute with AI",
+        "summary": "Master Brand Bidding from scratch: landing page evaluation, budget allocation, and AI-powered analysis. Learn how to boost evaluation efficiency 120x (from 2 hours to 1 minute).",
+        "category": "Brand Bidding Tutorial",
+        "slug": "brand-bidding-complete-guide",
+        "readingTime": "10 min read"
+      },
+      {
+        "title": "5 Brand Bidding Case Studies: How AI Evaluation Achieved 300%+ ROI",
+        "summary": "Real-world breakdowns: 5 marketers share how AI evaluation tools boosted their Brand Bidding ROI. Includes fitness equipment, e-commerce, multi-region testing, competitive analysis, and tracking optimization cases.",
+        "category": "Case Studies",
+        "slug": "brand-bidding-case-studies",
+        "readingTime": "12 min read"
+      },
+      {
+        "title": "7 Fatal Brand Bidding Mistakes: From Landing Page Evaluation to Budget Allocation",
+        "summary": "Breakdown of the 7 most common Brand Bidding errors and how AI tools help you avoid them, saving thousands in testing costs. Covers tracking pixels, budget allocation, device differences, regional variations, and more.",
+        "category": "Brand Bidding Pitfalls",
+        "slug": "brand-bidding-common-mistakes",
+        "readingTime": "10 min read"
+      }
+    ]
+  },
+  "privacyPage": {
+    "hero": {
+      "title": "Privacy Policy",
+      "description": "Google-Monetize is committed to protecting the security and privacy of customer data. The following terms apply to all teams using Google-Monetize products."
+    },
+    "sections": [
+      {
+        "title": "Data Collection and Use",
+        "content": [
+          "We collect account registration information, ad account authorization data, and landing page evaluation data solely to provide Google-Monetize services.",
+          "We do not sell customer data or use it for unauthorized commercial purposes."
+        ]
+      },
+      {
+        "title": "Data Storage and Security",
+        "content": [
+          "Critical data is stored on Google Cloud and Supabase, using Row-Level Security (RLS) to ensure tenant isolation.",
+          "Sensitive credentials and access keys are managed through GCP Secret Manager, with regular access log audits."
+        ]
+      },
+      {
+        "title": "Customer Data Rights",
+        "content": [
+          "Customers can export or delete their data at any time. Requests will be processed within 72 hours.",
+          "For Data Processing Agreement (DPA) signing, please contact privacy@autoads.dev."
+        ]
+      }
+    ]
+  },
+  "resourcesPage": {
+    "hero": {
+      "title": "Resource Center",
+      "description": "Comprehensive guides, strategy templates, and support channels to help teams quickly build AI-driven advertising workflows."
+    },
+    "sections": [
+      {
+        "title": "Getting Started",
+        "description": "Follow step-by-step guidance to complete platform initialization, including team invites, plan setup, and token configuration.",
+        "links": [
+          { "label": "Google-Monetize Getting Started Guide", "href": "/docs/getting-started" },
+          { "label": "Account Setup Manual", "href": "/docs/playbooks/account-setup" }
+        ]
+      },
+      {
+        "title": "Campaign Best Practices",
+        "description": "Learn how to use AI evaluation, budget scheduling, and cross-channel collaboration to improve ad performance.",
+        "links": [
+          { "label": "AI Evaluation Best Practices", "href": "/docs/playbooks/evaluation-report" },
+          { "label": "Budget & Strategy Templates", "href": "/docs/playbooks/budget-allocation" }
+        ]
+      },
+      {
+        "title": "Support & Community",
+        "description": "Join the community for latest updates, or contact the support team for one-on-one assistance.",
+        "links": [
+          { "label": "Help Center", "href": "/support" },
+          { "label": "Submit Ticket", "href": "/contact" }
+        ]
+      }
+    ],
+    "support": {
+      "title": "Need More Personalized Support?",
+      "description": "Contact Google-Monetize experts for team training, data migration, and private deployment solutions.",
+      "salesCta": "Contact Sales Team"
+    }
+  },
+  "support": {
+    "hero": {
+      "title": "Support Center",
+      "description": "Get quick help, documentation resources, and community support to maximize your team's value from Google-Monetize."
+    },
+    "sections": [
+      {
+        "title": "Getting Started",
+        "items": [
+          { "label": "Quick Start Guide", "href": "/docs/getting-started" },
+          { "label": "Account Setup Tutorial", "href": "/docs/account-setup" },
+          { "label": "Frequently Asked Questions", "href": "/faq" }
+        ]
+      },
+      {
+        "title": "Product Documentation",
+        "items": [
+          { "label": "Landing Page Evaluation Guide", "href": "/docs/offer-evaluation" },
+          { "label": "Ads Collaboration Center", "href": "/docs/ads-center" },
+          { "label": "API Documentation", "href": "/docs/api" }
+        ]
+      },
+      {
+        "title": "Get Help",
+        "items": [
+          { "label": "Contact Support Team", "href": "/contact" },
+          { "label": "Submit Ticket", "href": "/contact" },
+          { "label": "Join Community", "href": "https://discord.gg/gm" }
+        ]
+      }
+    ],
+    "cta": {
+      "title": "Need Further Assistance?",
+      "description": "Our support team is ready to help you solve any issues.",
+      "primary": "Contact Us",
+      "secondary": "Email us at {{email}}"
+    }
+  },
+  "privacyPage": {
+    "hero": {
+      "title": "Privacy Policy",
+      "description": "Google-Monetize is committed to protecting your privacy. This policy explains how we collect, use, and protect your personal information. Last updated: October 2025"
+    },
+    "sections": [
+      {
+        "title": "1. Information Collection",
+        "content": [
+          "Account Information: Email, name, and company details provided during registration",
+          "Usage Data: Operation records, evaluation history, and API call logs on the platform",
+          "Advertising Account Data: Ad account information obtained through OAuth authorization (used only for product features)",
+          "Device Information: IP address, browser type, operating system (for security protection)",
+          "Cookie Data: Used to maintain login status and improve user experience"
+        ]
+      },
+      {
+        "title": "2. Information Usage",
+        "content": [
+          "Provide Core Services: Landing page evaluation, AI analysis, ad campaign management",
+          "Improve Product Experience: Analyze usage patterns to optimize features and performance",
+          "Account Security: Detect abnormal behavior and prevent fraud and abuse",
+          "Customer Support: Respond to your questions and requests",
+          "Legal Compliance: Comply with relevant laws, regulations, and regulatory requirements",
+          "Marketing Communications: Send product updates and feature introductions (you can unsubscribe anytime)"
+        ]
+      },
+      {
+        "title": "3. Data Sharing",
+        "content": [
+          "We will not sell your personal information",
+          "Third-Party Service Providers: Share only when necessary (e.g., payment processing, cloud storage), all bound by confidentiality agreements",
+          "Legal Requirements: Disclose when required by law, regulations, or judicial proceedings",
+          "Business Transfers: Data may be transferred with the business in mergers, acquisitions, etc. (advance notice will be given)",
+          "Anonymous Statistics: May share anonymous, aggregated statistical data for industry research"
+        ]
+      },
+      {
+        "title": "4. Data Security",
+        "content": [
+          "Encrypted Transmission: All data transmitted via HTTPS/TLS encryption",
+          "Access Control: Strict authentication and permission management system",
+          "Data Encryption: Sensitive information encrypted in the database",
+          "Regular Audits: Regular security audits and vulnerability scans",
+          "Employee Training: All employees sign confidentiality agreements and receive security training",
+          "Backup and Recovery: Regular data backups to prevent catastrophic loss"
+        ]
+      },
+      {
+        "title": "5. Your Rights",
+        "content": [
+          "Access Right: View your personal information we've collected",
+          "Correction Right: Update or modify inaccurate information",
+          "Deletion Right: Request deletion of your personal information (subject to legal requirements)",
+          "Export Right: Export your data in a structured format",
+          "Objection Right: Object to our processing of your personal information for specific purposes",
+          "Withdraw Consent: Withdraw previously granted consent (does not affect processing before withdrawal)"
+        ]
+      },
+      {
+        "title": "6. Cookie Policy",
+        "content": [
+          "Necessary Cookies: Maintain login status and ensure security (cannot be disabled)",
+          "Functional Cookies: Remember your preference settings",
+          "Analytics Cookies: Help us understand usage and improve products (can be disabled in settings)",
+          "Marketing Cookies: Used for personalized advertising (can be disabled in settings)",
+          "Third-Party Cookies: From integrated services (e.g., Google Analytics), manageable through browser settings"
+        ]
+      },
+      {
+        "title": "7. Data Retention",
+        "content": [
+          "Active Accounts: Retain data during account existence",
+          "Deleted Accounts: Completely clear personal information within 30 days after deletion",
+          "Legal Requirements: Some data may be retained longer due to legal requirements",
+          "Anonymization: Some data may be used for long-term research after anonymization"
+        ]
+      },
+      {
+        "title": "8. Minors' Privacy",
+        "content": [
+          "Our services are for business users and not targeted at minors under 18",
+          "If we discover we've collected information from minors, we will delete it immediately",
+          "Parents or guardians can contact us to delete minors' information"
+        ]
+      },
+      {
+        "title": "9. Policy Updates",
+        "content": [
+          "We may update this policy from time to time to reflect legal changes or business practices",
+          "Significant changes will be notified 30 days in advance via email or site notification",
+          "Continued use of services indicates acceptance of the updated policy",
+          "Historical versions can be viewed at the bottom of this page"
+        ]
+      },
+      {
+        "title": "10. Contact Us",
+        "content": [
+          "Privacy questions or requests: privacy@autoads.dev",
+          "Data Protection Officer: dpo@autoads.dev",
+          "Response time: We will respond to your request within 30 days"
+        ]
+      }
+    ]
+  },
+  "terms": {
+    "hero": {
+      "title": "Terms of Service",
+      "description": "Please read these Terms of Service carefully before using Google-Monetize services. Using our services indicates your agreement to these terms. Last updated: October 2025"
+    },
+    "sections": [
+      {
+        "title": "1. Service Description",
+        "clauses": [
+          "Google-Monetize provides AI-based landing page evaluation, ad account management, and campaign coordination services",
+          "Services include but are not limited to: Offer evaluation, real-time bidding analysis, multi-platform account integration, budget optimization recommendations",
+          "We reserve the right to modify, suspend, or terminate part or all of the services at any time",
+          "Service content and features may vary depending on your chosen plan",
+          "Beta features may be unstable, and we make no guarantees about their availability"
+        ]
+      },
+      {
+        "title": "2. Account Registration and Use",
+        "clauses": [
+          "You must be at least 18 years old and have full civil capacity",
+          "Information provided during registration must be true, accurate, and complete",
+          "You are fully responsible for account security and confidentiality",
+          "Sharing account credentials or allowing unauthorized access is prohibited",
+          "You must notify us immediately if you discover account theft or security vulnerabilities",
+          "One entity is allowed only one account (unless with our written permission)"
+        ]
+      },
+      {
+        "title": "3. Payment and Subscription",
+        "clauses": [
+          "Fees are charged based on selected plan and billing cycle (monthly/annual)",
+          "All prices exclude taxes; taxes are your responsibility",
+          "Payment methods include credit card, Alipay, WeChat Pay, etc. (varies by region)",
+          "Subscriptions auto-renew; you can cancel anytime in account settings",
+          "After cancellation, service continues until the end of the current billing cycle",
+          "Refund policy: Full refund during free trial period, prorated refund for unused portion after trial",
+          "Overdue payments will result in service suspension; accounts will be deleted after 30 days"
+        ]
+      },
+      {
+        "title": "4. Usage Restrictions",
+        "clauses": [
+          "Prohibited for any illegal purposes or activities violating local laws",
+          "Prohibited from posting false, misleading, or rights-infringing content",
+          "Prohibited from attacking, interfering with, or damaging our servers and networks",
+          "Prohibited from using automated tools (e.g., bots, crawlers) to access services (except API)",
+          "Prohibited from reverse engineering, decompiling, or attempting to extract our source code",
+          "Prohibited from reselling, renting, or otherwise commercializing our services",
+          "Violations will result in immediate account termination without refund"
+        ]
+      },
+      {
+        "title": "5. Intellectual Property",
+        "clauses": [
+          "Google-Monetize services and all content (code, design, algorithms, documentation, etc.) are owned by us",
+          "You retain ownership of uploaded data but grant us a license to use it to provide services",
+          "You agree we may use anonymous, aggregated data to improve services and conduct research",
+          "You may not copy, modify, or distribute any of our content without written permission",
+          "Google-Monetize trademarks, logos, and brand elements are our property and may not be used without permission"
+        ]
+      },
+      {
+        "title": "6. Data and Privacy",
+        "clauses": [
+          "We process your personal information according to our Privacy Policy",
+          "You authorize us to access third-party advertising platform (e.g., Google Ads, Meta Ads) account data",
+          "We do not access or store your advertising platform account passwords",
+          "You are responsible for content uploaded to the platform and must ensure it doesn't infringe others' rights",
+          "We take reasonable measures to protect data security but cannot guarantee absolute security",
+          "Data breaches or security incidents will be reported promptly as required by law"
+        ]
+      },
+      {
+        "title": "7. Service Availability and Support",
+        "clauses": [
+          "We strive to provide 99.9% service uptime (excluding planned maintenance)",
+          "Planned maintenance will be notified 24 hours in advance; emergency maintenance may occur without warning",
+          "Support channels include email, online chat, ticket system (depending on plan)",
+          "Response times: Starter 48 hours, Professional 24 hours, Elite 4 hours",
+          "We are not responsible for third-party service (e.g., advertising platform API) interruptions"
+        ]
+      },
+      {
+        "title": "8. Disclaimer",
+        "clauses": [
+          "Services are provided \"as is\" without any express or implied warranties",
+          "We do not guarantee services are completely error-free, uninterrupted, or meet all your needs",
+          "AI evaluation results are for reference only; actual campaign performance may vary due to multiple factors",
+          "You assume all risks for any campaign decisions based on the services",
+          "We are not responsible for ad account bans, campaign losses, or third-party platform policy changes",
+          "To the maximum extent permitted by law, we exclude all liability"
+        ]
+      },
+      {
+        "title": "9. Limitation of Liability",
+        "clauses": [
+          "We are not liable for any indirect, incidental, special, or consequential damages",
+          "Liability limitations apply even if we have been advised of the possibility of such damages",
+          "Our total liability does not exceed the fees you paid in the past 12 months",
+          "Some jurisdictions do not allow exclusion or limitation of liability; these limitations may not apply to you",
+          "You agree to indemnify us for any losses we suffer due to your breach of these terms"
+        ]
+      },
+      {
+        "title": "10. Service Termination",
+        "clauses": [
+          "You may cancel your subscription at any time through account settings",
+          "We may suspend or terminate your account for any reason (including breach of terms)",
+          "Upon termination, you will lose access to services and data",
+          "You can export data within 30 days before termination",
+          "Some terms (e.g., intellectual property, disclaimers) remain in effect after termination"
+        ]
+      },
+      {
+        "title": "11. Governing Law and Dispute Resolution",
+        "clauses": [
+          "These terms are governed by the laws of [your jurisdiction]",
+          "Any disputes arising from these terms should first be resolved through friendly negotiation",
+          "If negotiation fails, submit to [designated arbitration institution] for arbitration",
+          "Arbitration decisions are final and binding on both parties",
+          "You agree to waive the right to participate in class action lawsuits"
+        ]
+      },
+      {
+        "title": "12. Terms Changes",
+        "clauses": [
+          "We may update these terms from time to time to reflect legal or business changes",
+          "Significant changes will be notified 30 days in advance via email or site notification",
+          "Continued use of services indicates acceptance of updated terms",
+          "If you disagree with changes, you may terminate services before they take effect and request a refund (prorated)",
+          "Historical versions can be viewed at the bottom of this page"
+        ]
+      },
+      {
+        "title": "13. Miscellaneous",
+        "clauses": [
+          "These terms constitute the entire agreement between you and Google-Monetize",
+          "If any part of these terms is deemed invalid, the remaining parts remain valid",
+          "Our failure to exercise any right does not constitute a waiver of that right",
+          "You may not assign rights under these terms without our written consent",
+          "In case of conflicts between Chinese and English versions, the Chinese version prevails"
+        ]
+      },
+      {
+        "title": "14. Contact Us",
+        "clauses": [
+          "Legal and compliance: legal@autoads.dev",
+          "Account and subscription: billing@autoads.dev",
+          "Technical support: support@autoads.dev",
+          "General inquiries: hello@autoads.dev",
+          "Response time: 1-2 business days"
+        ]
+      }
+    ]
+  },
+  "featuresPage": {
+    "hero": {
+      "title": "Key Features",
+      "description": "Google-Monetize provides a complete landing page evaluation and ad campaign coordination solution, helping you make data-driven campaign decisions."
+    },
+    "blocks": [
+      {
+        "title": "AI-Powered Evaluation - 12-Dimension Deep Analysis",
+        "description": "Google-Monetize' AI engine analyzes landing pages across 12 key dimensions, including content quality, user experience, technical performance, and conversion optimization, generating comprehensive scores and detailed recommendations.",
+        "highlights": [
+          "Content Dimensions: Headline appeal, value proposition clarity, social proof credibility",
+          "Experience Dimensions: Page load speed, mobile responsiveness, navigation smoothness",
+          "Conversion Dimensions: CTA clarity, form optimization, trust element completeness",
+          "Technical Dimensions: SEO friendliness, security checks, code quality",
+          "Generate professional evaluation reports in 1 minute, 120x efficiency boost",
+          "Each evaluation costs only 1-3 tokens, extremely cost-effective"
+        ]
+      },
+      {
+        "title": "Real Click Simulation - Mimicking Real User Behavior",
+        "description": "Use real browser environments and user behavior patterns to visit landing pages, bypass anti-fraud detection, and obtain authentic page load data and conversion funnel experience.",
+        "highlights": [
+          "Real Browser Environment: Randomly switch between Chrome/Firefox/Safari",
+          "Random User Agents: Simulate different device and system combinations",
+          "Natural Behavior Patterns: Page scrolling, mouse movements, dwell time simulation",
+          "Cookie and Fingerprint Management: Avoid being identified as bots",
+          "JavaScript Rendering Support: Capture complete SPA single-page application content",
+          "Bypass Cloudflare, DataDome and other anti-fraud systems"
+        ]
+      },
+      {
+        "title": "Global Proxy IP - 50+ Region Coverage",
+        "description": "Use residential proxy IPs from over 50 countries and regions worldwide to simulate user access from different locations, test geo-targeted ad performance and landing page localization.",
+        "highlights": [
+          "50+ Country/Region Coverage: North America, Europe, Asia-Pacific, Latin America fully covered",
+          "Residential IP Quality: Real user IPs, not easily identified as proxies",
+          "Starter Plan: US proxy IP only",
+          "Professional Plan: Supports 10+ core regions",
+          "Elite Plan: Supports all 50+ regions",
+          "Automatic IP Rotation: Use different IPs for each request to avoid bans"
+        ]
+      },
+      {
+        "title": "Multi-Platform Account Management",
+        "description": "One-stop integration with mainstream advertising platforms like Google Ads, Meta Ads (Facebook/Instagram), TikTok Ads, managing multiple accounts and campaigns centrally.",
+        "highlights": [
+          "OAuth Secure Authorization: No account password required",
+          "Multi-Account Support: Manage dozens of ad accounts simultaneously",
+          "Real-Time Data Sync: Campaigns, budgets, performance data auto-update",
+          "Cross-Platform Comparison: Compare campaign performance across platforms at a glance",
+          "Batch Operations: Pause/enable multiple campaigns with one click",
+          "Permission Management: Tiered access control for team members"
+        ]
+      },
+      {
+        "title": "Intelligent Budget Allocation",
+        "description": "Based on AI evaluation results and historical campaign data, automatically recommend optimal budget allocation plans to maximize ROI.",
+        "highlights": [
+          "Smart Recommendations: Provide budget suggestions based on Offer scores and expected conversion rates",
+          "Dynamic Adjustment: Real-time monitoring of campaign performance, automatic budget reallocation",
+          "A/B Testing Support: Test multiple landing pages simultaneously, intelligently distribute traffic",
+          "Risk Control: Set daily/total budget caps to avoid overspending",
+          "Historical Analysis: Review past campaign data to optimize future decisions",
+          "Campaign Calendar: Plan long-term campaign strategies with visualized budget allocation"
+        ]
+      },
+      {
+        "title": "Real-Time Monitoring & Alerts",
+        "description": "24/7 monitoring of ad accounts and landing page status, immediate notifications for anomalies to avoid budget waste and missed opportunities.",
+        "highlights": [
+          "Landing Page Availability Monitoring: Regular checks for normal page access",
+          "Ad Account Status Monitoring: Detect account bans, limit anomalies, and other issues",
+          "Budget Consumption Alerts: Advance notifications when approaching budget caps",
+          "Performance Anomaly Alerts: Instant reminders for conversion rate drops or CPA spikes",
+          "Multi-Channel Notifications: Email, Webhook, Slack, WeChat, etc.",
+          "Custom Alert Rules: Set alert thresholds based on business needs"
+        ]
+      }
+    ]
+  },
+  "about": {
+    "hero": {
+      "title": "About Us",
+      "subtitle": "Google-Monetize leverages AI and automation to help affiliate marketers and growth teams improve advertising efficiency and ROI."
+    },
+    "mission": {
+      "paragraph1": "We understand the core challenges of affiliate marketing: how to quickly identify high-value opportunities among countless offers, how to efficiently test landing page conversion, and how to coordinate budget allocation across multiple ad platforms. These repetitive, time-consuming tasks are exactly what Google-Monetize is built to solve.",
+      "paragraph2": "Through AI-powered offer evaluation, global proxy IP testing, cross-channel campaign coordination, and other core features, we help users transform from experience-driven to data-driven decision making, from manual operations to automated workflows, freeing up more time to focus on strategy and creativity.",
+      "paragraph3": "The Google-Monetize team consists of engineers from Google and Meta advertising platforms, as well as seasoned affiliate marketing practitioners. We believe that the deep integration of technology and industry experience is key to building products that truly solve real problems."
+    },
+    "valuesTitle": "Our Core Values",
+    "values": [
+      {
+        "title": "Efficiency First",
+        "description": "We believe automation and AI can free marketers from repetitive labor, allowing them to focus on more valuable strategic decisions and creative work."
+      },
+      {
+        "title": "Data-Driven",
+        "description": "All campaign decisions should be based on real data and AI insights, not subjective guesses. We provide transparent, traceable evaluation reports to help users make informed choices."
+      },
+      {
+        "title": "Continuous Innovation",
+        "description": "Ad technology and market environments change rapidly. We continuously iterate product features to ensure users always have the most advanced tools to tackle challenges."
+      },
+      {
+        "title": "Customer Success",
+        "description": "Our success is built on customer success. Whether individual marketers or enterprise teams, we are committed to helping them maximize ROI."
+      }
+    ]
+  },
+  "security": {
+    "hero": {
+      "title": "Security & Compliance",
+      "description": "We are committed to protecting your data security and ensuring our platform meets international security standards and compliance requirements."
+    },
+    "sections": [
+      {
+        "title": "Data Security",
+        "details": [
+          "All data transmission uses TLS 1.3 encryption",
+          "Sensitive information stored with AES-256 encryption",
+          "Regular security audits and penetration testing",
+          "Multi-layer firewall and intrusion detection systems"
+        ]
+      },
+      {
+        "title": "Privacy Protection",
+        "details": [
+          "We do not sell or share your personal information",
+          "Strict data access control and authorization management",
+          "Support data export and deletion requests",
+          "Full compliance with GDPR and CCPA privacy regulations"
+        ]
+      },
+      {
+        "title": "Access Control",
+        "details": [
+          "Multi-factor authentication (MFA) support",
+          "Role-based access control (RBAC)",
+          "Complete operation logs and audit trails",
+          "IP whitelisting and geographic access restrictions"
+        ]
+      },
+      {
+        "title": "Infrastructure Security",
+        "details": [
+          "Hosted on Google Cloud Platform with 99.9% SLA",
+          "Automated backups with disaster recovery capabilities",
+          "DDoS protection and traffic anomaly detection",
+          "Regular security updates and vulnerability patching"
+        ]
+      },
+      {
+        "title": "Compliance Certification",
+        "details": [
+          "SOC 2 Type II certification (in progress)",
+          "GDPR compliant data processing",
+          "PCI DSS compliant payment processing",
+          "Regular third-party security assessments"
+        ]
+      }
+    ]
+  }
+}

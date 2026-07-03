@@ -1,0 +1,45 @@
+# Cloud Run Job配置 - 数据库迁移任务（Unix Socket模式）
+# 基于DATABASE_MIGRATION_BEST_PRACTICES.md
+# 使用正确的三层嵌套结构
+
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: db-migrator-preview
+spec:
+  template:
+    metadata:
+      annotations:
+        # 🔥 Cloud SQL Proxy配置 - 关键！
+        run.googleapis.com/cloudsql-instances: "${GCP_PROJECT_ID}:asia-northeast1:gm"
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      taskCount: 1
+      template:
+        spec:
+          maxRetries: 1
+          timeoutSeconds: "600"
+          serviceAccountName: codex-dev@${GCP_PROJECT_ID}.iam.gserviceaccount.com
+          containers:
+          - name: db-migrator
+            image: asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/db-migrator:latest
+
+            # 环境变量配置
+            env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: DATABASE_URL
+                  key: latest
+
+            - name: MIGRATION_DIR
+              value: "/migrations"
+
+            - name: DB_CONNECTION_MODE
+              value: "cloudsql"
+
+            # 资源限制
+            resources:
+              limits:
+                cpu: "1000m"
+                memory: "512Mi"

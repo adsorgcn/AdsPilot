@@ -1,0 +1,18 @@
+timeout: "3600s"
+options:
+  logging: GCS_ONLY
+logsBucket: gs://gm-build-logs-asia-northeast1/logs
+substitutions:
+  _IMAGE: "asia-northeast1-docker.pkg.dev/PROJECT/REPO/frontend:dev"
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: Build hosting frontend
+    args:
+      - build
+      - '-f'
+      - 'hosting/Dockerfile'
+      - '-t'
+      - '${_IMAGE}'
+      - '.'
+images:
+  - '${_IMAGE}'

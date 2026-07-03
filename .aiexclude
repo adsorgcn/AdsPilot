@@ -1,0 +1,55 @@
+###############################################
+# AI Exclude Rules (keep code, drop heavy/secrets)
+###############################################
+
+# VCS / tooling metadata
+.git/
+.github/
+.gocache/
+.idx/
+.direnv/
+.DS_Store
+
+# Local env & secrets (never share)
+.env
+.env.*
+secrets/*
+!secrets/README.md
+
+# Logs & test outputs
+logs/
+*.log
+coverage/
+test-results/
+
+# Dependencies & build outputs
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+dist/
+build/
+out/
+bin/
+go/pkg/mod/
+
+# Large vendor/lock caches (code remains visible)
+go.work.sum
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Docker & dev-only files (do not exclude code)
+.dockerignore
+dev.nix
+flake.nix
+
+# Keep source code visible (do NOT exclude these)
+!services/**
+!apps/frontend/**
+!pkg/**
+!scripts/**
+!deployments/**
+!docs/**
+!go.work
+!go.mod

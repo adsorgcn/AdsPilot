@@ -1,0 +1,32 @@
+# Test Dockerfile for Puppeteer Chrome installation
+FROM node:22-alpine
+
+# Install Chrome dependencies for Puppeteer
+RUN apk add --no-cache \
+    libc6-compat \
+    curl \
+    bash \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    && rm -rf /var/cache/apk/*
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json ./
+
+# Install dependencies
+RUN npm ci --only=production --no-audit --no-fund
+
+# Copy test script
+COPY test-puppeteer-docker.mjs ./
+
+# Set environment
+ENV NODE_ENV=production
+
+# Run the test
+CMD ["node", "test-puppeteer-docker.mjs"]

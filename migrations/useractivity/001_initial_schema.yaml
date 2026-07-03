@@ -1,0 +1,207 @@
+version: "001"
+service: "useractivity"
+description: "从内嵌DDL迁移的初始表结构 - 包含用户通知、签到系统、邀请系统、事件存储表"
+author: "system-migration"
+created_at: "2025-01-19T14:00:00Z"
+risk_level: "medium"
+dependencies: []
+
+changes:
+  - type: "CREATE_TABLE"
+    name: "user_notifications"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "user_notifications" (
+          id BIGSERIAL PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          type TEXT NOT NULL,
+          title TEXT NOT NULL,
+          message TEXT NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    description: "用户通知表，存储所有系统通知消息"
+
+  - type: "CREATE_INDEX"
+    table: "user_notifications"
+    name: "ix_user_notifications_user_time"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_user_notifications_user_time
+          ON "user_notifications"(user_id, id DESC);
+    description: "优化按用户查询最新通知的性能"
+
+  - type: "CREATE_TABLE"
+    name: "user_notification_state"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "user_notification_state" (
+          user_id TEXT PRIMARY KEY,
+          last_read_id BIGINT NOT NULL DEFAULT 0,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    description: "用户通知状态表，记录每个用户的最后阅读位置"
+
+  - type: "CREATE_TABLE"
+    name: "checkins"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "checkins" (
+          id TEXT PRIMARY KEY,
+          "userId" TEXT NOT NULL UNIQUE,
+          "lastCheckinAt" TIMESTAMPTZ,
+          "totalCheckins" INTEGER NOT NULL DEFAULT 0,
+          "currentStreak" INTEGER NOT NULL DEFAULT 0,
+          "longestStreak" INTEGER NOT NULL DEFAULT 0,
+          "tokensEarned" INTEGER NOT NULL DEFAULT 0,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    description: "用户签到记录表，追踪用户签到活动和奖励"
+
+  - type: "CREATE_INDEX"
+    table: "checkins"
+    name: "ix_checkins_userId"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_checkins_userId ON "checkins"("userId");
+    description: "优化按用户查询签到记录的性能"
+
+  - type: "CREATE_TABLE"
+    name: "user_checkin_stats"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "user_checkin_stats" (
+          id TEXT PRIMARY KEY,
+          "userId" TEXT NOT NULL,
+          "checkinDate" DATE NOT NULL,
+          "tokensEarned" INTEGER NOT NULL DEFAULT 0,
+          "streakDay" INTEGER NOT NULL DEFAULT 0,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          UNIQUE("userId", "checkinDate")
+      );
+    description: "用户签到统计表，记录每日签到详细数据"
+
+  - type: "CREATE_INDEX"
+    table: "user_checkin_stats"
+    name: "ix_user_checkin_stats_userId"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_user_checkin_stats_userId
+          ON "user_checkin_stats"("userId", "checkinDate" DESC);
+    description: "优化查询用户签到历史的性能"
+
+  - type: "CREATE_TABLE"
+    name: "referrals"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "referrals" (
+          id TEXT PRIMARY KEY,
+          "userId" TEXT NOT NULL UNIQUE,
+          referralCode TEXT NOT NULL UNIQUE,
+          totalReferrals INTEGER NOT NULL DEFAULT 0,
+          successfulReferrals INTEGER NOT NULL DEFAULT 0,
+          totalRewards INTEGER NOT NULL DEFAULT 0,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    description: "用户邀请表，管理邀请码和邀请统计"
+
+  - type: "CREATE_INDEX"
+    table: "referrals"
+    name: "ix_referrals_userId"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_referrals_userId ON "referrals"("userId");
+    description: "优化按用户查询邀请信息的性能"
+
+  - type: "CREATE_INDEX"
+    table: "referrals"
+    name: "ix_referrals_code"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_referrals_code ON "referrals"("referralCode");
+    description: "优化按邀请码查询的性能"
+
+  - type: "CREATE_TABLE"
+    name: "referral_records"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "referral_records" (
+          id TEXT PRIMARY KEY,
+          "inviterId" TEXT NOT NULL,
+          "inviteeId" TEXT NOT NULL,
+          referralCode TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          rewardAmount INTEGER NOT NULL DEFAULT 0,
+          rewardGranted BOOLEAN NOT NULL DEFAULT FALSE,
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "completedAt" TIMESTAMPTZ,
+          UNIQUE("inviteeId")
+      );
+    description: "邀请记录表，记录详细的邀请关系和状态"
+
+  - type: "CREATE_INDEX"
+    table: "referral_records"
+    name: "ix_referral_records_inviter"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_referral_records_inviter
+          ON "referral_records"("inviterId", "createdAt" DESC);
+    description: "优化查询邀请者邀请历史的性能"
+
+  - type: "CREATE_INDEX"
+    table: "referral_records"
+    name: "ix_referral_records_invitee"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_referral_records_invitee ON "referral_records"("inviteeId");
+    description: "优化查询被邀请者状态的性能"
+
+  - type: "CREATE_TABLE"
+    name: "event_store"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "event_store" (
+          id BIGSERIAL PRIMARY KEY,
+          event_id TEXT NOT NULL,
+          event_name TEXT NOT NULL,
+          aggregate_id TEXT NOT NULL DEFAULT '',
+          aggregate_type TEXT NOT NULL DEFAULT '',
+          version INTEGER NOT NULL DEFAULT 1,
+          payload JSONB NOT NULL,
+          metadata JSONB DEFAULT '{}'::jsonb NOT NULL,
+          occurred_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    description: "事件存储表，跨服务共享的事件存储机制"
+
+  - type: "CREATE_INDEX"
+    table: "event_store"
+    name: "ix_event_store_name_time"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_event_store_name_time
+          ON "event_store"(event_name, occurred_at DESC);
+    description: "优化按事件类型和时间查询的性能"
+
+  - type: "CREATE_INDEX"
+    table: "event_store"
+    name: "ix_event_store_aggregate"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_event_store_aggregate
+          ON "event_store"(aggregate_type, aggregate_id);
+    description: "优化按聚合根查询事件的性能"
+
+rollback:
+  - type: "DROP_TABLE"
+    name: "user_notifications"
+  - type: "DROP_TABLE"
+    name: "user_notification_state"
+  - type: "DROP_TABLE"
+    name: "checkins"
+  - type: "DROP_TABLE"
+    name: "user_checkin_stats"
+  - type: "DROP_TABLE"
+    name: "referrals"
+  - type: "DROP_TABLE"
+    name: "referral_records"
+  - type: "DROP_TABLE"
+    name: "event_store"
+
+validation:
+  - type: "table_exists"
+    table: "user_notifications"
+  - type: "table_exists"
+    table: "checkins"
+  - type: "table_exists"
+    table: "referrals"
+  - type: "index_exists"
+    table: "user_notifications"
+    index: "ix_user_notifications_user_time"
+  - type: "row_count_check"
+    table: "user_notifications"
+    min_rows: 0

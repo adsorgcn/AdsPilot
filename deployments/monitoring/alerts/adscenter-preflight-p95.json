@@ -1,0 +1,23 @@
+{
+  "displayName": "Adscenter P95 Latency High (Overall)",
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "P95 request latency > 800ms (5m)",
+      "conditionThreshold": {
+        "filter": "metric.type=\"run.googleapis.com/request_latencies\" resource.type=\"cloud_run_revision\" metadata.user_labels.gm-stack=\"preview\" metadata.user_labels.service=\"adscenter\"",
+        "aggregations": [
+          {"alignmentPeriod": "300s", "perSeriesAligner": "ALIGN_PERCENTILE_95"},
+          {"crossSeriesReducer": "REDUCE_MAX", "groupByFields": ["resource.label.\"service_name\""]}
+        ],
+        "comparison": "COMPARISON_GT",
+        "duration": "0s",
+        "thresholdValue": 0.8,
+        "trigger": {"count": 1}
+      }
+    }
+  ],
+  "enabled": true,
+  "notificationChannels": []
+}
+

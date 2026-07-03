@@ -1,0 +1,433 @@
+# Offer评估API规范 (集成到/offers路由下)
+# 与现有siterank API并存
+
+openapi: 3.0.3
+info:
+  title: Offer Evaluation API
+  version: 1.0.0
+  description: |
+    Offer评估服务，提供普通评估和AI评估功能
+    - 普通评估: 访问Offer URL + SimilarWeb数据 (1 token)
+    - AI评估: 基于Gemini的智能推荐 (2 tokens)
+
+servers:
+  - url: /api/v1
+
+paths:
+  # === Offer评估相关 ===
+
+  /offers/{offerId}/evaluate:
+    post:
+      summary: 创建Offer评估任务
+      operationId: createOfferEvaluation
+      tags: [Offer Evaluations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: offerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Offer ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                includeAI:
+                  type: boolean
+                  default: false
+                  description: |
+                    是否包含AI评估 (需要Elite套餐)
+                    - false: 仅普通评估 (1 token)
+                    - true: 普通评估 + AI评估 (3 tokens)
+                forceRefresh:
+                  type: boolean
+                  default: false
+                  description: 是否强制刷新，忽略缓存
+      responses:
+        '202':
+          description: 评估任务已创建，异步处理中
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  evaluationId:
+                    type: string
+                    format: uuid
+                    description: 评估任务ID
+                  status:
+                    type: string
+                    enum: [pending]
+                  estimatedTokens:
+                    type: integer
+                    description: 预计消耗的tokens
+                    example: 1
+                  message:
+                    type: string
+                    example: "评估任务已创建，正在处理中"
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '402':
+          description: Token余额不足
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: INSUFFICIENT_TOKENS
+                  message:
+                    type: string
+                    example: "Token余额不足，需要3个tokens，当前余额2个"
+                  required:
+                    type: integer
+                    example: 3
+                  balance:
+                    type: integer
+                    example: 2
+        '403':
+          description: 需要Elite套餐才能使用AI评估
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: ELITE_REQUIRED
+                  message:
+                    type: string
+                    example: "AI评估需要Elite套餐，请升级"
+                  upgradeUrl:
+                    type: string
+                    example: "/pricing"
+
+  /offers/{offerId}/evaluations:
+    get:
+      summary: 获取Offer的评估记录列表
+      operationId: getOfferEvaluations
+      tags: [Offer Evaluations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: offerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [basic, ai, all]
+            default: all
+          description: 筛选评估类型
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: 评估记录列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  evaluations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Evaluation'
+                  total:
+                    type: integer
+
+  /offers/{offerId}/evaluations/latest:
+    get:
+      summary: 获取Offer的最新评估结果
+      operationId: getLatestOfferEvaluation
+      tags: [Offer Evaluations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: offerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [basic, ai]
+            default: basic
+          description: 评估类型
+      responses:
+        '200':
+          description: 最新评估结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Evaluation'
+        '404':
+          description: 没有找到评估记录
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /evaluations/{evaluationId}:
+    get:
+      summary: 获取指定评估任务的详情
+      operationId: getEvaluation
+      tags: [Offer Evaluations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: evaluationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 评估详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Evaluation'
+        '404':
+          description: 评估不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # === SimilarWeb数据查询 ===
+
+  /domains/{domain}/similarweb:
+    get:
+      summary: 获取域名的SimilarWeb数据 (优先从缓存)
+      operationId: getSimilarWebData
+      tags: [SimilarWeb]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: domain
+          in: path
+          required: true
+          schema:
+            type: string
+          example: nike.com
+          description: 域名（自动normalize）
+        - name: forceRefresh
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: 是否强制刷新缓存
+      responses:
+        '200':
+          description: SimilarWeb数据
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  domain:
+                    type: string
+                    example: nike.com
+                  data:
+                    $ref: '#/components/schemas/SimilarWebData'
+                  cached:
+                    type: boolean
+                    description: 是否从缓存读取
+                  cachedAt:
+                    type: string
+                    format: date-time
+                    description: 缓存时间
+        '404':
+          description: 无法获取该域名的数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Evaluation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        offerId:
+          type: string
+          format: uuid
+        evaluationType:
+          type: string
+          enum: [basic, ai]
+          description: |
+            - basic: 普通评估 (1 token)
+            - ai: AI评估 (2 tokens)
+        status:
+          type: string
+          enum: [pending, processing, success, failed]
+
+        # 落地页信息
+        landingPageUrl:
+          type: string
+          nullable: true
+        domain:
+          type: string
+          nullable: true
+        brandName:
+          type: string
+          nullable: true
+        brandExtractionConfidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          nullable: true
+
+        # SimilarWeb数据
+        similarwebData:
+          $ref: '#/components/schemas/SimilarWebData'
+          nullable: true
+        similarwebCached:
+          type: boolean
+          description: SimilarWeb数据是否从缓存读取
+
+        # AI评估结果 (仅evaluationType='ai'时有值)
+        aiRecommendationScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+          nullable: true
+          description: AI推荐指数 (0-100分)
+        aiReasons:
+          type: array
+          items:
+            type: string
+          maxItems: 3
+          nullable: true
+          description: AI推荐的3条理由
+        aiIndustry:
+          type: string
+          nullable: true
+          description: AI识别的行业
+        aiTrafficInsights:
+          type: object
+          nullable: true
+          description: 流量洞察
+        aiAdInsights:
+          type: object
+          nullable: true
+          description: 广告洞察
+
+        # Token消耗
+        tokensConsumed:
+          type: integer
+          description: 本次评估消耗的tokens
+
+        # 错误信息 (status=failed时)
+        errorMessage:
+          type: string
+          nullable: true
+        errorCode:
+          type: string
+          nullable: true
+
+        # 时间戳
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - offerId
+        - evaluationType
+        - status
+        - tokensConsumed
+        - startedAt
+        - createdAt
+
+    SimilarWebData:
+      type: object
+      properties:
+        globalRank:
+          type: integer
+          nullable: true
+          description: 全球排名
+        categoryRank:
+          type: integer
+          nullable: true
+          description: 分类排名
+        totalVisits:
+          type: number
+          format: float
+          nullable: true
+          description: 月访问量
+        topCountryRanks:
+          type: array
+          items:
+            type: object
+            properties:
+              country:
+                type: string
+              rank:
+                type: integer
+        trafficSources:
+          type: object
+          nullable: true
+          description: 流量来源分布
+        engagementMetrics:
+          type: object
+          nullable: true
+          description: 用户参与度指标
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: "参数验证失败"
+        details:
+          type: object
+          additionalProperties: true
+      required:
+        - code
+        - message
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase Access Token

@@ -1,0 +1,30 @@
+{
+  "displayName": "Auth: User Auto-creation Failed",
+  "documentation": {
+    "content": "Alert triggered immediately when user auto-creation fails",
+    "mimeType": "text/markdown"
+  },
+  "conditions": [
+    {
+      "displayName": "User creation failures detected",
+      "conditionThreshold": {
+        "filter": "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"frontend-preview\" AND metric.type=\"logging.googleapis.com/user/auth_user_creation_failed\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0,
+        "duration": "60s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_SUM",
+            "crossSeriesReducer": "REDUCE_SUM"
+          }
+        ]
+      }
+    }
+  ],
+  "combiner": "OR",
+  "enabled": true,
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}

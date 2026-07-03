@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Google-Monetize 管理后台（最小版）</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 16px; }
+      header { display:flex; align-items:center; gap:12px; margin-bottom: 16px; }
+      input[type=text] { width: 420px; padding: 6px 8px; }
+      button { padding: 6px 10px; cursor: pointer; }
+      table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+      th, td { border: 1px solid #ddd; padding: 8px; }
+      th { background: #f5f5f5; text-align: left; }
+      .muted { color: #666; font-size: 12px; }
+      .row { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+      .card { border:1px solid #e5e5e5; padding:12px; border-radius:8px; margin-bottom:12px; }
+      .badge { background:#eef; color:#225; padding:2px 6px; border-radius: 4px; font-size:12px; }
+      .light { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h2 style="margin:0">Google-Monetize 管理后台（最小版）</h2>
+      <span class="badge" id="envBadge">ENV</span>
+    </header>
+
+    <section class="card">
+      <div class="row">
+        <label>Supabase Access Token：</label>
+        <input type="text" id="tokenInput" placeholder="在此粘贴管理员用户的 Supabase Access Token" />
+        <button id="saveTokenBtn">保存</button>
+        <span class="muted">保存后仅存于浏览器 localStorage，用作 Authorization: Bearer 调用</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <button id="loadUsersBtn">加载用户列表</button>
+        <label>关键词：</label><input type="text" id="q" placeholder="email 或 name 模糊查询" />
+        <label>角色：</label><input type="text" id="role" placeholder="ADMIN 或 USER" />
+        <label>数量：</label><input type="text" id="limit" value="20" style="width:60px" />
+      </div>
+      <div id="usersWrap"></div>
+      <div class="muted" style="margin-top:8px">小贴士：点击每行的操作按钮可查看 Token 余额或订阅；也可直接在下方对指定用户增发 Token。</div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <label>对用户ID加/扣 Token：</label><input type="text" id="uidTokens" placeholder="用户ID" />
+        <label>数量：</label><input type="text" id="amountTokens" value="100" style="width:80px" />
+        <button id="addTokensBtn">变更余额(+)</button>
+      </div>
+      <div id="tokensResult" class="muted"></div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <button id="tokenStatsBtn">查看 Token 汇总</button>
+        <span id="tokenStats" class="muted"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <strong>通知中心</strong>
+        <span class="muted">未读：</span><span id="unreadCount" class="badge">0</span>
+        <button id="refreshNotificationsBtn">刷新列表</button>
+        <button id="markAllReadBtn">标记至列表最新为已读</button>
+      </div>
+      <div id="notifWrap" class="muted">尚无数据</div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <strong>系统配置（只读）：计费</strong>
+        <button id="loadBillingCfgBtn">加载</button>
+      </div>
+      <div id="billingCfgTbl" class="muted" style="margin-top:6px"></div>
+      <pre id="billingCfg" class="muted" style="white-space:pre-wrap"></pre>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <strong>计费明细查询</strong>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <label>交易ID：</label><input type="text" id="txId" placeholder="TokenTransaction id" />
+        <button id="txLoadBtn">查询</button>
+      </div>
+      <pre id="txDetail" class="muted" style="white-space:pre-wrap"></pre>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <strong>我的交易（最近50条）</strong>
+        <button id="myTxLoadBtn">加载</button>
+        <button id="myTxExportBtn">导出CSV</button>
+      </div>
+      <div id="myTxList" class="muted" style="margin-top:8px">尚无数据</div>
+      <div class="row" style="margin-top:6px"><strong>选中交易详情</strong></div>
+      <pre id="myTxDetail" class="muted" style="white-space:pre-wrap"></pre>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <strong>关键词扩展（内部规则，无 Ads API）</strong>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <label>域名：</label><input type="text" id="kwSeedDomain" placeholder="如 yitahome.com" />
+        <label>关键词：</label><input type="text" id="kwSeedKeywords" placeholder="以逗号分隔，如 home furniture, sofa" style="width:360px" />
+      </div>
+      <div class="row" style="margin-top:6px">
+        <label>国家：</label><input type="text" id="kwCountry" placeholder="可选，如 US" style="width:80px" />
+        <label>数量：</label><input type="text" id="kwLimit" value="10" style="width:60px" />
+        <label>最小分：</label><input type="text" id="kwMinScore" value="0" style="width:60px" />
+        <button id="kwExpandBtn">生成扩展</button>
+      </div>
+      <div id="kwResult" class="muted" style="margin-top:8px"></div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <strong>相似度评分（Siterank）</strong>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <label>种子域名：</label><input type="text" id="simSeedDomain" placeholder="如 yitahome.com" />
+        <label>国家：</label><input type="text" id="simCountry" placeholder="可选，如 US" style="width:80px" />
+        <label>最小分：</label><input type="text" id="simMinScore" placeholder="如 50" style="width:60px" />
+        <label><input type="checkbox" id="simOverlapOnly" /> 仅显示有重叠国家</label>
+        <button id="simExportCsvBtn">导出CSV</button>
+        <button id="simGenPlanBtn">从结果生成计划(校验)</button>
+        <button id="simSubmitPlanBtn">提交入队</button>
+        <button id="simSaveOppBtn">保存为机会</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="simToggleAdvancedBtn">高级设置</button>
+        <span id="simMsg" class="muted"></span>
+      </div>
+      <div id="simAdvanced" class="row" style="margin-top:6px; display:none">
+        <label>计划类型：</label>
+        <select id="simPlanType">
+          <option value="ROTATE_LINK">ROTATE_LINK（换链接）</option>
+          <option value="ADJUST_CPC">ADJUST_CPC（调 CPC）</option>
+        </select>
+        <label>TopN：</label><input type="text" id="simTopN" value="10" style="width:60px" />
+        <label>CPC调整%（当选择ADJUST_CPC时）：</label><input type="text" id="simCpcPercent" value="10" style="width:60px" />
+        <span class="muted">提示：提交入队前可先“从结果生成计划(校验)”查看风险与建议</span>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <label>候选域名（逗号或换行分隔）：</label>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <textarea id="simCandidates" rows="4" style="width:100%" placeholder="例如：\na.com\nb.com\nc.com"></textarea>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="simComputeBtn">计算相似度</button>
+      </div>
+      <div id="simResult" class="muted" style="margin-top:8px"></div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <strong>机会发现（组合报告）</strong>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <label>种子域名：</label><input type="text" id="comboSeedDomain" placeholder="如 yitahome.com" />
+        <label>国家：</label><input type="text" id="comboCountry" placeholder="可选，如 US" style="width:80px" />
+      </div>
+      <div class="row" style="margin-top:6px">
+        <label>种子关键词（可选，逗号分隔）：</label><input type="text" id="comboSeedKeywords" style="width:380px" placeholder="如 home furniture, sofa" />
+      </div>
+      <div class="row" style="margin-top:6px">
+        <label>候选域名（逗号或换行分隔）：</label>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <textarea id="comboCandidates" rows="3" style="width:100%" placeholder="例如：\na.com\nb.com\nc.com"></textarea>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="comboRunBtn">生成组合报告</button>
+        <button id="comboExportCsvBtn">导出CSV</button>
+        <button id="comboExportJsonBtn">导出JSON</button>
+        <button id="comboSaveBtn">保存为机会</button>
+      </div>
+      <div id="comboResult" class="muted" style="margin-top:8px"></div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <strong>通知规则管理</strong>
+        <button id="nrLoadBtn">加载规则</button>
+      </div>
+      <div id="nrList" class="muted" style="margin-top:8px">尚无数据</div>
+      <div class="row" style="margin-top:8px">
+        <label>事件类型：</label><input type="text" id="nrEventType" placeholder="如 SiterankCompleted" />
+        <label>渠道：</label><input type="text" id="nrChannel" placeholder="如 inapp" />
+        <label>启用：</label><input type="checkbox" id="nrEnabled" checked />
+        <button id="nrUpsertBtn">保存/更新</button>
+      </div>
+      <div id="nrMsg" class="muted" style="margin-top:6px"></div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <strong>仪表盘统计</strong>
+        <button id="dashLoadBtn">刷新</button>
+      </div>
+      <div id="dashStats" class="muted" style="margin-top:8px">尚未加载</div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <strong>执行概览（近7天）</strong>
+        <span id="execUpdated" class="muted"></span>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <span id="execLightRate" class="light" style="background:#9ca3af"></span>
+        <span>成功率：</span>
+        <span id="execRate" class="badge">--</span>
+        <span style="width:16px;display:inline-block"></span>
+        <span id="execLightDL" class="light" style="background:#9ca3af"></span>
+        <span>死信（待处理）：</span>
+        <span id="execDL" class="badge">--</span>
+        <button id="execRefreshBtn" style="margin-left:8px;">刷新</button>
+      </div>
+      <div class="muted" style="margin-top:6px">来源：/api/v1/console/adscenter/executions/summary</div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <strong>系统概览与健康检查</strong>
+        <button id="sysCheckBtn">检查健康</button>
+      </div>
+      <div id="sysStatus" class="muted" style="margin-top:8px">尚未检查</div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <strong>Adscenter 管理与可视化</strong>
+        <a href="/console/manage/adscenter-executions.html" style="margin-left:8px;">执行概览（红绿灯/图表）</a>
+        <a href="/console/manage/adscenter-business.html" style="margin-left:8px;">业务监控（动作/错误率）</a>
+        <a href="/console/manage/adscenter-reports.html" style="margin-left:8px;">近7天报表</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <strong>我的机会（最近50条）</strong>
+        <button id="oppsLoadBtn">刷新列表</button>
+      </div>
+      <div id="oppsList" class="muted" style="margin-top:8px">尚无数据</div>
+      <div class="row" style="margin-top:6px"><strong>详情</strong></div>
+      <pre id="oppsDetail" class="muted" style="white-space:pre-wrap"></pre>
+      <div class="row" style="margin-top:6px">
+        <button id="oppPlanValidateBtn">从机会生成计划(校验)</button>
+        <button id="oppPlanSubmitBtn">提交计划入队</button>
+        <span class="muted">提示：使用上方“计划类型/TopN/CPC%”控制生成的动作</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <strong>批量计划报告（after/rollback）</strong>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <label>Operation ID：</label><input type="text" id="baOpId" placeholder="如 op_20240926_123456" />
+        <label>Kind：</label>
+        <select id="baKind">
+          <option value="">all</option>
+          <option value="after">after</option>
+          <option value="rollback">rollback</option>
+          <option value="rollback_exec">rollback_exec</option>
+        </select>
+        <button id="baLoadBtn">加载报告</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="baJumpAfterBtn">查看 after 审计</button>
+        <button id="baJumpRollbackExecBtn">查看 rollback_exec 审计</button>
+        <button id="baPollBtn">开始轮询状态</button>
+        <button id="baStopPollBtn">停止轮询</button>
+        <span id="baStatus" class="muted"></span>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="baLoadPlanBtn">查看 Plan</button>
+        <button id="baExportAfterBtn">导出 After JSON</button>
+        <button id="baExportExecCsvBtn">导出 Exec CSV</button>
+        <button id="baExportPlanBtn">导出 Plan JSON</button>
+        <button id="baExportBundleBtn">导出综合报告</button>
+      </div>
+      <pre id="baReport" class="muted" style="white-space:pre-wrap; margin-top:8px"></pre>
+    </section>
+
+    <section class="card">
+      <div class="row">
+        <strong>批量计划审计列表（before/after/other/rollback/...）</strong>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <label>Operation ID：</label><input type="text" id="baListOpId" placeholder="如 op_20240926_123456" />
+        <label>Kind：</label>
+        <select id="baListKind">
+          <option value="">all</option>
+          <option value="before">before</option>
+          <option value="after">after</option>
+          <option value="other">other</option>
+          <option value="rollback">rollback</option>
+          <option value="rollback_exec">rollback_exec</option>
+        </select>
+        <button id="baListLoadBtn">加载</button>
+        <button id="baListExportBtn">导出JSON</button>
+        <button id="baListExportCsvBtn">导出CSV</button>
+      </div>
+      <div id="baList" class="muted" style="margin-top:8px">尚无数据</div>
+    </section>
+
+    <script src="./app.js"></script>
+  </body>
+  </html>

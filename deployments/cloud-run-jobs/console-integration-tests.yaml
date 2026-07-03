@@ -1,0 +1,50 @@
+# Cloud Run Job configuration for Console Service Cloud SQL Integration Tests
+# This job runs integration tests with access to Cloud SQL via VPC Connector
+
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: console-integration-tests
+  namespace: '${GCP_PROJECT_ID}'
+  labels:
+    cloud.googleapis.com/location: asia-northeast1
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/vpc-access-connector: projects/${GCP_PROJECT_ID}/locations/asia-northeast1/connectors/cr-conn-default-ane1
+        run.googleapis.com/vpc-access-egress: all-traffic
+    spec:
+      containers:
+      - image: asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/console-integration-tests:latest
+        env:
+        # Database connection URL (from Secret Manager)
+        - name: CLOUDSQL_DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: DATABASE_URL
+              key: latest
+        # Test configuration
+        - name: RUN_CLOUD_SQL_TESTS
+          value: "true"
+        - name: TEST_ENVIRONMENT
+          value: "cloud-run-job"
+
+        resources:
+          limits:
+            cpu: '2'
+            memory: 2Gi
+          requests:
+            cpu: '1'
+            memory: 1Gi
+
+      # Service account with necessary permissions
+      serviceAccountName: codex-dev@${GCP_PROJECT_ID}.iam.gserviceaccount.com
+
+      # Timeout for the entire job
+      timeoutSeconds: 600
+
+  # Job execution configuration
+  parallelism: 1
+  completions: 1
+  backoffLimit: 3

@@ -1,0 +1,357 @@
+{
+  "dashboard": {
+    "title": "Google-Monetize业务核心指标监控",
+    "tags": ["business", "kpi", "evaluation", "tokens"],
+    "timezone": "Asia/Shanghai",
+    "panels": [
+      {
+        "id": 1,
+        "title": "评估成功率 (目标>95%)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "(sum(rate(siterank_evaluation_requests_total{status=\"success\"}[5m])) / sum(rate(siterank_evaluation_requests_total[5m]))) * 100",
+            "legendFormat": "Success Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "value": 0, "color": "red" },
+                { "value": 90, "color": "yellow" },
+                { "value": 95, "color": "green" }
+              ]
+            }
+          }
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 }
+      },
+      {
+        "id": 2,
+        "title": "评估总量 (5分钟)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(siterank_evaluation_requests_total[5m]))",
+            "legendFormat": "Total Evaluations"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 }
+      },
+      {
+        "id": 3,
+        "title": "Token消耗速率 (tokens/min)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(siterank_tokens_consumed_total[1m]) * 60",
+            "legendFormat": "Tokens/min"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 100, "color": "yellow" },
+                { "value": 500, "color": "red" }
+              ]
+            }
+          }
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 }
+      },
+      {
+        "id": 4,
+        "title": "系统错误率 (目标<1%)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "(sum(rate(siterank_evaluation_requests_total{status=\"error\"}[5m])) / sum(rate(siterank_evaluation_requests_total[5m]))) * 100",
+            "legendFormat": "Error Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 1, "color": "yellow" },
+                { "value": 5, "color": "red" }
+              ]
+            }
+          }
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 }
+      },
+      {
+        "id": 5,
+        "title": "评估成功率趋势 (过去1小时)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "(sum(rate(siterank_evaluation_requests_total{status=\"success\"}[5m])) / sum(rate(siterank_evaluation_requests_total[5m]))) * 100",
+            "legendFormat": "Success Rate %"
+          },
+          {
+            "expr": "(sum(rate(siterank_evaluation_requests_total{status=\"error\"}[5m])) / sum(rate(siterank_evaluation_requests_total[5m]))) * 100",
+            "legendFormat": "Error Rate %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent"
+          }
+        },
+        "yaxes": [
+          { "format": "percent", "min": 0, "max": 100 }
+        ],
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 }
+      },
+      {
+        "id": 6,
+        "title": "评估请求速率 (req/min)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(siterank_evaluation_requests_total{type=\"basic\"}[1m])) * 60",
+            "legendFormat": "Basic Evaluations"
+          },
+          {
+            "expr": "sum(rate(siterank_evaluation_requests_total{type=\"ai\"}[1m])) * 60",
+            "legendFormat": "AI Evaluations"
+          },
+          {
+            "expr": "sum(rate(siterank_evaluation_requests_total[1m])) * 60",
+            "legendFormat": "Total"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqpm"
+          }
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 }
+      },
+      {
+        "id": 7,
+        "title": "评估处理时间分布 (P50/P95/P99)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(siterank_evaluation_duration_seconds_bucket[5m])) by (le, type))",
+            "legendFormat": "P50 - {{ type }}"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(siterank_evaluation_duration_seconds_bucket[5m])) by (le, type))",
+            "legendFormat": "P95 - {{ type }}"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(siterank_evaluation_duration_seconds_bucket[5m])) by (le, type))",
+            "legendFormat": "P99 - {{ type }}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s"
+          }
+        },
+        "yaxes": [
+          { "format": "s", "logBase": 1 }
+        ],
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 }
+      },
+      {
+        "id": 8,
+        "title": "Token消耗趋势",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(siterank_tokens_consumed_total{type=\"basic\"}[5m]) * 300",
+            "legendFormat": "Basic (5min)"
+          },
+          {
+            "expr": "rate(siterank_tokens_consumed_total{type=\"ai\"}[5m]) * 300",
+            "legendFormat": "AI (5min)"
+          },
+          {
+            "expr": "rate(siterank_tokens_consumed_total[5m]) * 300",
+            "legendFormat": "Total (5min)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 }
+      },
+      {
+        "id": 9,
+        "title": "SimilarWeb缓存命中率 (目标>80%)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "(sum(rate(siterank_similarweb_cache_hits_total{hit=\"true\"}[5m])) / sum(rate(siterank_similarweb_cache_hits_total[5m]))) * 100",
+            "legendFormat": "Cache Hit Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "value": 0, "color": "red" },
+                { "value": 70, "color": "yellow" },
+                { "value": 80, "color": "green" }
+              ]
+            }
+          }
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 20 }
+      },
+      {
+        "id": 10,
+        "title": "Token预留成功率",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "(sum(rate(siterank_token_reserve_success_total[5m])) / (sum(rate(siterank_token_reserve_success_total[5m])) + sum(rate(siterank_token_reserve_failed_total[5m])))) * 100",
+            "legendFormat": "Reserve Success Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "value": 0, "color": "red" },
+                { "value": 95, "color": "yellow" },
+                { "value": 99, "color": "green" }
+              ]
+            }
+          }
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 20 }
+      },
+      {
+        "id": 11,
+        "title": "AI评估分数分布",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(siterank_ai_recommendation_score_bucket[5m])",
+            "legendFormat": "Score {{ le }}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 }
+      },
+      {
+        "id": 12,
+        "title": "外部服务延迟 (Browser-exec & SimilarWeb)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(siterank_browser_exec_latency_seconds_bucket[5m])) by (le))",
+            "legendFormat": "Browser-exec P95"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(siterank_similarweb_api_latency_seconds_bucket[5m])) by (le))",
+            "legendFormat": "SimilarWeb P95"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s"
+          }
+        },
+        "yaxes": [
+          { "format": "s" }
+        ],
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 }
+      },
+      {
+        "id": 13,
+        "title": "外部服务错误率",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(siterank_browser_exec_errors_total[5m])",
+            "legendFormat": "Browser-exec - {{ error_type }}"
+          },
+          {
+            "expr": "rate(siterank_gemini_api_errors_total[5m])",
+            "legendFormat": "Gemini API - {{ error_type }}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops"
+          }
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 }
+      },
+      {
+        "id": 14,
+        "title": "Gemini API成本追踪 (USD)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(siterank_gemini_api_cost_usd_sum[1h]))",
+            "legendFormat": "Cost (1 hour)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 4
+          }
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 36 }
+      },
+      {
+        "id": 15,
+        "title": "Gemini Token使用量",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(siterank_gemini_input_tokens_sum[5m]) * 300",
+            "legendFormat": "Input Tokens (5min)"
+          },
+          {
+            "expr": "rate(siterank_gemini_output_tokens_sum[5m]) * 300",
+            "legendFormat": "Output Tokens (5min)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        },
+        "gridPos": { "h": 8, "w": 18, "x": 6, "y": 36 }
+      }
+    ],
+    "refresh": "30s",
+    "time": { "from": "now-1h", "to": "now" }
+  },
+  "overwrite": true
+}

@@ -1,0 +1,25 @@
+# ==============================================================================
+# Siterank服务专用 - 最小化上传
+# ==============================================================================
+
+# 排除所有,只包含必需的
+*
+!services/siterank/**
+!pkg/**
+!go.work
+!go.work.sum
+
+# 但排除服务内的非必需文件
+services/siterank/scripts/**
+!services/siterank/scripts/*.sh
+services/siterank/**/*.md
+services/siterank/**/*_test.go
+services/siterank/**/*.log
+services/siterank/**/*.json
+!services/siterank/go.mod
+!services/siterank/go.sum
+
+pkg/**/*_test.go
+pkg/**/*.md
+
+**/.DS_Store

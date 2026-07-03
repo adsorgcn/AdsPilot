@@ -1,0 +1,345 @@
+# Cloud Monitoring Alert Policies for Google-Monetize Microservices
+# Deploy with: gcloud alpha monitoring policies create --policy-from-file=<file>
+
+# 告警策略 1: 高 429 错误率 (限流触发)
+apiVersion: monitoring.googleapis.com/v1
+kind: AlertPolicy
+metadata:
+  name: high-rate-limit-429-errors
+  displayName: "High 429 Rate Limit Errors"
+spec:
+  displayName: "High 429 Rate Limit Errors"
+  documentation:
+    content: |
+      ## 429 错误率过高告警
+
+      **触发条件**: 任一服务的 429 (Too Many Requests) 错误率超过 100 请求/分钟
+
+      **可能原因**:
+      1. 突发流量超过限流阈值
+      2. 客户端重试风暴
+      3. DDoS 攻击
+
+      **处理步骤**:
+      1. 检查服务日志确认流量来源
+      2. 评估是否需要调整限流阈值
+      3. 检查是否有异常客户端行为
+      4. 如果是合法流量，考虑扩展服务实例数
+
+      **参考文档**: docs/MarkerkitGo/OptimizationPhase4Summary.md
+    mimeType: text/markdown
+  conditions:
+    - displayName: "429 Error Rate > 100/min"
+      conditionThreshold:
+        filter: |
+          resource.type = "cloud_run_revision"
+          AND metric.type = "run.googleapis.com/request_count"
+          AND metric.labels.response_code_class = "4xx"
+          AND metric.labels.response_code = "429"
+        comparison: COMPARISON_GT
+        thresholdValue: 100
+        duration: 60s
+        aggregations:
+          - alignmentPeriod: 60s
+            perSeriesAligner: ALIGN_RATE
+            crossSeriesReducer: REDUCE_SUM
+            groupByFields:
+              - resource.labels.service_name
+              - resource.labels.location
+  combiner: OR
+  enabled: true
+  notificationChannels:
+    - projects/${GCP_PROJECT_ID}/notificationChannels/11693781893064978969
+  alertStrategy:
+    autoClose: 1800s  # 30分钟无新触发自动关闭
+
+---
+
+# 告警策略 2: 断路器打开状态
+apiVersion: monitoring.googleapis.com/v1
+kind: AlertPolicy
+metadata:
+  name: circuit-breaker-open
+  displayName: "Circuit Breaker Open"
+spec:
+  displayName: "Circuit Breaker Open State Detected"
+  documentation:
+    content: |
+      ## 断路器打开告警
+
+      **触发条件**: HTTP 客户端断路器进入 OPEN 状态
+
+      **含义**: 下游服务连续失败，断路器自动切断流量保护系统
+
+      **可能原因**:
+      1. 下游服务不可用或响应超时
+      2. 网络故障
+      3. 下游服务负载过高
+
+      **处理步骤**:
+      1. 检查目标服务健康状态 (Cloud Run metrics)
+      2. 查看服务日志确认失败原因
+      3. 如果下游服务正常，检查网络连接
+      4. 评估是否需要扩展下游服务实例
+
+      **自动恢复**: 断路器会在冷却期后自动尝试半开状态
+
+      **参考文档**: docs/MarkerkitGo/MicroserviceArchitectureReview.md Section 2.3
+    mimeType: text/markdown
+  conditions:
+    - displayName: "Circuit Breaker State = OPEN"
+      conditionThreshold:
+        filter: |
+          resource.type = "cloud_run_revision"
+          AND metric.type = "workload.googleapis.com/http_circuit_breaker_state"
+          AND metric.labels.state = "open"
+        comparison: COMPARISON_GT
+        thresholdValue: 0
+        duration: 60s
+        aggregations:
+          - alignmentPeriod: 60s
+            perSeriesAligner: ALIGN_MAX
+            crossSeriesReducer: REDUCE_MAX
+            groupByFields:
+              - resource.labels.service_name
+              - metric.labels.target_service
+  combiner: OR
+  enabled: true
+  notificationChannels:
+    - projects/${GCP_PROJECT_ID}/notificationChannels/11693781893064978969
+  alertStrategy:
+    autoClose: 900s  # 15分钟
+
+---
+
+# 告警策略 3: 数据库只读副本复制延迟
+apiVersion: monitoring.googleapis.com/v1
+kind: AlertPolicy
+metadata:
+  name: read-replica-lag
+  displayName: "Cloud SQL Read Replica Lag"
+spec:
+  displayName: "Cloud SQL Read Replica Replication Lag > 10s"
+  documentation:
+    content: |
+      ## 只读副本复制延迟告警
+
+      **触发条件**: Cloud SQL 只读副本与主库的复制延迟超过 10 秒
+
+      **影响范围**: recommendations 服务的查询可能读取到过期数据
+
+      **可能原因**:
+      1. 主库写入负载过高
+      2. 只读副本资源不足 (CPU/IO)
+      3. 网络延迟
+      4. 大事务阻塞复制
+
+      **处理步骤**:
+      1. 检查主库和副本的 CPU/内存/IO 使用率
+      2. 检查是否有长事务或大批量写入
+      3. 考虑升级只读副本配置
+      4. 临时方案: recommendations 降级到主库查询
+
+      **参考文档**: docs/MarkerkitGo/OptimizationPhase5Summary.md Section 2.4
+    mimeType: text/markdown
+  conditions:
+    - displayName: "Replication Lag > 10s"
+      conditionThreshold:
+        filter: |
+          resource.type = "cloudsql_database"
+          AND resource.labels.database_id = "${GCP_PROJECT_ID}:gm-read-replica"
+          AND metric.type = "cloudsql.googleapis.com/database/replication/replica_lag"
+        comparison: COMPARISON_GT
+        thresholdValue: 10  # 10 seconds
+        duration: 120s
+        aggregations:
+          - alignmentPeriod: 60s
+            perSeriesAligner: ALIGN_MAX
+  combiner: OR
+  enabled: true
+  notificationChannels:
+    - projects/${GCP_PROJECT_ID}/notificationChannels/11693781893064978969
+  alertStrategy:
+    autoClose: 600s  # 10分钟
+
+---
+
+# 告警策略 4: READ_REPLICA_URL 连接失败
+apiVersion: monitoring.googleapis.com/v1
+kind: AlertPolicy
+metadata:
+  name: read-replica-connection-failure
+  displayName: "READ_REPLICA_URL Connection Failures"
+spec:
+  displayName: "Read Replica Connection Failures"
+  documentation:
+    content: |
+      ## 只读副本连接失败告警
+
+      **触发条件**: recommendations 服务日志中出现 "Read replica ping failed" 或 "Read replica open failed"
+
+      **影响**: 服务自动降级到主库，但会增加主库负载
+
+      **可能原因**:
+      1. 只读副本实例停止或删除
+      2. READ_REPLICA_URL secret 配置错误
+      3. VPC 连接问题
+      4. 连接数耗尽
+
+      **处理步骤**:
+      1. 验证只读副本实例状态: `gcloud sql instances describe gm-read-replica`
+      2. 检查 READ_REPLICA_URL secret: `gcloud secrets versions access latest --secret=READ_REPLICA_URL`
+      3. 检查 VPC connector 状态
+      4. 查看 recommendations 服务日志获取详细错误
+
+      **参考文档**: services/recommendations/main.go:67-77
+    mimeType: text/markdown
+  conditions:
+    - displayName: "Read Replica Connection Errors in Logs"
+      conditionThreshold:
+        filter: |
+          resource.type = "cloud_run_revision"
+          AND resource.labels.service_name = "recommendations-preview"
+          AND textPayload =~ "Read replica.*failed"
+        comparison: COMPARISON_GT
+        thresholdValue: 5
+        duration: 300s  # 5分钟内出现5次
+        aggregations:
+          - alignmentPeriod: 60s
+            perSeriesAligner: ALIGN_RATE
+            crossSeriesReducer: REDUCE_SUM
+  combiner: OR
+  enabled: true
+  notificationChannels:
+    - projects/${GCP_PROJECT_ID}/notificationChannels/11693781893064978969
+  alertStrategy:
+    autoClose: 1800s  # 30分钟
+
+---
+
+# 告警策略 5: Pub/Sub 订阅积压
+apiVersion: monitoring.googleapis.com/v1
+kind: AlertPolicy
+metadata:
+  name: pubsub-subscription-backlog
+  displayName: "Pub/Sub Subscription Message Backlog"
+spec:
+  displayName: "Pub/Sub Subscription Has > 100 Unacked Messages"
+  documentation:
+    content: |
+      ## Pub/Sub 消息积压告警
+
+      **触发条件**: 任一订阅的未确认消息数 > 100
+
+      **影响范围**:
+      - siterank-worker-sub-preview: Siterank 评分任务延迟
+      - browser-visit-sub: 浏览器访问任务延迟
+      - notifications/projector: 事件处理延迟
+
+      **可能原因**:
+      1. Worker 服务实例数不足
+      2. 消息处理速度慢 (下游服务慢/超时)
+      3. Worker 服务崩溃或未启动
+      4. 消息处理逻辑错误导致频繁重试
+
+      **处理步骤**:
+      1. 检查 worker 服务健康状态和实例数
+      2. 查看 worker 日志确认处理速度和错误率
+      3. 考虑扩展 worker 实例 (max-instances)
+      4. 检查是否有大量消息进入死信队列
+
+      **参考文档**: docs/MarkerkitGo/SiterankWorkerDeploymentPlan.md
+    mimeType: text/markdown
+  conditions:
+    - displayName: "Unacked Messages > 100"
+      conditionThreshold:
+        filter: |
+          resource.type = "pubsub_subscription"
+          AND metric.type = "pubsub.googleapis.com/subscription/num_undelivered_messages"
+        comparison: COMPARISON_GT
+        thresholdValue: 100
+        duration: 300s  # 持续5分钟
+        aggregations:
+          - alignmentPeriod: 60s
+            perSeriesAligner: ALIGN_MAX
+            groupByFields:
+              - resource.labels.subscription_id
+  combiner: OR
+  enabled: true
+  notificationChannels:
+    - projects/${GCP_PROJECT_ID}/notificationChannels/11693781893064978969
+  alertStrategy:
+    autoClose: 600s  # 10分钟
+
+---
+
+# 告警策略 6: Worker 模式未启动
+apiVersion: monitoring.googleapis.com/v1
+kind: AlertPolicy
+metadata:
+  name: siterank-worker-mode-not-started
+  displayName: "Siterank Worker Mode Not Started"
+spec:
+  displayName: "Siterank Worker Mode Did Not Start Properly"
+  documentation:
+    content: |
+      ## Siterank Worker 模式未启动告警
+
+      **触发条件**: siterank-worker-preview 服务启动后 5 分钟内未出现 "Pub/Sub subscriber started" 日志
+
+      **影响**: Siterank 评分任务无法异步处理，导致 offer API 超时
+
+      **可能原因**:
+      1. SITERANK_WORKER_MODE 环境变量未正确配置
+      2. 部署的镜像不包含 worker 模式代码
+      3. Pub/Sub 订阅配置错误
+      4. 服务启动时崩溃
+
+      **处理步骤**:
+      1. 检查环境变量: `gcloud run services describe siterank-worker-preview --format="value(spec.template.spec.containers[0].env)"`
+      2. 检查启动日志: `gcloud run services logs read siterank-worker-preview --limit=50`
+      3. 验证 Pub/Sub 订阅: `gcloud pubsub subscriptions describe siterank-worker-sub-preview`
+      4. 如果镜像问题，重新触发构建
+
+      **参考文档**: docs/MarkerkitGo/SiterankWorkerDeploymentPlan.md Section 3.1
+    mimeType: text/markdown
+  conditions:
+    - displayName: "Worker Start Log Missing"
+      conditionAbsent:
+        filter: |
+          resource.type = "cloud_run_revision"
+          AND resource.labels.service_name = "siterank-worker-preview"
+          AND textPayload =~ "Pub/Sub subscriber started"
+        duration: 300s  # 5分钟内未出现
+        aggregations:
+          - alignmentPeriod: 60s
+            perSeriesAligner: ALIGN_RATE
+  combiner: OR
+  enabled: true
+  notificationChannels:
+    - projects/${GCP_PROJECT_ID}/notificationChannels/11693781893064978969
+  alertStrategy:
+    autoClose: 900s  # 15分钟
+
+---
+
+# 部署说明
+#
+# 1. 创建通知渠道 (Email/Slack):
+#    gcloud alpha monitoring channels create \
+#      --display-name="Google-Monetize Alerts Email" \
+#      --type=email \
+#      --channel-labels=email_address=ops@example.com
+#
+# 2. 获取通知渠道 ID:
+#    gcloud alpha monitoring channels list
+#
+# 3. 更新 notificationChannels 字段为实际 ID
+#
+# 4. 部署告警策略:
+#    for file in deployments/monitoring/alert-*.yaml; do
+#      gcloud alpha monitoring policies create --policy-from-file="$file"
+#    done
+#
+# 5. 验证部署:
+#    gcloud alpha monitoring policies list --format="table(displayName,enabled,conditions)"

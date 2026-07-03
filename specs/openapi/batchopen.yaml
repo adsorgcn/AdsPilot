@@ -1,0 +1,164 @@
+openapi: 3.0.3
+info:
+  title: Batchopen Service
+  version: 0.1.0
+  license:
+    name: Elastic-Internal
+servers:
+  - url: /api/v1
+paths:
+  /batchopen/templates:
+    get:
+      operationId: listSimulationTemplates
+      summary: List built-in simulation templates (country curves, UA, referrer, timezone)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  countries:
+                    type: array
+                    items: { type: string }
+                  userAgents:
+                    type: array
+                    items: { type: string }
+                  referrers:
+                    type: array
+                    items: { type: string }
+                  timezones:
+                    type: array
+                    items: { type: string }
+  /batchopen/tasks:
+    get:
+      operationId: listBatchopenTasks
+      summary: List recent batchopen tasks for current user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        userId: { type: string }
+                        offerId: { type: string }
+                        status: { type: string }
+                        createdAt: { type: string, format: date-time }
+                        updatedAt: { type: string, format: date-time }
+                        result: { type: object }
+                  next: { type: string, nullable: true }
+                required: [items]
+    post:
+      operationId: createBatchopenTask
+      summary: Create a batchopen task
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                offerId: { type: string }
+                simulationConfig:
+                  type: object
+                  additionalProperties: true
+              required: [offerId]
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  taskId: { type: string }
+                  status: { type: string }
+                  createdAt: { type: string, format: date-time }
+                required: [taskId, status, createdAt]
+        '400': { description: Invalid input }
+        '401': { description: Unauthorized }
+        '405': { description: Method not allowed }
+  /batchopen/tasks/{id}/start:
+    post:
+      operationId: startBatchopenTask
+      summary: Mark a batchopen task as started
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Task started }
+        '400': { description: Invalid input }
+        '401': { description: Unauthorized }
+        '405': { description: Method not allowed }
+  /batchopen/tasks/{id}/complete:
+    post:
+      operationId: completeBatchopenTask
+      summary: Mark a batchopen task as completed
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200': { description: Task completed }
+        '400': { description: Invalid input }
+        '401': { description: Unauthorized }
+        '405': { description: Method not allowed }
+  /batchopen/tasks/{id}/fail:
+    post:
+      operationId: failBatchopenTask
+      summary: Mark a batchopen task as failed
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200': { description: Task failed }
+        '400': { description: Invalid input }
+        '401': { description: Unauthorized }
+        '405': { description: Method not allowed }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

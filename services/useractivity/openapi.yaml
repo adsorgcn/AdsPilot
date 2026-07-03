@@ -1,0 +1,169 @@
+# NOTE: Canonical OpenAPI specs live under specs/openapi/*.yaml
+#       This file is a local mirror for reference only and may be stale.
+openapi: 3.0.3
+info:
+  title: Notifications Service
+  version: 0.1.0
+  license:
+    name: Elastic-Internal
+servers:
+  - url: /
+paths:
+  /api/v1/notifications/recent:
+    get:
+      operationId: listRecentNotifications
+      summary: List recent notifications (last 30 days)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: cursor
+          schema: { type: string, nullable: true }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  next:
+                    type: string
+                    nullable: true
+        '401': { description: Unauthorized }
+
+  /api/v1/notifications/read:
+    post:
+      operationId: markNotificationsRead
+      summary: Mark notifications as read up to lastId (inclusive)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                lastId:
+                  type: string
+              required: [ lastId ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  lastId: { type: integer, format: int64 }
+        '401': { description: Unauthorized }
+
+  /api/v1/notifications/unread-count:
+    get:
+      operationId: getUnreadCount
+      summary: Get the number of unread notifications
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count: { type: integer, format: int64 }
+                  lastReadId: { type: integer, format: int64 }
+        '401': { description: Unauthorized }
+
+  /api/v1/notifications/{id}:
+    delete:
+      operationId: deleteNotification
+      summary: Delete a notification by id (SQL read model only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: No Content }
+        '401': { description: Unauthorized }
+        '404': { description: Not Found }
+
+  /api/v1/notifications/rules:
+    get:
+      operationId: listNotificationRules
+      summary: List notification rules for current user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NotificationRule'
+        '401': { description: Unauthorized }
+    post:
+      operationId: upsertNotificationRule
+      summary: Create or update a notification rule
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationRuleInput'
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Notification:
+      type: object
+      properties:
+        id: { type: string }
+        type: { type: string }
+        title: { type: string }
+        message: { type: string }
+        createdAt: { type: string, format: date-time }
+      required: [id, type, title, message, createdAt]
+    NotificationRule:
+      type: object
+      properties:
+        id: { type: string }
+        eventType: { type: string }
+        channel: { type: string, enum: [inapp, email, webhook], default: inapp }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, eventType, channel, enabled]
+    NotificationRuleInput:
+      type: object
+      properties:
+        eventType: { type: string }
+        channel: { type: string, enum: [inapp, email, webhook], default: inapp }
+        enabled: { type: boolean }
+      required: [eventType, channel, enabled]

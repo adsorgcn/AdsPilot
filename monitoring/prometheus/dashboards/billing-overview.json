@@ -1,0 +1,129 @@
+{
+  "dashboard": {
+    "title": "Google-Monetize - Billing Overview",
+    "tags": ["gm", "billing", "tokens"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 1,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Global Token Consumption Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "refId": "A",
+            "queryType": "metrics",
+            "metricQuery": {
+              "query": "fetch cloud_run_revision | metric 'prometheus.googleapis.com/gm_billing_tokens_consumed_total/counter' | group_by 1m, [value: aggregate(value.gm_billing_tokens_consumed_total)] | every 1m"
+            }
+          }
+        ],
+        "yaxes": [
+          {"label": "Tokens/sec", "format": "short"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Token Consumption by Operation",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "refId": "A",
+            "queryType": "metrics",
+            "metricQuery": {
+              "query": "fetch cloud_run_revision | metric 'prometheus.googleapis.com/gm_billing_tokens_consumed_total/counter' | group_by 1m, [operation], [value: aggregate(value.gm_billing_tokens_consumed_total)] | every 1m"
+            }
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Refund Rate",
+        "type": "singlestat",
+        "gridPos": {"x": 0, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "refId": "A",
+            "queryType": "metrics",
+            "metricQuery": {
+              "query": "fetch cloud_run_revision | { metric 'prometheus.googleapis.com/gm_billing_tokens_refunded_total/counter' ; metric 'prometheus.googleapis.com/gm_billing_tokens_consumed_total/counter' } | ratio | group_by [], [value: aggregate(value)]"
+            }
+          }
+        ],
+        "format": "percentunit",
+        "thresholds": "0.05,0.1",
+        "colors": ["#299c46", "#e0b400", "#d44a3a"]
+      },
+      {
+        "id": 4,
+        "title": "Commit Rate",
+        "type": "singlestat",
+        "gridPos": {"x": 6, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "refId": "A",
+            "queryType": "metrics",
+            "metricQuery": {
+              "query": "fetch cloud_run_revision | { metric 'prometheus.googleapis.com/gm_billing_tokens_committed_total/counter' ; metric 'prometheus.googleapis.com/gm_billing_tokens_reserved_total/counter' } | ratio | group_by [], [value: aggregate(value)]"
+            }
+          }
+        ],
+        "format": "percentunit",
+        "thresholds": "0.8,0.9",
+        "colors": ["#d44a3a", "#e0b400", "#299c46"]
+      },
+      {
+        "id": 5,
+        "title": "Active Subscribers",
+        "type": "singlestat",
+        "gridPos": {"x": 12, "y": 8, "w": 6, "h": 4},
+        "targets": [
+          {
+            "refId": "A",
+            "queryType": "metrics",
+            "metricQuery": {
+              "query": "fetch cloud_run_revision | metric 'prometheus.googleapis.com/gm_billing_active_subscribers/gauge' | group_by [], [value: aggregate(value.gm_billing_active_subscribers)]"
+            }
+          }
+        ],
+        "format": "short"
+      },
+      {
+        "id": 6,
+        "title": "Top 10 Users by Token Consumption",
+        "type": "table",
+        "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "refId": "A",
+            "queryType": "metrics",
+            "metricQuery": {
+              "query": "fetch cloud_run_revision | metric 'prometheus.googleapis.com/gm_billing_tokens_consumed_total/counter' | group_by 1m, [user_id], [value: aggregate(value.gm_billing_tokens_consumed_total)] | every 1m | top 10"
+            }
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Hourly Token Consumption Trend",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "refId": "A",
+            "queryType": "metrics",
+            "metricQuery": {
+              "query": "fetch cloud_run_revision | metric 'prometheus.googleapis.com/gm_billing_tokens_consumed_total/counter' | group_by 1h, [value: aggregate(value.gm_billing_tokens_consumed_total)] | every 1h"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "overwrite": true
+}

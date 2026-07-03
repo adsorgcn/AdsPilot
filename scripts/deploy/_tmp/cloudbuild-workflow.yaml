@@ -1,0 +1,4 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build','-f','services/workflow/Dockerfile','-t','asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/workflow:latest','.']
+images: ['asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/workflow:latest']

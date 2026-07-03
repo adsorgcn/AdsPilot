@@ -1,0 +1,30 @@
+{
+  "displayName": "Auth: Frequent Rate Limiting",
+  "documentation": {
+    "content": "Alert triggered when rate limit is exceeded more than 50 times in 5 minutes",
+    "mimeType": "text/markdown"
+  },
+  "conditions": [
+    {
+      "displayName": "Rate limit triggers > 50/5min",
+      "conditionThreshold": {
+        "filter": "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"frontend-preview\" AND metric.type=\"logging.googleapis.com/user/auth_rate_limit_exceeded\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 50,
+        "duration": "300s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "300s",
+            "perSeriesAligner": "ALIGN_SUM",
+            "crossSeriesReducer": "REDUCE_SUM"
+          }
+        ]
+      }
+    }
+  ],
+  "combiner": "OR",
+  "enabled": true,
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}

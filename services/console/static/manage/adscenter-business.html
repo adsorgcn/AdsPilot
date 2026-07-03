@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Adscenter 业务监控</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, PingFang SC, Noto Sans, sans-serif; margin: 20px; }
+    h2 { margin: 12px 0; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { border:1px solid #e5e7eb; padding:6px; font-size: 13px; }
+    th { background:#f3f4f6; text-align:left; }
+    .muted { color:#6b7280; font-size:12px; }
+    .ok { color:#16a34a; }
+    .warn { color:#ea580c; }
+    .err { color:#dc2626; }
+    .row { display:flex; gap:8px; align-items:center; margin-bottom: 8px; }
+    button { padding:6px 10px; font-size: 13px; cursor:pointer; }
+  </style>
+  <script>
+    async function fetchJSON(u){ const r = await fetch(u); if(!r.ok) throw new Error(r.status); return r.json(); }
+    function clsRate(v){ if(v<0.01) return 'ok'; if(v<0.05) return 'warn'; return 'err'; }
+    function pct(v){ return (v*100).toFixed(2)+'%'; }
+    async function load(){
+      const base = '';
+      try {
+        const p = await fetchJSON('/api/v1/console/adscenter/business'+base);
+        const types = p.types||{}; const keys = Object.keys(types).sort();
+        const rows = keys.map(k=>{
+          const it = types[k];
+          const er = pct(it.errorRate||0);
+          const sr = pct(it.deriveSkipRate||0);
+          const lat = (it.avgLatencyMs||0).toFixed(1)+' ms';
+          return `<tr>
+            <td>${k}</td>
+            <td>${it.total||0}</td>
+            <td>${it.errors||0}</td>
+            <td class="${clsRate(it.errorRate||0)}">${er}</td>
+            <td>${lat}</td>
+            <td>${it.deriveFilled||0}</td>
+            <td>${it.deriveSkipped||0}</td>
+            <td class="${clsRate(it.deriveSkipRate||0)}">${sr}</td>
+          </tr>`;
+        }).join('');
+        document.querySelector('#tbl').innerHTML = `<table>
+          <thead><tr><th>动作类型</th><th>总数</th><th>错误数</th><th>错误率</th><th>平均时延</th><th>派生填充</th><th>派生跳过</th><th>跳过率</th></tr></thead>
+          <tbody>${rows}</tbody></table>
+          <div class="muted" style="margin-top:6px;">更新时间：${new Date(p.updatedAt||Date.now()).toLocaleString()}</div>`;
+      } catch(e){ console.warn(e); document.querySelector('#tbl').innerHTML = '<div class="muted">加载失败</div>'; }
+    }
+    window.addEventListener('DOMContentLoaded', load);
+  </script>
+</head>
+<body>
+  <h2>Adscenter 业务监控</h2>
+  <div class="row">
+    <a href="/console/">返回控制台</a>
+    <a href="/console/admin/adscenter-executions.html">执行概览</a>
+    <a href="/console/admin/adscenter-reports.html">近7天报表</a>
+    <button onclick="load()">刷新</button>
+  </div>
+  <div id="tbl">加载中...</div>
+  <div class="muted" style="margin-top:12px;">来源：/api/v1/console/adscenter/business</div>
+</body>
+</html>

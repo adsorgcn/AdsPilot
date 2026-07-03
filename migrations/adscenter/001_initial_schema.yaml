@@ -1,0 +1,145 @@
+version: "001"
+service: "adscenter"
+description: "从内嵌DDL迁移的adscenter服务初始表结构 - 包含用户广告连接、批量操作审计、通用事件审计"
+risk_level: "medium"
+dependencies: []
+
+ddl_statements:
+  - type: "CREATE_TABLE"
+    name: "UserAdsConnection"
+    description: "用户Google Ads连接表，存储认证信息和连接配置"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "UserAdsConnection" (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "userId" TEXT NOT NULL,
+        "loginCustomerId" TEXT NOT NULL, -- MCC ID (10 digits)
+        "primaryCustomerId" TEXT,        -- optional default customer under MCC
+        "refreshToken" TEXT NOT NULL,    -- TODO: store encrypted
+        "scopes" TEXT,                   -- comma separated scopes
+        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+
+  - type: "CREATE_INDEX"
+    name: "idx_useradsconnection_user"
+    description: "优化按用户查询广告连接的性能"
+    sql: |
+      CREATE INDEX IF NOT EXISTS idx_useradsconnection_user
+      ON "UserAdsConnection"("userId")
+
+  - type: "CREATE_TABLE"
+    name: "BulkActionOperation"
+    description: "批量操作管理表，存储批量操作的计划和状态"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "BulkActionOperation" (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        plan JSONB,
+        status TEXT,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+      )
+
+  - type: "CREATE_TABLE"
+    name: "BulkActionAudit"
+    description: "批量操作审计表，记录批量操作的详细变更历史"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "BulkActionAudit" (
+        id BIGSERIAL PRIMARY KEY,
+        op_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        kind TEXT NOT NULL, -- before|after|rollback|other
+        snapshot JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+
+  - type: "CREATE_INDEX"
+    name: "ix_bulk_audit_op"
+    description: "优化按操作ID查询审计记录的性能"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_bulk_audit_op
+      ON "BulkActionAudit"(op_id, created_at)
+
+  - type: "CREATE_TABLE"
+    name: "AuditEvent"
+    description: "通用审计事件表，记录adscenter服务的所有重要操作"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "AuditEvent" (
+        id         BIGSERIAL PRIMARY KEY,
+        user_id    TEXT NOT NULL,
+        kind       TEXT NOT NULL,
+        data       JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+
+  - type: "CREATE_INDEX"
+    name: "ix_audit_event_user_kind_time"
+    description: "优化按用户、事件类型和时间查询审计事件的性能"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_audit_event_user_kind_time
+      ON "AuditEvent"(user_id, kind, created_at DESC)
+
+# 额外的迁移文件将在后续版本中添加：
+# - 002_idempotency.yaml: 幂等性操作表
+# - 003_mcc_link.yaml: MCC链接管理表
+# - 004_bulk_action_indexes.yaml: 批量操作索引优化
+# - 005_demo_fields.yaml: 演示和测试字段
+
+# 数据完整性约束
+constraints:
+  - name: "UserAdsConnection_userId_not_null"
+    table: "UserAdsConnection"
+    column: "userId"
+    type: "NOT NULL"
+
+  - name: "UserAdsConnection_loginCustomerId_not_null"
+    table: "UserAdsConnection"
+    column: "loginCustomerId"
+    type: "NOT NULL"
+
+  - name: "BulkActionAudit_op_id_not_null"
+    table: "BulkActionAudit"
+    column: "op_id"
+    type: "NOT NULL"
+
+# 性能优化建议
+optimizations:
+  - type: "partitioning"
+    table: "AuditEvent"
+    strategy: "time_range"
+    column: "created_at"
+    interval: "monthly"
+    reason: "审计事件表数据量大，按月分区提高查询性能"
+
+  - type: "indexing"
+    table: "UserAdsConnection"
+    suggestion: "考虑添加复合索引 (userId, updatedAt DESC) 用于查询最新连接"
+
+  - type: "indexing"
+    table: "BulkActionOperation"
+    suggestion: "考虑添加用户ID索引用于查询用户的批量操作"
+
+# 数据安全注意事项
+security_notes:
+  - "refreshToken字段需要加密存储"
+  - "审计表数据需要严格访问控制"
+  - "考虑对敏感数据进行脱敏处理"
+  - "建议定期清理过期的审计数据"
+
+# 迁移验证检查
+validation_checks:
+  - name: "table_count_check"
+    description: "确保所有表都创建成功"
+    expected_tables: 3
+
+  - name: "index_count_check"
+    description: "确保所有索引都创建成功"
+    expected_indexes: 3
+
+  - name: "audit_event_structure_check"
+    description: "验证AuditEvent表结构完整性"
+    required_columns: ["id", "user_id", "kind", "data", "created_at"]
+
+  - name: "user_ads_connection_structure_check"
+    description: "验证UserAdsConnection表结构完整性"
+    required_columns: ["id", "userId", "loginCustomerId", "refreshToken", "createdAt", "updatedAt"]

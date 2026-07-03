@@ -1,0 +1,154 @@
+# Node.js
+node_modules/
+.pnp
+.pnp.js
+.yarn/
+.pnpm-store
+.npm/
+
+# Next.js / Frontend
+.next/
+out/
+build/
+dist/
+storybook-static/
+*.tsbuildinfo
+apps/frontend/.next/
+
+# Firebase local/preview artifacts
+.firebase/
+
+# Go Microservices
+services/*/bin/
+services/*/*.log
+go.work.sum
+go/pkg/mod/
+
+# Go compiled binaries (service executables)
+services/offer/offer
+services/siterank/siterank-service
+services/useractivity/useractivity
+services/billing/billing
+services/adscenter/adscenter
+services/bff/bff
+services/console/console
+services/projector/projector
+services/recommendations/recommendations
+services/batchopen/batchopen
+services/proxy-pool/proxy-pool
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment variables
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE & Editor Config
+.idea/
+.vscode/
+*.swp
+*.swo
+*.iml
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Nix environment
+result*
+.direnv/
+*.bak
+
+# Project IDX specific
+.idx/
+
+# Kiro local workspace (ignore entirely)
+.kiro/
+
+# Secrets (never commit real credentials)
+secrets/*
+!secrets/README.md
+
+# GCP credentials and config
+gcloud-config/
+.config/gcloud/
+**/*credentials*.json
+**/adc.json
+**/*service-account*.json
+**/*-key.json
+
+# Go build cache (local only)
+.gocache/
+
+# Local logs (runtime/debug outputs)
+logs/
+*.log
+
+# Temporary files
+/tmp/
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# Test and coverage
+test-results/
+coverage/
+*.coverage
+
+# GoFly admin local caches (avoid tracking third‑party module cache)
+gofly_admin_v3/.gomodcache/
+gofly_admin_v3/.gocache/
+
+# Makerkit templates (submodules)
+makerkit/
+
+# Frontend legacy (deprecated)
+apps/frontend-legacy/
+
+# Git mirror objects (large files)
+gm-mirror/objects/
+
+# Legacy frontend build artifacts
+apps/frontend-legacy/.next/
+apps/frontend-legacy/.env.local
+
+# Kiro temp files
+.kiro/
+
+# Database scripts and logs (local operations only)
+scripts/db/
+scripts/db/logs/
+scripts/db/backups/
+
+# Security: Ensure sensitive files are never committed
+*.env
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+credentials/
+**/config/secrets.json
+**/.aws/credentials
+**/.kube/config
+
+# Never commit BFG/filter-repo reports
+..bfg-report/
+*-report/
+# Belt-and-suspenders: block committed JWTs is not possible via gitignore; see scripts/security
+
+# Supabase CLI local cache (never commit)
+supabase/.temp/

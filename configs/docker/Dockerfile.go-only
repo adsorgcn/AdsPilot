@@ -1,0 +1,55 @@
+# Google-Monetize Go 后端 Dockerfile
+# 只构建 Go 后端，不包含前端
+
+# 构建阶段
+FROM golang:1.23-alpine AS builder
+
+# 安装必要的系统依赖
+RUN apk add --no-cache git build-base tzdata
+
+WORKDIR /app
+
+# 复制 Go 源代码（包括本地依赖）
+COPY gofly_admin_v3/ ./
+
+# 下载依赖
+RUN go mod download
+
+# 构建 Go 应用（使用标签禁用 web 嵌入）
+RUN CGO_ENABLED=0 GOOS=linux go build -tags=!webembed -o main cmd/server/main.go
+
+# 生产运行阶段
+FROM alpine:3.19 AS runner
+
+# 安装必要的运行时依赖
+RUN apk add --no-cache ca-certificates tzdata curl bash
+
+# 创建非root用户
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
+
+WORKDIR /app
+
+# 复制 Go 应用
+COPY --from=builder /app/main ./main
+COPY --from=builder /app/resource ./resource
+
+# 确保正确的文件权限
+RUN chown -R appuser:appgroup /app && \
+    chmod +x ./main
+
+# 设置环境变量
+ENV GO_ENV=production
+
+# 切换到非root用户
+USER appuser
+
+# 暴露端口
+EXPOSE 8888
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8888/api/health || exit 1
+
+# 启动应用
+CMD ["./main"]

@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>订阅管理</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; margin: 20px; background: #f9fafb; }
+    h2, h3 { margin: 16px 0; color: #111827; }
+    .row { display:flex; gap:8px; align-items:center; margin-bottom: 12px; flex-wrap: wrap; }
+    button { padding:8px 16px; font-size: 13px; cursor:pointer; border: none; border-radius: 6px; font-weight: 500; }
+    button.primary { background: #3b82f6; color: white; }
+    button.secondary { background: #6b7280; color: white; }
+    button.success { background: #10b981; color: white; }
+    button.warning { background: #f59e0b; color: white; }
+    button.danger { background: #ef4444; color: white; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
+    .card { background: white; border-radius: 8px; padding: 20px; border: 1px solid #e5e7eb; margin-bottom: 16px; }
+    .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; }
+    .alert.info { background: #dbeafe; border-left: 4px solid #3b82f6; color: #1e40af; }
+    .alert.success { background: #d1fae5; border-left: 4px solid #10b981; color: #065f46; }
+    .alert.warning { background: #fef3c7; border-left: 4px solid #f59e0b; color: #92400e; }
+    .alert.error { background: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b; }
+    table { width:100%; border-collapse: collapse; background: white; }
+    th, td { border:1px solid #e5e7eb; padding:12px; font-size: 13px; text-align: left; }
+    th { background:#f3f4f6; font-weight: 600; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge.active { background: #d1fae5; color: #065f46; }
+    .badge.trialing { background: #dbeafe; color: #1e3a8a; }
+    .badge.canceled { background: #f3f4f6; color: #6b7280; }
+    .badge.past_due { background: #fee2e2; color: #991b1b; }
+    .badge.paused { background: #fef3c7; color: #92400e; }
+    input, select, textarea { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; }
+    textarea { font-family: inherit; }
+    .muted { color:#6b7280; font-size:12px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; }
+    .stat-value { font-size: 24px; font-weight: 600; color: #111827; }
+    .stat-label { font-size: 13px; color: #6b7280; margin-top: 4px; }
+    .filter-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+    .modal.show { display: flex; align-items: center; justify-content: center; }
+    .modal-content { background: white; border-radius: 8px; padding: 24px; max-width: 500px; width: 90%; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-weight: 500; margin-bottom: 6px; font-size: 14px; }
+  </style>
+  <script>
+    async function fetchJSON(u, opt){ const r = await fetch(u, opt||{}); if(!r.ok) throw new Error(await r.text()); return r.json(); }
+
+    let subscriptions = [];
+    let stats = null;
+    let currentPage = 1;
+    let totalPages = 1;
+    let filters = { status: '', search: '', planId: '' };
+
+    async function load(){
+      try {
+        // Load stats
+        const statsRes = await fetchJSON('/api/v1/console/subscriptions/stats');
+        stats = statsRes;
+        renderStats();
+
+        // Load subscriptions
+        await loadSubscriptions();
+      } catch(e){
+        showAlert('加载失败: ' + e.message, 'error');
+      }
+    }
+
+    async function loadSubscriptions(){
+      try {
+        const params = new URLSearchParams({
+          page: currentPage,
+          pageSize: 20,
+          ...filters
+        });
+
+        const res = await fetchJSON(`/api/v1/console/subscriptions?${params}`);
+        subscriptions = res.subscriptions || [];
+        totalPages = res.totalPages || 1;
+
+        renderTable();
+        renderPagination();
+      } catch(e){
+        showAlert('加载订阅失败: ' + e.message, 'error');
+      }
+    }
+
+    function renderStats(){
+      if (!stats) return;
+
+      document.querySelector('#statTotal').textContent = stats.totalSubscriptions || 0;
+      document.querySelector('#statActive').textContent = stats.activeSubscriptions || 0;
+      document.querySelector('#statTrial').textContent = stats.trialSubscriptions || 0;
+      document.querySelector('#statCanceled').textContent = stats.canceledCount || 0;
+      document.querySelector('#statPastDue').textContent = stats.pastDueCount || 0;
+      document.querySelector('#statExpiring').textContent = stats.expiringIn7Days || 0;
+
+      // Render plan breakdown
+      const breakdown = stats.planBreakdown || {};
+      const breakdownHtml = Object.entries(breakdown)
+        .map(([plan, count]) => `<div class="muted">${plan}: ${count}</div>`)
+        .join('') || '<div class="muted">无数据</div>';
+      document.querySelector('#planBreakdown').innerHTML = breakdownHtml;
+    }
+
+    function renderTable(){
+      const tbody = document.querySelector('#subsList');
+      tbody.innerHTML = '';
+
+      if (subscriptions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#6b7280; padding:40px;">无数据</td></tr>';
+        return;
+      }
+
+      for(const sub of subscriptions){
+        const tr = document.createElement('tr');
+
+        const statusBadge = getStatusBadge(sub.status);
+        const periodEnd = new Date(sub.currentPeriodEnd);
+        const isExpiringSoon = (periodEnd - Date.now()) / (1000*60*60*24) <= 7;
+        const periodClass = isExpiringSoon ? 'style="color:#ef4444; font-weight:600;"' : '';
+
+        tr.innerHTML = `
+          <td>
+            <div><strong>${escapeHtml(sub.userEmail || sub.userId)}</strong></div>
+            <div class="muted">${sub.userId}</div>
+          </td>
+          <td>${statusBadge}</td>
+          <td>
+            <div><strong>${escapeHtml(sub.planName)}</strong></div>
+            <div class="muted">${sub.planId}</div>
+          </td>
+          <td ${periodClass}>${periodEnd.toLocaleDateString()}</td>
+          <td class="muted">${sub.stripeCustomerId || '-'}</td>
+          <td>
+            <button class="success" onclick="openStatusModal('${sub.id}', '${sub.userEmail}', '${sub.status}', 'active')">激活</button>
+            <button class="warning" onclick="openStatusModal('${sub.id}', '${sub.userEmail}', '${sub.status}', 'paused')">暂停</button>
+            <button class="danger" onclick="openStatusModal('${sub.id}', '${sub.userEmail}', '${sub.status}', 'canceled')">取消</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function renderPagination(){
+      const container = document.querySelector('#pagination');
+      container.innerHTML = '';
+
+      if (totalPages <= 1) return;
+
+      const prev = document.createElement('button');
+      prev.textContent = '上一页';
+      prev.className = 'secondary';
+      prev.disabled = currentPage === 1;
+      prev.onclick = () => { currentPage--; loadSubscriptions(); };
+      container.appendChild(prev);
+
+      const info = document.createElement('span');
+      info.textContent = `第 ${currentPage} / ${totalPages} 页`;
+      info.style.margin = '0 12px';
+      container.appendChild(info);
+
+      const next = document.createElement('button');
+      next.textContent = '下一页';
+      next.className = 'secondary';
+      next.disabled = currentPage === totalPages;
+      next.onclick = () => { currentPage++; loadSubscriptions(); };
+      container.appendChild(next);
+    }
+
+    function getStatusBadge(status){
+      const badges = {
+        'active': '<span class="badge active">活跃</span>',
+        'trialing': '<span class="badge trialing">试用中</span>',
+        'canceled': '<span class="badge canceled">已取消</span>',
+        'past_due': '<span class="badge past_due">逾期</span>',
+        'paused': '<span class="badge paused">已暂停</span>'
+      };
+      return badges[status] || `<span class="badge">${status}</span>`;
+    }
+
+    function openStatusModal(subId, userEmail, currentStatus, newStatus){
+      if (currentStatus === newStatus) {
+        showAlert('订阅状态已经是 ' + newStatus, 'info');
+        return;
+      }
+
+      document.querySelector('#statusSubId').value = subId;
+      document.querySelector('#statusUserEmail').textContent = userEmail || subId;
+      document.querySelector('#statusCurrent').textContent = currentStatus;
+      document.querySelector('#statusNew').value = newStatus;
+      document.querySelector('#statusReason').value = '';
+
+      const actionText = {
+        'active': '激活',
+        'paused': '暂停',
+        'canceled': '取消',
+        'past_due': '标记为逾期'
+      }[newStatus] || '更新';
+
+      document.querySelector('#modalTitle').textContent = actionText + '订阅';
+
+      document.querySelector('#statusModal').classList.add('show');
+    }
+
+    function closeStatusModal(){
+      document.querySelector('#statusModal').classList.remove('show');
+    }
+
+    async function submitStatusUpdate(){
+      const subId = document.querySelector('#statusSubId').value;
+      const newStatus = document.querySelector('#statusNew').value;
+      const reason = document.querySelector('#statusReason').value.trim();
+
+      if (!reason || reason.length < 10) {
+        showAlert('请填写原因（至少10个字符）', 'error');
+        return;
+      }
+
+      if (!confirm('确认更新订阅状态？')) return;
+
+      const btn = document.querySelector('#submitStatusBtn');
+      btn.disabled = true;
+      btn.textContent = '处理中...';
+
+      try {
+        await fetchJSON(`/api/v1/console/subscriptions/${subId}/status`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ status: newStatus, reason })
+        });
+
+        showAlert('✓ 订阅状态已更新', 'success');
+        closeStatusModal();
+        await load();
+      } catch(e) {
+        showAlert('更新失败: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '确认';
+      }
+    }
+
+    function applyFilters(){
+      filters.status = document.querySelector('#filterStatus').value;
+      filters.search = document.querySelector('#filterSearch').value;
+      filters.planId = document.querySelector('#filterPlanId').value;
+
+      currentPage = 1;
+      loadSubscriptions();
+    }
+
+    function clearFilters(){
+      document.querySelector('#filterStatus').value = '';
+      document.querySelector('#filterSearch').value = '';
+      document.querySelector('#filterPlanId').value = '';
+
+      filters = { status: '', search: '', planId: '' };
+      currentPage = 1;
+      loadSubscriptions();
+    }
+
+    function showAlert(message, type){
+      const alertEl = document.querySelector('#alertBox');
+      alertEl.className = 'alert ' + type;
+      alertEl.textContent = message;
+      alertEl.style.display = 'block';
+
+      setTimeout(() => {
+        alertEl.style.display = 'none';
+      }, 5000);
+    }
+
+    function escapeHtml(text){ const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+
+    window.addEventListener('DOMContentLoaded', load);
+  </script>
+</head>
+<body>
+  <h2>💳 订阅管理</h2>
+
+  <div class="row">
+    <button class="secondary" onclick="window.location.href='/manage/index.html'">← 返回仪表盘</button>
+    <button class="secondary" onclick="load()">🔄 刷新</button>
+  </div>
+
+  <div id="alertBox" class="alert" style="display:none;"></div>
+
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" id="statTotal">0</div>
+      <div class="stat-label">订阅总数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statActive" style="color:#10b981;">0</div>
+      <div class="stat-label">活跃订阅</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statTrial" style="color:#3b82f6;">0</div>
+      <div class="stat-label">试用中</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statCanceled" style="color:#6b7280;">0</div>
+      <div class="stat-label">已取消</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statPastDue" style="color:#ef4444;">0</div>
+      <div class="stat-label">逾期</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statExpiring" style="color:#f59e0b;">0</div>
+      <div class="stat-label">7天内到期</div>
+    </div>
+  </div>
+
+  <!-- Plan Breakdown -->
+  <div class="card">
+    <h3>套餐分布</h3>
+    <div id="planBreakdown">加载中...</div>
+  </div>
+
+  <div class="alert info">
+    💡 <strong>订阅管理功能：</strong> 激活/暂停/取消订阅、查询即将到期订阅、按状态筛选
+  </div>
+
+  <!-- Filters -->
+  <div class="card">
+    <h3>🔍 筛选条件</h3>
+    <div class="filter-row">
+      <select id="filterStatus">
+        <option value="">全部状态</option>
+        <option value="active">活跃</option>
+        <option value="trialing">试用中</option>
+        <option value="canceled">已取消</option>
+        <option value="past_due">逾期</option>
+        <option value="paused">已暂停</option>
+      </select>
+
+      <input type="text" id="filterSearch" placeholder="搜索用户邮箱或订阅ID" />
+      <input type="text" id="filterPlanId" placeholder="套餐ID" />
+
+      <button class="primary" onclick="applyFilters()">应用筛选</button>
+      <button class="secondary" onclick="clearFilters()">清除</button>
+    </div>
+  </div>
+
+  <!-- Subscriptions Table -->
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>用户</th>
+          <th>状态</th>
+          <th>套餐</th>
+          <th>到期时间</th>
+          <th>Stripe ID</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="subsList">
+        <tr><td colspan="6" style="text-align:center; padding:40px;">加载中...</td></tr>
+      </tbody>
+    </table>
+
+    <div class="row" id="pagination" style="margin-top:16px; justify-content:center;"></div>
+  </div>
+
+  <!-- Status Update Modal -->
+  <div id="statusModal" class="modal" onclick="if(event.target===this) closeStatusModal()">
+    <div class="modal-content">
+      <h3 id="modalTitle">更新订阅状态</h3>
+
+      <div class="form-group">
+        <label>用户</label>
+        <div class="muted" id="statusUserEmail"></div>
+      </div>
+
+      <div class="form-group">
+        <label>当前状态</label>
+        <div id="statusCurrent" style="font-weight:600;"></div>
+      </div>
+
+      <div class="form-group">
+        <label>原因（必填，至少10字）</label>
+        <textarea id="statusReason" rows="3" placeholder="请详细说明操作原因..."></textarea>
+      </div>
+
+      <input type="hidden" id="statusSubId" />
+      <input type="hidden" id="statusNew" />
+
+      <div class="alert warning">
+        ⚠️ <strong>注意：</strong> 状态变更会立即生效，可能影响用户访问权限
+      </div>
+
+      <div style="margin-top:16px; text-align:right; display:flex; gap:8px; justify-content:flex-end;">
+        <button class="secondary" onclick="closeStatusModal()">取消</button>
+        <button class="primary" id="submitStatusBtn" onclick="submitStatusUpdate()">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert warning">
+    ⚠️ <strong>安全提示：</strong><br>
+    1. 订阅状态变更会立即生效，请谨慎操作<br>
+    2. 暂停订阅不会退款，用户仍可在当前周期结束前使用<br>
+    3. 取消订阅后用户将无法续费，但可在到期前继续使用<br>
+    4. 所有操作会记录审计日志（操作人、原因、变更前后状态）
+  </div>
+</body>
+</html>

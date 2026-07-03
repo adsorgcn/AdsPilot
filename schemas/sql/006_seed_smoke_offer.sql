@@ -1,0 +1,4 @@
+-- Disabled temporarily for migration issue
+-- INSERT INTO "Offer" (id, "userId", name, "originalUrl", status, created_at)
+-- SELECT 'smoke-offer-demo', 'smoke-user', 'Smoke Offer Seed', 'https://www.wikipedia.org', 'evaluating', NOW()
+-- WHERE NOT EXISTS (SELECT 1 FROM "Offer" WHERE id = 'smoke-offer-demo');

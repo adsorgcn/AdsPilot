@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>告警列表</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, PingFang SC, Noto Sans, sans-serif; margin: 20px; }
+    .row { display:flex; gap:8px; align-items:center; margin-bottom: 10px; }
+    input, select { padding:6px; font-size: 13px; }
+    button { padding:6px 10px; font-size: 13px; cursor:pointer; }
+    .card { border:1px solid #e5e7eb; border-radius: 8px; padding: 10px; margin-top: 8px; }
+    .muted { color:#6b7280; font-size:12px; }
+    .warn { background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+    .error { background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  </style>
+  <script>
+    async function fetchJSON(u, opt){ const r = await fetch(u, opt||{}); if(!r.ok) throw new Error(r.status); return r.json(); }
+    async function load(){
+      const level = document.querySelector('#level').value || 'warn';
+      const hours = document.querySelector('#hours').value || '168';
+      const url = `/api/v1/console/alerts?level=${encodeURIComponent(level)}&sinceHours=${encodeURIComponent(hours)}&limit=200`;
+      const res = await fetchJSON(url);
+      const items = res.items||[];
+      const box = document.querySelector('#list'); box.innerHTML = '';
+      for(const a of items){
+        const tag = (a.severity||'warn').toLowerCase();
+        const el = document.createElement('div');
+        el.className = 'card';
+        el.innerHTML = `<div><span class="${tag}">${tag}</span> <b>${a.title||''}</b></div>
+          <div class="muted">${new Date(a.createdAt).toLocaleString()} · ${a.category||''}</div>`;
+        box.appendChild(el);
+      }
+      document.querySelector('#count').textContent = items.length;
+    }
+    async function evalRules(){ await fetchJSON('/api/v1/console/notifications/rules/evaluate', { method:'POST' }); await load(); }
+    window.addEventListener('DOMContentLoaded', load);
+  </script>
+</head>
+<body>
+  <h2>告警列表</h2>
+  <div class="row">
+    <select id="level"><option value="warn">warn</option><option value="error">error</option></select>
+    <input id="hours" type="number" min="1" max="2160" value="168" />
+    <button onclick="load()">刷新</button>
+    <button onclick="evalRules()">立即评估规则</button>
+    <a href="/console/rules/index.html" style="margin-left:8px;">管理规则</a>
+    <a href="/console/manage/index.html" style="margin-left:8px;">返回仪表盘</a>
+  </div>
+  <div class="muted">共 <span id="count">0</span> 条</div>
+  <div id="list"></div>
+</body>
+</html>
+

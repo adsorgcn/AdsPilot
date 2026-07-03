@@ -1,0 +1,162 @@
+{
+  "subscriptionTabSubheading": "Manage your Subscription and Billing",
+  "checkout": "Checkout",
+  "manageBillingDescription": "Visit your Customer Portal to manage your subscription and billing.",
+  "manageBilling": "Go to Customer Portal",
+  "notSubscribedToAnyPlan": "You are not currently subscribed to any plan",
+  "choosePlan": "Select a plan below",
+  "currentPlan": "Your Plan",
+  "subscriptionWillEndOn": "The subscription will end on {{- endDate }}",
+  "unknownErrorAlertHeading": "Sorry, something went wrong",
+  "unknownErrorAlert": "We encountered an unknown error while processing your payment. Please try again or contact support.",
+  "checkOutCanceledAlertHeading": "The checkout was canceled",
+  "checkOutCanceledAlert": "The checkout was canceled. Please contact us if you're experiencing any issues.",
+  "checkOutCompletedAlertHeading": "Checkout successfully completed",
+  "checkOutCompletedAlert": "Yay, your payment went through!",
+  "cancelAtPeriodEndDescription": "Your subscription is scheduled to be canceled on {{- endDate }}.",
+  "renewAtPeriodEndDescription": "Your subscription is scheduled to be renewed on {{- endDate }}",
+  "noPermissionsAlertHeading": "You don't have permissions to change the billing settings",
+  "noPermissionsAlertBody": "Please contact your organization owner to change the billing settings for your organization.",
+  "checkoutSuccessTitle": "Done! You're all set.",
+  "checkoutSuccessDescription": "Thank you for subscribing, we have successfully processed your subscription! A confirmation email will be sent to {{ customerEmail }}.",
+  "checkoutSuccessBackButton": "Proceed to App",
+  "status": {
+    "free": {
+      "label": "Free Plan",
+      "heading": "You are currently on the Free Plan",
+      "description": "You're on a free plan. You can upgrade to a paid plan at any time."
+    },
+    "active": {
+      "label": "Active",
+      "heading": "Your subscription is active",
+      "description": "Your subscription is active. You can manage your subscription and billing in the Customer Portal."
+    },
+    "trialing": {
+      "label": "Trial",
+      "heading": "You're on a trial",
+      "description": "Your trial will end on {{- trialEndDate }}."
+    },
+    "past_due": {
+      "label": "Past Due",
+      "heading": "Your invoice is past due",
+      "description": "Your invoice is past due. Please update your payment method."
+    },
+    "canceled": {
+      "label": "Canceled",
+      "heading": "Your subscription is canceled",
+      "description": "Your subscription is canceled. It is scheduled to end on {{- endDate }}."
+    },
+    "unpaid": {
+      "label": "Unpaid",
+      "heading": "Your invoice is unpaid",
+      "description": "Your invoice is unpaid. Please update your payment method."
+    },
+    "incomplete": {
+      "label": "Incomplete",
+      "heading": "We're waiting for your payment",
+      "description": "We're waiting for your payment to go through. Please bear with us."
+    },
+    "incomplete_expired": {
+      "label": "Expired",
+      "heading": "Your payment has expired",
+      "description": "Your payment has expired. Please update your payment method."
+    },
+    "paused": {
+      "label": "Paused",
+      "heading": "Your subscription is paused",
+      "description": "Your subscription is paused. You can resume it at any time."
+    }
+  },
+  "subscriptionPlannerTitle": "Plan recommendations",
+  "subscriptionPlannerDesc": "Compare scenarios and Pick a plan that fits.",
+  "subscriptionTokenNeedLine": "Approximate token need: {{amount}} / month",
+  "subscriptionAdSpendLine": "Monthly ad spend: ${{amount}}k",
+  "subscriptionTeamSizeLine": "Team size: {{count}} people",
+  "subscriptionRecommendedPlanLine": "Recommended plan: {{plan}}",
+  "subscriptionEstimatedCostLine": "Estimated monthly cost: ${{cost}}",
+  "subscriptionScenario": "Scenario",
+  "subscriptionEstimatedCost": "Estimated monthly cost",
+  "subscriptionRecommendedPlan": "Recommended plan",
+  "subscriptionUpgradeCta": "Go to subscription page",
+  "subscriptionTokenNeed": "Approximate token need",
+  "subscriptionAdSpend": "Monthly ad spend",
+  "subscriptionTeamSize": "Team size",
+  "subscriptionSimulationsTitle": "Usage Simulation",
+  "subscriptionSimulationsDesc": "Adjust sliders to preview how usage impacts billing.",
+  "subscriptionTokenSliderLabel": "Expected token consumption (per month)",
+  "subscriptionTeamSliderLabel": "Team members needing access",
+  "subscriptionSpendSliderLabel": "Projected ad spend (per month)",
+  "subscriptionTokenSliderValue": "{{value}} tokens",
+  "subscriptionTeamSliderValue": "{{value}} seats",
+  "subscriptionSpendSliderValue": "${{value}}k",
+  "subscriptionSuggestedPlan": "Suggested Plan",
+  "subscriptionEstimatedBill": "Estimated Monthly Bill",
+  "subscriptionEstimatedBillLine": "Estimated monthly bill: ${{cost}}{{included}}",
+  "subscriptionEstimatedBillIncludedTokens": " · Includes {{tokens}} tokens",
+  "subscriptionEstimatedBillFreeTier": " · Free quota",
+  "subscriptionAdvancedBadge": "Advanced",
+  "catalog": {
+    "starter": {
+      "label": "Starter",
+      "description": "Perfect for individuals testing offers"
+    },
+    "professional": {
+      "label": "Professional",
+      "description": "Ideal for growing affiliate marketers"
+    },
+    "elite": {
+      "label": "Elite",
+      "description": "For teams running large-scale campaigns"
+    }
+  },
+  "subscriptionAvailablePlansTitle": "Available plans",
+  "subscriptionAvailablePlansDesc": "Choose a plan that fits your needs. Upgrade or downgrade anytime.",
+  "subscriptionRecommendedBadge": "Recommended",
+  "subscriptionPlanPrice": "${{price}}",
+  "subscriptionPlanPeriod": "/ month",
+  "subscriptionSelectPlan": "Select plan",
+  "subscriptionAnnualDiscount": "Save 50% with annual billing. Contact us for enterprise pricing.",
+  "features": {
+    "100 tokens/month": "100 tokens/month",
+    "Basic evaluation (1 token/offer)": "Basic evaluation (1 token/offer)",
+    "✅ Real click simulation": "✅ Real click simulation",
+    "✅ US proxy IP only": "✅ US proxy IP only",
+    "Email support": "Email support",
+    "500 tokens/month": "500 tokens/month",
+    "AI evaluation (3 tokens/offer)": "AI evaluation (3 tokens/offer)",
+    "✅ 10+ global proxy regions": "✅ 10+ global proxy regions",
+    "Priority support": "Priority support",
+    "Advanced analytics": "Advanced analytics",
+    "Unlimited tokens": "Unlimited tokens",
+    "Unlimited AI evaluation": "Unlimited AI evaluation",
+    "✅ 50+ global proxy regions": "✅ 50+ global proxy regions",
+    "Dedicated account manager": "Dedicated account manager",
+    "Custom integrations": "Custom integrations",
+    "SLA guarantee": "SLA guarantee"
+  },
+  "subscriptionCompareTitle": "Plan matrix",
+  "subscriptionCompareDesc": "See what each plan includes at a glance.",
+  "subscriptionTablePlan": "Plan",
+  "subscriptionTableMonthly": "Monthly price",
+  "subscriptionTableTokens": "Included tokens",
+  "subscriptionTableOverage": "Overage per token",
+  "subscriptionTableSeats": "Max seats",
+  "subscriptionTableFit": "Best for",
+  "subscriptionTablePrice": "${{price}}",
+  "subscriptionTableTokensValue": "{{tokens}}",
+  "subscriptionTableOverageValue": "${{price}}",
+  "subscriptionTableSeatsValue": "{{seats}}",
+  "subscriptionPendingTitle": "Pending subscription",
+  "subscriptionPendingDesc": "We detected an in-progress checkout. Complete payment to activate the plan.",
+  "subscriptionCurrentPlanHeading": "Current plan",
+  "subscriptionCurrentPlanEmpty": "Not subscribed",
+  "subscriptionCurrentPlanStatus": "Status: {{status}}",
+  "subscriptionUsageHeading": "Usage in the last 30 days",
+  "subscriptionUsageTokens": "Includes {{tokens}} tokens",
+  "scenarioStarter": "Starter",
+  "scenarioStarterDesc": "Ideal for early-stage teams evaluating Google-Monetize.",
+  "scenarioGrowth": "Growth",
+  "scenarioGrowthDesc": "Teams scaling multi-channel campaigns.",
+  "scenarioEnterprise": "Enterprise",
+  "scenarioEnterpriseDesc": "High-volume teams running automated workflows."
+}

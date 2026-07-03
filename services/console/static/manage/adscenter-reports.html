@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Adscenter 报表（近7天）</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, PingFang SC, Noto Sans, sans-serif; margin: 20px; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { border:1px solid #e5e7eb; padding:6px; font-size: 13px; }
+    th { background:#f3f4f6; text-align:left; }
+    .muted { color:#6b7280; font-size:12px; }
+  </style>
+  <script>
+    async function fetchJSON(u){ const r = await fetch(u); if(!r.ok) throw new Error(r.status); return r.json(); }
+    function pct(v){ return (v*100).toFixed(2)+'%'; }
+    async function load(){
+      const days = 7;
+      try {
+        const d = await fetchJSON('/api/v1/adscenter/reports/basic?days='+days);
+        const items = d.items||[];
+        const rows = items.map(it=>`<tr><td>${it.type}</td><td>${it.total}</td><td>${it.errors}</td><td>${pct(it.errorRate||0)}</td></tr>`).join('');
+        document.querySelector('#tbl').innerHTML = `<table><thead><tr><th>动作类型</th><th>总数</th><th>错误数</th><th>错误率</th></tr></thead><tbody>${rows}</tbody></table>`;
+        document.querySelector('#meta').textContent = '更新时间：'+new Date(d.updatedAt||Date.now()).toLocaleString();
+      } catch(e){ document.querySelector('#tbl').innerHTML = '<div class="muted">加载失败</div>'; }
+    }
+    window.addEventListener('DOMContentLoaded', load);
+  </script>
+</head>
+<body>
+  <h2>Adscenter 报表（近7天）</h2>
+  <div style="margin-bottom:8px">
+    <a href="/console/">返回控制台</a>
+    <a href="/console/admin/adscenter-executions.html" style="margin-left:8px;">执行概览</a>
+    <a href="/console/admin/adscenter-business.html" style="margin-left:8px;">业务监控</a>
+  </div>
+  <div class="muted" id="meta"></div>
+  <div id="tbl">加载中...</div>
+  <div class="muted" style="margin-top:12px;">来源：/api/v1/adscenter/reports/basic</div>
+</body>
+</html>

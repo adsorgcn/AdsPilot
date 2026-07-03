@@ -1,0 +1,28 @@
+# Trigger all services rebuild
+# This file is used to force rebuild all services
+# Last updated: 2025-10-08
+
+REBUILD_TIMESTAMP=2025-10-08T12:00:00Z
+REBUILD_REASON=Full system verification and deployment
+REBUILD_SERVICES=all
+
+# Services to rebuild:
+# Frontend:
+#   - frontend
+#   - frontend-legacy
+#
+# Backend (Go):
+#   - adscenter
+#   - batchopen
+#   - billing
+#   - console
+#   - notifications
+#   - offer
+#   - projector
+#   - proxy-pool
+#   - proxy-pool-manager
+#   - recommendations
+#   - siterank
+#
+# Backend (Node.js):
+#   - browser-exec

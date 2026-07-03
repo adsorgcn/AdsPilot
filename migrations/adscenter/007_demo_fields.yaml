@@ -1,0 +1,78 @@
+version: "007"
+service: "adscenter"
+description: "添加演示数据支持字段 - 为UserAdsConnection表添加演示数据标记和分类"
+author: "system-migration"
+created_at: "2025-01-19T12:00:00Z"
+risk_level: "low"
+dependencies:
+  - "001"
+
+changes:
+  - type: "ALTER_TABLE"
+    name: "UserAdsConnection"
+    sql: |
+      ALTER TABLE "UserAdsConnection"
+      ADD COLUMN IF NOT EXISTS "is_demo" BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS "demo_category" VARCHAR(50);
+    description: "为用户Google Ads连接添加演示数据标记和分类字段"
+
+  - type: "CREATE_INDEX"
+    name: "idx_useradsconnection_user_demo"
+    table: "UserAdsConnection"
+    sql: |
+      CREATE INDEX IF NOT EXISTS idx_useradsconnection_user_demo ON "UserAdsConnection"("userId", "is_demo");
+    description: "复合索引：优化用户演示数据查询"
+
+rollback:
+  - type: "DROP_COLUMN"
+    name: "UserAdsConnection"
+    column: "is_demo"
+    sql: |
+      ALTER TABLE "UserAdsConnection" DROP COLUMN IF EXISTS "is_demo";
+    description: "回滚：删除演示数据标记字段"
+
+  - type: "DROP_COLUMN"
+    name: "UserAdsConnection"
+    column: "demo_category"
+    sql: |
+      ALTER TABLE "UserAdsConnection" DROP COLUMN IF EXISTS "demo_category";
+    description: "回滚：删除演示分类字段"
+
+  - type: "DROP_INDEX"
+    name: "idx_useradsconnection_user_demo"
+    sql: DROP INDEX IF EXISTS idx_useradsconnection_user_demo;
+    description: "回滚：删除用户演示数据复合索引"
+
+validation:
+  - type: "column_exists"
+    name: "UserAdsConnection"
+    column: "is_demo"
+    description: "验证is_demo字段已添加"
+
+  - type: "column_exists"
+    name: "UserAdsConnection"
+    column: "demo_category"
+    description: "验证demo_category字段已添加"
+
+  - type: "data_type_check"
+    name: "UserAdsConnection"
+    column: "is_demo"
+    expected_type: "boolean"
+    description: "验证is_demo字段数据类型为boolean"
+
+  - type: "data_type_check"
+    name: "UserAdsConnection"
+    column: "demo_category"
+    expected_type: "character varying"
+    description: "验证demo_category字段数据类型为varchar"
+
+  - type: "index_exists"
+    name: "idx_useradsconnection_user_demo"
+    table: "UserAdsConnection"
+    description: "验证用户演示数据复合索引已创建"
+
+  - type: "default_value_check"
+    name: "UserAdsConnection"
+    column: "is_demo"
+    expected_default: "false"
+    description: "验证is_demo字段默认值为false"

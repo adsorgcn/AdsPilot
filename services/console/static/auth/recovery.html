@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>应急恢复登录 - Recovery Code Login</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, PingFang SC, Noto Sans, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 480px;
+      width: 100%;
+      padding: 40px;
+    }
+    h2 {
+      font-size: 24px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .subtitle {
+      color: #6b7280;
+      font-size: 14px;
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .alert.warning {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      color: #92400e;
+    }
+    .alert.error {
+      background: #fee2e2;
+      border-left: 4px solid #ef4444;
+      color: #991b1b;
+    }
+    .alert.success {
+      background: #d1fae5;
+      border-left: 4px solid #10b981;
+      color: #065f46;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 8px;
+    }
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 15px;
+      transition: all 0.2s;
+    }
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    input::placeholder {
+      color: #9ca3af;
+    }
+    .code-input {
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 18px;
+      letter-spacing: 3px;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 8px;
+    }
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+    }
+    button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 24px;
+      color: #667eea;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    .help-text {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 8px;
+    }
+    .security-notice {
+      margin-top: 24px;
+      padding: 16px;
+      background: #f9fafb;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+    }
+    .security-notice h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 8px;
+    }
+    .security-notice ul {
+      font-size: 13px;
+      color: #6b7280;
+      padding-left: 20px;
+    }
+    .security-notice li {
+      margin-bottom: 4px;
+    }
+  </style>
+  <script>
+    async function handleLogin(e){
+      e.preventDefault();
+
+      const email = document.querySelector('#email').value.trim();
+      const code = document.querySelector('#code').value.trim().toUpperCase();
+
+      if (!email || !code) {
+        showAlert('请填写完整信息', 'error');
+        return;
+      }
+
+      if (code.length !== 19 || !/^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) {
+        showAlert('恢复码格式错误，应为 XXXX-XXXX-XXXX-XXXX', 'error');
+        return;
+      }
+
+      const btn = document.querySelector('#submitBtn');
+      btn.disabled = true;
+      btn.textContent = '验证中...';
+
+      try {
+        const res = await fetch('/api/v1/auth/recovery-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, code })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || '登录失败');
+        }
+
+        showAlert('✓ 登录成功！正在跳转...', 'success');
+
+        // Store session token (simplified - in production use Supabase auth)
+        if (data.sessionToken) {
+          localStorage.setItem('recovery_session', data.sessionToken);
+        }
+
+        setTimeout(() => {
+          window.location.href = '/manage/index.html';
+        }, 1500);
+
+      } catch(err) {
+        showAlert('❌ ' + err.message, 'error');
+        btn.disabled = false;
+        btn.textContent = '登录';
+      }
+    }
+
+    function showAlert(message, type){
+      const alertEl = document.querySelector('#alert');
+      alertEl.className = 'alert ' + type;
+      alertEl.textContent = message;
+      alertEl.style.display = 'block';
+    }
+
+    function formatCodeInput(){
+      const input = document.querySelector('#code');
+      let value = input.value.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+
+      if (value.length > 16) value = value.substring(0, 16);
+
+      // Auto-format with dashes
+      let formatted = '';
+      for (let i = 0; i < value.length; i++) {
+        if (i > 0 && i % 4 === 0) formatted += '-';
+        formatted += value[i];
+      }
+
+      input.value = formatted;
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.querySelector('#loginForm').addEventListener('submit', handleLogin);
+      document.querySelector('#code').addEventListener('input', formatCodeInput);
+    });
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h2>🔑 应急恢复登录</h2>
+    <div class="subtitle">Recovery Code Emergency Access</div>
+
+    <div class="alert warning">
+      ⚠️ <strong>仅限管理员应急使用</strong><br>
+      恢复码为一次性使用，登录后请立即重新生成新码
+    </div>
+
+    <div id="alert" class="alert error" style="display:none;"></div>
+
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="email">管理员邮箱</label>
+        <input
+          type="email"
+          id="email"
+          placeholder="admin@example.com"
+          required
+          autocomplete="email"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="code">恢复码 (Recovery Code)</label>
+        <input
+          type="text"
+          id="code"
+          class="code-input"
+          placeholder="XXXX-XXXX-XXXX-XXXX"
+          maxlength="19"
+          required
+          autocomplete="off"
+        />
+        <div class="help-text">
+          输入管理员生成的 16 位恢复码，系统会自动格式化
+        </div>
+      </div>
+
+      <button type="submit" id="submitBtn">登录</button>
+    </form>
+
+    <a href="/" class="back-link">← 返回 Google 登录</a>
+
+    <div class="security-notice">
+      <h4>🔒 安全提示</h4>
+      <ul>
+        <li>恢复码仅限管理员应急访问使用</li>
+        <li>每个恢复码只能使用一次，使用后立即失效</li>
+        <li>恢复码有效期为 90 天，过期自动失效</li>
+        <li>使用恢复码登录会记录审计日志并发送告警</li>
+        <li>登录成功后请立即在安全设置中重新生成新码</li>
+        <li>如未生成恢复码，请联系其他管理员协助</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

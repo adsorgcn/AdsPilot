@@ -1,0 +1,22 @@
+{
+  "dashboard": "仪表盘",
+  "checkin": "每日签到",
+  "offers": "Offer 管理",
+  "tasks": "任务中心",
+  "adsCenter": "广告中心",
+  "admin": "后台管理",
+  "settings": {
+    "label": "系统设置",
+    "profile": "个人资料",
+    "subscription": "订阅与账单"
+  },
+  "mobileNav": {
+    "ariaLabel": "底部快捷导航",
+    "dashboard": "大盘",
+    "checkin": "签到",
+    "offers": "Offers",
+    "ads": "广告",
+    "tasks": "任务",
+    "me": "我的"
+  }
+}

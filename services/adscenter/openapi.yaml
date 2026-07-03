@@ -1,0 +1,1241 @@
+# NOTE: Canonical OpenAPI specs live under specs/openapi/*.yaml
+#       This file is a local mirror for reference only and may be stale.
+openapi: 3.0.3
+info:
+  title: Adscenter Service
+  version: 0.1.0
+  license:
+    name: Elastic-Internal
+servers:
+  - url: /
+paths:
+  /api/v1/adscenter/accounts:
+    get:
+      operationId: listAccounts
+      summary: List accessible ad accounts
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+    post:
+      operationId: addAccount
+      summary: Add a Google Ads account reference for current user (metadata only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accountId: { type: string }
+                accountName: { type: string }
+              required: [accountId]
+      responses:
+        '200': { description: OK }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/accounts/stream:
+    get:
+      operationId: streamAccounts
+      summary: Stream accounts data (SSE)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK (text/event-stream)
+          content:
+            text/event-stream:
+              schema: { type: string }
+        '401': { description: Unauthorized }
+  /api/v1/adscenter/accounts/sync-all:
+    post:
+      operationId: syncAllAccounts
+      summary: Trigger sync for all user accounts
+      security:
+        - bearerAuth: []
+      responses:
+        '202': { description: Accepted }
+        '401': { description: Unauthorized }
+  /api/v1/adscenter/accounts/{id}:
+    get:
+      operationId: getAccountDetail
+      summary: Get account details
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '404': { description: Not Found }
+    delete:
+      operationId: deleteAccount
+      summary: Delete an account reference
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '404': { description: Not Found }
+  /api/v1/adscenter/accounts/{id}/sync:
+    post:
+      operationId: syncAccount
+      summary: Trigger sync for a specific account
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '202': { description: Accepted }
+        '401': { description: Unauthorized }
+        '404': { description: Not Found }
+  /api/v1/adscenter/accounts/{id}/disconnect:
+    post:
+      operationId: disconnectAccount
+      summary: Disconnect an account
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '404': { description: Not Found }
+
+  /api/v1/adscenter/configurations:
+    get:
+      operationId: listConfigurations
+      summary: List user configurations for Adscenter
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Configuration' }
+        '401': { description: Unauthorized }
+    post:
+      operationId: createConfiguration
+      summary: Create a configuration
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                description: { type: string }
+                payload:
+                  type: object
+                  additionalProperties: true
+              required: [name]
+      responses:
+        '200': { description: OK }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/configurations/{id}:
+    delete:
+      operationId: deleteConfiguration
+      summary: Delete a configuration by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '404': { description: Not Found }
+
+  /api/v1/adscenter/campaigns:
+    post:
+      operationId: createCampaign
+      summary: Create a new advertising campaign
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Campaign name
+              required: [name]
+      responses:
+        '201':
+          description: Campaign created successfully
+        '400':
+          description: Invalid request
+        '401':
+          description: Unauthorized
+
+  /api/v1/adscenter/executions:
+    post:
+      operationId: startExecution
+      summary: Start an execution with given configuration id
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                configurationId: { type: string }
+              required: [configurationId]
+      responses:
+        '202': { description: Accepted }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+  /api/v1/adscenter/preflight:
+    post:
+      operationId: runPreflight
+      summary: Run pre-flight diagnostics
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accountId:
+                  type: string
+                  description: Google Ads customer id (10 digits)
+                validateOnly:
+                  type: boolean
+                  description: If true, skip live checks and only validate environment/config
+                landingUrl:
+                  type: string
+                  description: Optional landing page URL to check reachability
+              required: []
+      responses:
+        '200':
+          description: Diagnostics result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreflightResult'
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+  /api/v1/adscenter/bulk-actions:
+    get:
+      operationId: listBulkActions
+      summary: List recent bulk action operations for current user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 200 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BulkActionOperation'
+        '401': { description: Unauthorized }
+    post:
+      operationId: submitBulkActions
+      summary: Submit bulk actions
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/BulkActionPlan'
+                - $ref: '#/components/schemas/OpportunityComboPlan'
+      responses:
+        '200': { description: OK (validateOnly) }
+        '202': { description: Accepted (enqueued) }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/bulk-actions/{id}:
+    get:
+      operationId: getBulkAction
+      summary: Get bulk action operation status
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkActionOperation'
+        '401': { description: Unauthorized }
+        '404': { description: Not Found }
+
+  /api/v1/adscenter/bulk-actions/{id}/plan:
+    get:
+      operationId: getBulkActionPlan
+      summary: Get the submitted plan body of a bulk action
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plan:
+                    type: object
+                    additionalProperties: true
+        '401': { description: Unauthorized }
+        '404': { description: Not Found }
+
+  /api/v1/adscenter/bulk-actions/validate:
+    post:
+      operationId: validateBulkActions
+      summary: Validate a bulk action plan without enqueuing
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkActionPlan'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkActionValidationResult'
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/bulk-actions/{id}/audits:
+    get:
+      operationId: getBulkActionAudits
+      summary: List audit snapshots for an operation
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BulkActionAuditItem'
+        '401': { description: Unauthorized }
+        '404': { description: Not Found }
+
+  /api/v1/adscenter/bulk-actions/{id}/rollback:
+    post:
+      operationId: rollbackBulkAction
+      summary: Mark operation as rolled back and append a rollback snapshot (stub)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Rolled back }
+        '401': { description: Unauthorized }
+        '404': { description: Not Found }
+
+  /api/v1/adscenter/bulk-actions/{id}/rollback-plan:
+    post:
+      operationId: getRollbackPlan
+      summary: Generate a rollback plan (inverse actions) without executing
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plan:
+                    $ref: '#/components/schemas/BulkActionPlan'
+        '401': { description: Unauthorized }
+        '404': { description: Not Found }
+
+  /api/v1/adscenter/bulk-actions/{id}/rollback-execute:
+    post:
+      operationId: rollbackExecute
+      summary: Execute rollback (stub; writes audits only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  executed: { type: integer }
+                  errors: { type: integer }
+        '401': { description: Unauthorized }
+        '404': { description: Not Found }
+
+  /api/v1/adscenter/bulk-actions/{id}/report:
+    get:
+      operationId: getRollbackReport
+      summary: Get rollback execution report (audit snapshots)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+        - in: query
+          name: kind
+          schema: { type: string, enum: [rollback, rollback_exec] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BulkActionAuditItem'
+        '401': { description: Unauthorized }
+        '404': { description: Not Found }
+  /api/v1/adscenter/settings/link-rotation:
+    get:
+      operationId: getLinkRotationSettings
+      summary: Get link rotation frequency control settings
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LinkRotationSettings' }
+        '401': { description: Unauthorized }
+    put:
+      operationId: updateLinkRotationSettings
+      summary: Update link rotation frequency control settings
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LinkRotationSettings' }
+      responses:
+        '200': { description: OK }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+  /api/v1/adscenter/oauth/url:
+    get:
+      operationId: getOAuthUrl
+      summary: Get OAuth URL
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+  /api/v1/adscenter/oauth/callback:
+    get:
+      operationId: oauthCallback
+      summary: OAuth callback
+      security: []
+      responses:
+        '200': { description: OK }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+  /api/v1/adscenter/oauth/revoke:
+    post:
+      operationId: oauthRevoke
+      summary: Revoke stored Google Ads refresh token for current user (stub)
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/mcc/link:
+    post:
+      operationId: mccLink
+      summary: Send manager link invitation (stub/live)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customerId: { type: string }
+              required: [customerId]
+      responses:
+        '200': { description: OK }
+        '202': { description: Accepted (idempotent queued) }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+  /api/v1/adscenter/mcc/status:
+    get:
+      operationId: mccStatus
+      summary: Get manager link status
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: customerId
+          schema: { type: string }
+          required: true
+      responses:
+        '200': { description: OK }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+        '404': { description: Not Found }
+  /api/v1/adscenter/mcc/unlink:
+    post:
+      operationId: mccUnlink
+      summary: Request unlink from manager account (stub/live)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customerId: { type: string }
+              required: [customerId]
+      responses:
+        '200': { description: OK }
+        '202': { description: Accepted (idempotent queued) }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/mcc/refresh:
+    post:
+      operationId: mccRefresh
+      summary: Refresh statuses for all pending/invited MCC links (best-effort)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                shard: { type: integer, minimum: 0 }
+                totalShards: { type: integer, minimum: 1 }
+              required: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  checked: { type: integer }
+                  updated: { type: integer }
+                  live: { type: boolean }
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/mcc/links:
+    get:
+      operationId: listMccLinks
+      summary: List MCC links for current user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [invited, pending, active, inactive] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MccLink'
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/connections:
+    get:
+      operationId: listAdsConnections
+      summary: List stored Google Ads connections (sanitized)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdsConnection'
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/audits:
+    get:
+      operationId: listAuditEvents
+      summary: List audit events
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: kind
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 200 }
+        - in: query
+          name: since
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEventItem'
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/keywords/expand:
+    post:
+      operationId: expandKeywords
+      summary: Expand keywords using seed domain/keywords
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                seedDomain: { type: string }
+                seedKeywords:
+                  type: array
+                  items: { type: string }
+                validateOnly:
+                  type: boolean
+                  description: If true, returns stub suggestions without live API calls
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/KeywordIdea'
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/diagnose:
+    post:
+      operationId: diagnose
+      summary: Diagnose ad account issues based on provided metrics and landing URL
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accountId: { type: string }
+                landingUrl: { type: string }
+                metrics:
+                  type: object
+                  additionalProperties: true
+              required: [accountId]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnoseResult'
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/diagnose/plan:
+    post:
+      operationId: diagnosePlan
+      summary: Generate a validate-only bulk action plan from metrics
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accountId: { type: string }
+                metrics:
+                  type: object
+                  additionalProperties: true
+                suggestedActions:
+                  type: array
+                  items: { $ref: '#/components/schemas/SuggestedAction' }
+              required: [accountId, metrics]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkActionPlan'
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/diagnose/metrics:
+    get:
+      operationId: getDiagnoseMetrics
+      summary: Get metrics stub or live for diagnosis
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: accountId
+          required: false
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/diagnose/execute:
+    post:
+      operationId: diagnoseExecute
+      summary: Generate a plan from metrics and enqueue as a bulk operation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                metrics:
+                  type: object
+                  additionalProperties: true
+              required: [metrics]
+      responses:
+        '202': { description: Accepted }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/limits/me:
+    get:
+      operationId: getLimitsMe
+      summary: Get current plan limits and daily quota usage for the user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plan: { type: string }
+                  limits:
+                    type: object
+                    properties:
+                      preflight:
+                        type: object
+                        properties:
+                          rpm: { type: integer }
+                          concurrency: { type: integer }
+                      mutate:
+                        type: object
+                        properties:
+                          rpm: { type: integer }
+                          concurrency: { type: integer }
+                  quota:
+                    type: object
+                    properties:
+                      daily: { type: integer }
+                      usedToday: { type: integer }
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/strategies:
+    get:
+      operationId: listStrategies
+      summary: List available automation strategies
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
+                        description: { type: string }
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/transfer-budget:
+    post:
+      operationId: transferBudget
+      summary: Transfer budget between campaigns
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fromCampaignId: { type: string }
+                toCampaignId: { type: string }
+                amount: { type: number }
+              required: [fromCampaignId, toCampaignId, amount]
+      responses:
+        '200': { description: OK }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+
+  /api/v1/adscenter/reports/basic:
+    get:
+      operationId: getBasicReport
+      summary: Get basic performance report
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: accountId
+          schema: { type: string }
+        - in: query
+          name: startDate
+          schema: { type: string, format: date }
+        - in: query
+          name: endDate
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  metrics:
+                    type: object
+                    additionalProperties: true
+        '401': { description: Unauthorized }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Configuration:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        status: { type: string }
+        payload:
+          type: object
+          additionalProperties: true
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    PreflightCheck:
+      type: object
+      properties:
+        code: { type: string }
+        severity: { type: string, enum: [info, warn, error, skip] }
+        message: { type: string }
+        details:
+          type: object
+          additionalProperties: true
+      required: [code, severity, message]
+    PreflightResult:
+      type: object
+      properties:
+        summary: { type: string, enum: [ok, warn, error] }
+        checks:
+          type: array
+          items: { $ref: '#/components/schemas/PreflightCheck' }
+      required: [summary, checks]
+    BulkActionOperation:
+      type: object
+      properties:
+        operationId: { type: string }
+        status: { type: string, enum: [queued, running, completed, failed] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        summary:
+          type: object
+          properties:
+            actions: { type: integer }
+            estimatedAffected: { type: integer }
+      required: [operationId, status]
+    BulkActionPlan:
+      type: object
+      properties:
+        validateOnly:
+          type: boolean
+        actions:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [ADJUST_CPC, ADJUST_BUDGET, ROTATE_LINK, ADD_NEGATIVE_KEYWORDS, REMOVE_NEGATIVE_KEYWORDS, PAUSE_KEYWORDS, ENABLE_KEYWORDS, SET_AD_SCHEDULES, SET_TARGET_CPA, SET_TARGET_ROAS]
+              filter:
+                type: object
+                additionalProperties: true
+              params:
+                oneOf:
+                  - $ref: '#/components/schemas/AdjustCpcParams'
+                  - $ref: '#/components/schemas/AdjustBudgetParams'
+                  - $ref: '#/components/schemas/RotateLinkParams'
+                  - $ref: '#/components/schemas/NegativeKeywordsParams'
+                  - $ref: '#/components/schemas/KeywordStatusParams'
+                  - $ref: '#/components/schemas/AdSchedulesParams'
+                  - $ref: '#/components/schemas/BiddingParams'
+          minItems: 1
+      required: [actions]
+    AdjustCpcParams:
+      type: object
+      properties:
+        keyword: { type: string, description: Target keyword text }
+        percent:
+          type: number
+          description: "Increase/decrease percent (e.g., 10 for +10%)"
+        cpcValue: { type: number, description: Absolute CPC value to set (optional alternative to percent) }
+        reason: { type: string }
+        seedDomain: { type: string }
+        country: { type: string }
+    AdjustBudgetParams:
+      type: object
+      properties:
+        dailyBudget: { type: number, description: New daily budget value }
+        percent:
+          type: number
+          description: "Percent change; if present, dailyBudget may be omitted"
+    RotateLinkParams:
+      type: object
+      properties:
+        targetDomain: { type: string, description: Target domain for rotation }
+        links:
+          type: array
+          description: Optional list of full URLs to rotate; either targetDomain or links must be provided
+          items: { type: string }
+        seedDomain: { type: string }
+        country: { type: string }
+    NegativeKeywordsParams:
+      type: object
+      description: Parameters for adding/removing negative keywords at ad group level
+      properties:
+        adGroupResourceNames:
+          type: array
+          items: { type: string }
+        keywords:
+          type: array
+          items: { type: string }
+        matchType:
+          type: string
+          enum: [EXACT, PHRASE, BROAD]
+      required: [adGroupResourceNames, keywords]
+    KeywordStatusParams:
+      type: object
+      description: Parameters for pausing/enabling keyword criteria
+      properties:
+        criterionResourceNames:
+          type: array
+          items: { type: string }
+      required: [criterionResourceNames]
+    AdSchedulesParams:
+      type: object
+      description: Replace campaign ad schedules with provided list
+      properties:
+        campaignResourceNames:
+          type: array
+          items: { type: string }
+        schedules:
+          type: array
+          items:
+            type: object
+            properties:
+              dayOfWeek: { type: string, enum: [MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY,SATURDAY,SUNDAY] }
+              startHour: { type: integer, minimum: 0, maximum: 23 }
+              startMinute: { type: string, enum: [ZERO,FIFTEEN,THIRTY,FORTY_FIVE] }
+              endHour: { type: integer, minimum: 0, maximum: 23 }
+              endMinute: { type: string, enum: [ZERO,FIFTEEN,THIRTY,FORTY_FIVE] }
+      required: [campaignResourceNames, schedules]
+    BiddingParams:
+      type: object
+      description: Set bidding targets for campaigns (tCPA/tROAS)
+      properties:
+        campaignResourceNames:
+          type: array
+          items: { type: string }
+        targetCpaMicros: { type: integer, description: Absolute target CPA in micros }
+        targetRoas: { type: number, description: Absolute target ROAS value }
+        percent: { type: number, description: Relative adjustment percent }
+      required: [campaignResourceNames]
+    OpportunityComboPlan:
+      type: object
+      description: Minimal combo plan built from an Opportunity (keywords/domains) without enumerating low-level actions.
+      properties:
+        validateOnly: { type: boolean }
+        seedDomain: { type: string }
+        country: { type: string }
+        plan:
+          type: object
+          properties:
+            keywords:
+              type: array
+              items:
+                type: object
+                properties:
+                  keyword: { type: string }
+                  score: { type: number }
+                  reason: { type: string }
+            domains:
+              type: array
+              items:
+                type: object
+                properties:
+                  domain: { type: string }
+                  score: { type: number }
+    BulkActionValidationResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        summary:
+          type: object
+          properties:
+            actions: { type: integer }
+            estimatedAffected: { type: integer }
+        warnings:
+          type: array
+          items: { type: string }
+        errors:
+          type: array
+          items: { type: string }
+        violations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationViolation'
+      required: [ok, summary]
+    ValidationViolation:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        severity: { type: string, enum: [info, warn, error] }
+        actionIndex: { type: integer }
+        field: { type: string }
+    BulkActionAuditItem:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [before, after, rollback, other]
+        snapshot:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [kind, snapshot, createdAt]
+    KeywordIdea:
+      type: object
+      properties:
+        keyword: { type: string }
+        avgMonthlySearches: { type: integer }
+        competition:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+      required: [keyword, avgMonthlySearches, competition]
+    DiagnoseRule:
+      type: object
+      properties:
+        code: { type: string }
+        severity: { type: string, enum: [info, warn, error] }
+        message: { type: string }
+        details:
+          type: object
+          additionalProperties: true
+      required: [code, severity, message]
+    SuggestedAction:
+      type: object
+      properties:
+        action: { type: string }
+        params:
+          type: object
+          additionalProperties: true
+        reason: { type: string }
+      required: [action]
+    DiagnoseResult:
+      type: object
+      properties:
+        summary: { type: string, enum: [ok, warn, error] }
+        rules:
+          type: array
+          items: { $ref: '#/components/schemas/DiagnoseRule' }
+        suggestedActions:
+          type: array
+          items: { $ref: '#/components/schemas/SuggestedAction' }
+      required: [summary, rules]
+    LinkRotationSettings:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: Master switch for scheduled link rotation.
+        minIntervalMinutes:
+          type: integer
+          minimum: 1
+          description: Minimum interval between rotations for the same entity.
+        maxPerDayPerOffer:
+          type: integer
+          minimum: 0
+          description: Max rotations per Offer per day (0 = unlimited).
+        maxPerHourPerAccount:
+          type: integer
+          minimum: 0
+          description: Max rotations per account per hour (0 = unlimited).
+        rollbackOnError:
+          type: boolean
+          description: Automatically rollback to previous stable suffix on errors.
+    MccLink:
+      type: object
+      properties:
+        customerId: { type: string }
+        status: { type: string, enum: [invited, pending, active, inactive] }
+        updatedAt: { type: string, format: date-time }
+      required: [customerId, status]
+    AdsConnection:
+      type: object
+      properties:
+        loginCustomerId: { type: string }
+        primaryCustomerId: { type: string }
+        updatedAt: { type: string, format: date-time }
+    AuditEventItem:
+      type: object
+      properties:
+        kind: { type: string }
+        data: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
+      required: [kind, data, createdAt]

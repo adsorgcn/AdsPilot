@@ -1,0 +1,19 @@
+{
+  "$id": "https://gm.com/schemas/events/UserRegistered.json",
+  "type": "object",
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventName": { "type": "string", "const": "UserRegistered" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" }
+      },
+      "required": ["userId", "email"]
+    }
+  },
+  "required": ["eventId", "eventName", "timestamp", "payload"]
+}

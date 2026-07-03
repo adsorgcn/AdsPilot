@@ -1,0 +1,48 @@
+# Cloud Run deployment configuration for proxy-pool (preview)
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: proxy-pool-preview
+  labels:
+    cloud.googleapis.com/location: asia-northeast1
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: '1'
+        autoscaling.knative.dev/maxScale: '5'
+        run.googleapis.com/cpu-throttling: 'false'
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      serviceAccountName: codex-dev@${GCP_PROJECT_ID}.iam.gserviceaccount.com
+      containers:
+        - image: asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/proxy-pool:preview-latest
+          resources:
+            limits:
+              cpu: '1'
+              memory: 512Mi
+          env:
+            - name: PORT
+              value: '8080'
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: REDIS_URL
+                  key: latest
+            - name: PROXY_URLS
+              valueFrom:
+                secretKeyRef:
+                  name: PROXY_URLS
+                  key: latest
+            - name: PROXY_BATCH_SIZE
+              value: '50'
+            - name: PROXY_TTL
+              value: '900'
+            - name: PROXY_LOW_WATER_MARK
+              value: '50'
+            - name: RATE_LIMIT_INTERVAL_MS
+              value: '10000'
+  traffic:
+    - percent: 100
+      latestRevision: true

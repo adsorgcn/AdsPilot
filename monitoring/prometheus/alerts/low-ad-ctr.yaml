@@ -1,0 +1,54 @@
+# Alert Policy: Low Ad Click-Through Rate
+# Triggers when global CTR falls below 1% for 30 minutes
+
+displayName: "Google-Monetize - Low Ad Click-Through Rate"
+documentation:
+  content: |
+    ## Low Ad CTR Alert
+
+    **Service:** Adscenter
+    **Threshold:** Global CTR < 1%
+    **Duration:** 30 minutes
+
+    ### Investigation Steps:
+    1. Check CTR by platform:
+       ```
+       gm:adscenter:ctr:ratio_by_platform
+       ```
+    2. Identify underperforming campaigns:
+       ```
+       gm:adscenter:ctr:ratio_by_campaign
+       ```
+    3. Review recent ad creative changes
+    4. Check targeting configuration
+
+    ### Common Causes:
+    - Poor ad creative quality
+    - Incorrect targeting settings
+    - Low-quality traffic
+    - Ad fatigue (same users seeing ads repeatedly)
+    - Platform-specific issues
+
+    ### Mitigation:
+    - Review and refresh ad creatives
+    - Adjust targeting parameters
+    - Test new ad variations (A/B testing)
+    - Check platform-specific best practices
+
+conditions:
+  - displayName: "Ad CTR < 1%"
+    conditionThreshold:
+      filter: |
+        resource.type = "cloud_run_revision"
+        AND metric.type = "prometheus.googleapis.com/gm_adscenter_ad_clicks_total/counter"
+      aggregations:
+        - alignmentPeriod: "300s"
+          perSeriesAligner: "ALIGN_RATE"
+          crossSeriesReducer: "REDUCE_SUM"
+      comparison: "COMPARISON_LT"
+      thresholdValue: 0.01
+      duration: "1800s"
+
+combiner: "OR"
+enabled: false  # Disabled by default - enable after baseline CTR is established
+notificationChannels: []

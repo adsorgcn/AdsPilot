@@ -1,0 +1,13 @@
+steps:
+  - name: gcr.io/kaniko-project/executor:latest
+    args:
+      - --dockerfile=services/adscenter/Dockerfile
+      - --destination=asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/adscenter:preview-latest
+      - --context=.
+      - --cache=true
+      - --cache-ttl=6h
+options:
+  logging: LEGACY
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
+timeout: 1800s
+

@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Global Configuration ---
+    // Publicly readable configuration, only writable by admins.
+    // Used for feature flags, pricing plans, etc.
+    match /system_config/{configId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.role == 'ADMIN';
+    }
+
+    // --- User Data ---
+
+    // Secure the user_checkins collection
+    // This collection is used for fast, real-time decisions on the check-in API endpoint.
+    match /user_checkins/{userId} {
+      // A user can only read their own check-in status.
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // A user can only create their own document.
+      // They cannot update it directly; updates are handled by backend services.
+      // This prevents users from tampering with their streak count.
+      allow create: if request.auth != null && request.auth.uid == userId;
+
+      // Disallow updates and deletes from the client.
+      allow update, delete: if false;
+    }
+
+    // User-specific data, e.g., profiles or settings
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Default deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

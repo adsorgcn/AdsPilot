@@ -1,0 +1,111 @@
+# Token管理系统增强
+# 合并多个token相关的迁移文件
+
+version: "002"
+service: "billing"
+description: "增强Token管理系统，包括Token池、积分批次和服务字段"
+
+up: |
+  -- 创建Token池表
+  CREATE TABLE IF NOT EXISTS "UserTokenPool" (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      pool_type TEXT NOT NULL DEFAULT 'general', -- 'general', 'trial', 'bonus'
+      total_tokens BIGINT NOT NULL DEFAULT 0,
+      allocated_tokens BIGINT NOT NULL DEFAULT 0,
+      available_tokens BIGINT NOT NULL DEFAULT 0,
+      expires_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      FOREIGN KEY (user_id) REFERENCES "User"(id) ON DELETE CASCADE
+  );
+
+  -- 创建Token积分批次表
+  CREATE TABLE IF NOT EXISTS "TokenCreditLot" (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      amount BIGINT NOT NULL,
+      type TEXT NOT NULL, -- 'purchase', 'bonus', 'refund', 'adjustment'
+      source TEXT NOT NULL,
+      description TEXT,
+      expires_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      FOREIGN KEY (user_id) REFERENCES "User"(id) ON DELETE CASCADE
+  );
+
+  -- 创建Token积分分配表
+  CREATE TABLE IF NOT EXISTS "TokenCreditAllocation" (
+      id TEXT PRIMARY KEY,
+      lot_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      allocated_amount BIGINT NOT NULL,
+      remaining_amount BIGINT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      FOREIGN KEY (lot_id) REFERENCES "TokenCreditLot"(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES "User"(id) ON DELETE CASCADE
+  );
+
+  -- 创建Token修复审计表
+  CREATE TABLE IF NOT EXISTS "TokenRepairAudit" (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      old_balance BIGINT NOT NULL,
+      new_balance BIGINT NOT NULL,
+      adjustment_amount BIGINT NOT NULL,
+      created_by TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      FOREIGN KEY (user_id) REFERENCES "User"(id) ON DELETE CASCADE
+  );
+
+  -- 添加服务字段到TokenTransaction表
+  ALTER TABLE "TokenTransaction" ADD COLUMN IF NOT EXISTS service TEXT;
+  ALTER TABLE "TokenTransaction" ADD COLUMN IF NOT EXISTS resource_id TEXT;
+
+  -- 创建性能优化索引
+  CREATE INDEX IF NOT EXISTS idx_token_transaction_service ON "TokenTransaction"(service);
+  CREATE INDEX IF NOT EXISTS idx_token_transaction_service_user ON "TokenTransaction"(service, user_id);
+  CREATE INDEX IF NOT EXISTS idx_token_transaction_service_created ON "TokenTransaction"(service, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_token_transaction_type_source ON "TokenTransaction"(type, source);
+
+  -- Token池相关索引
+  CREATE INDEX IF NOT EXISTS idx_token_pool_user_id ON "UserTokenPool"(user_id);
+  CREATE INDEX IF NOT EXISTS idx_token_pool_type ON "UserTokenPool"(pool_type);
+  CREATE INDEX IF NOT EXISTS idx_token_pool_expires_at ON "UserTokenPool"(expires_at);
+
+  -- Token批次相关索引
+  CREATE INDEX IF NOT EXISTS idx_token_credit_lot_user_id ON "TokenCreditLot"(user_id);
+  CREATE INDEX IF NOT EXISTS idx_token_credit_lot_type ON "TokenCreditLot"(type);
+  CREATE INDEX IF NOT EXISTS idx_token_credit_lot_expires_at ON "TokenCreditLot"(expires_at);
+
+  -- Token分配相关索引
+  CREATE INDEX IF NOT EXISTS idx_token_allocation_lot_id ON "TokenCreditAllocation"(lot_id);
+  CREATE INDEX IF NOT EXISTS idx_token_allocation_user_id ON "TokenCreditAllocation"(user_id);
+
+down: |
+  -- 删除新增的索引
+  DROP INDEX IF EXISTS idx_token_allocation_user_id;
+  DROP INDEX IF EXISTS idx_token_allocation_lot_id;
+  DROP INDEX IF EXISTS idx_token_credit_lot_expires_at;
+  DROP INDEX IF EXISTS idx_token_credit_lot_type;
+  DROP INDEX IF EXISTS idx_token_credit_lot_user_id;
+  DROP INDEX IF EXISTS idx_token_pool_expires_at;
+  DROP INDEX IF EXISTS idx_token_pool_type;
+  DROP INDEX IF EXISTS idx_token_pool_user_id;
+  DROP INDEX IF EXISTS idx_token_transaction_type_source;
+  DROP INDEX IF EXISTS idx_token_transaction_service_created;
+  DROP INDEX IF EXISTS idx_token_transaction_service_user;
+  DROP INDEX IF EXISTS idx_token_transaction_service;
+
+  -- 删除新增的字段
+  ALTER TABLE "TokenTransaction" DROP COLUMN IF EXISTS resource_id;
+  ALTER TABLE "TokenTransaction" DROP COLUMN IF EXISTS service;
+
+  -- 删除新增的表（按依赖关系逆序）
+  DROP TABLE IF EXISTS "TokenRepairAudit";
+  DROP TABLE IF EXISTS "TokenCreditAllocation";
+  DROP TABLE IF EXISTS "TokenCreditLot";
+  DROP TABLE IF EXISTS "UserTokenPool";
+
+dependencies: ["001"]

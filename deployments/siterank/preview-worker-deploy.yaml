@@ -1,0 +1,98 @@
+# Siterank Worker Service - Preview环境部署配置 (Pub/Sub异步模式)
+# 部署命令: gcloud run services replace preview-worker-deploy.yaml
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: siterank-worker-preview
+  annotations:
+    run.googleapis.com/ingress: internal
+    run.googleapis.com/launch-stage: BETA
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: '1'
+        autoscaling.knative.dev/maxScale: '20'
+        run.googleapis.com/cloudsql-instances: ${GCP_PROJECT_ID}:asia-northeast1:gm
+        run.googleapis.com/startup-cpu-boost: 'true'
+    spec:
+      serviceAccountName: codex-dev@${GCP_PROJECT_ID}.iam.gserviceaccount.com
+      containerConcurrency: 10
+      timeoutSeconds: 600
+      containers:
+      - image: asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/siterank:preview-latest
+        ports:
+        - name: http1
+          containerPort: 8080
+        resources:
+          limits:
+            cpu: '2'
+            memory: 2Gi
+        env:
+        # Worker模式标识 (关键配置)
+        - name: SITERANK_WORKER_MODE
+          value: "subscriber"
+
+        # 🔥 数据库连接（通过Cloud SQL Proxy Unix Socket）
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: DATABASE_URL
+              key: latest
+
+        # 🔥 数据库连接模式
+        - name: DB_CONNECTION_MODE
+          value: "cloudsql"
+
+        # Redis连接
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: REDIS_URL
+              key: latest
+
+        # Browser-exec服务URL
+        - name: BROWSER_EXEC_URL
+          value: "https://browser-exec-preview-885pd7lz.a.run.app"
+
+        # Billing API URL
+        - name: BILLING_API_URL
+          value: "https://gm-gw-preview-885pd7lz.an.gateway.dev/api/v1/billing"
+
+        # SimilarWeb API Base URL
+        - name: SIMILARWEB_BASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: SIMILARWEB_BASE_URL
+              key: latest
+
+        # GCP项目ID
+        - name: GCP_PROJECT_ID
+          value: "${GCP_PROJECT_ID}"
+
+        - name: GOOGLE_CLOUD_PROJECT
+          value: "${GCP_PROJECT_ID}"
+
+        # Pub/Sub订阅配置 (监听 EventSiterankRequested)
+        - name: PUBSUB_SUBSCRIPTION
+          value: "siterank-worker-sub-preview"
+
+        # 必须提供 PUBSUB_SUBSCRIPTION_ID (pkg/events.NewSubscriber 需要)
+        - name: PUBSUB_SUBSCRIPTION_ID
+          value: "siterank-worker-sub-preview"
+
+        # Pub/Sub Topic ID
+        - name: PUBSUB_TOPIC_ID
+          value: "domain-events-preview"
+
+        - name: PROJECT_ID
+          value: "${GCP_PROJECT_ID}"
+
+        # 日志级别
+        - name: LOG_LEVEL
+          value: "info"
+
+        # 环境标识
+        - name: ENVIRONMENT
+          value: "preview"

@@ -1,0 +1,32 @@
+# ==============================================================================
+# Siterank服务专用 .gcloudignore - 最小化上传文件
+# ==============================================================================
+
+# 只上传必需的目录,其他全部排除
+*
+!services/siterank/**
+!pkg/**
+!go.work
+!go.work.sum
+
+# 排除siterank服务内的非必需文件
+services/siterank/scripts/**
+!services/siterank/scripts/*.sh
+services/siterank/**/*.md
+services/siterank/**/*.json
+!services/siterank/go.mod
+!services/siterank/go.sum
+
+# 排除测试文件
+**/*_test.go
+**/test*.go
+
+# 排除临时文件
+**/*.tmp
+**/*.log
+**/.DS_Store
+
+# 排除构建产物
+**/dist/
+**/build/
+**/.next/

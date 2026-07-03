@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.standalone
+      args:
+        NEXT_PUBLIC_DEPLOYMENT_ENV: production
+        NEXT_PUBLIC_DOMAIN: yourdomain.com
+        # 如果构建时有数据库连接，可以取消注释下面这行
+        # SKIP_DB_MIGRATION: false
+    environment:
+      - DATABASE_URL=postgresql://username:password@db:5432/urlbatchchecker?schema=public
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=your-secret-key
+      # 构建时没有数据库连接，启动时执行迁移
+      - SKIP_DB_MIGRATION=false
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./scripts:/app/scripts
+    command: >
+      sh -c "
+        ./scripts/startup-migration.sh &&
+        ./scripts/smart-start.sh
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: urlbatchchecker
+      POSTGRES_USER: username
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U username"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  postgres_data:

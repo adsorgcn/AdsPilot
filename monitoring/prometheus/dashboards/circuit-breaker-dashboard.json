@@ -1,0 +1,191 @@
+{
+  "dashboard": {
+    "title": "Circuit Breaker监控",
+    "tags": ["circuit-breaker", "reliability", "offer"],
+    "timezone": "Asia/Shanghai",
+    "panels": [
+      {
+        "id": 1,
+        "title": "断路器状态",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "gm_offer_circuit_breaker_state{breaker=\"billing\"}",
+            "legendFormat": "{{ breaker }}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {
+                "type": "value",
+                "options": {
+                  "0": { "text": "CLOSED ✅", "color": "green" },
+                  "1": { "text": "HALF-OPEN ⚠️", "color": "yellow" },
+                  "2": { "text": "OPEN ❌", "color": "red" }
+                }
+              }
+            ]
+          }
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 }
+      },
+      {
+        "id": 2,
+        "title": "请求成功率",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "(rate(gm_offer_circuit_breaker_requests_total{result=\"success\"}[5m]) / rate(gm_offer_circuit_breaker_requests_total[5m])) * 100",
+            "legendFormat": "Success Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "value": 0, "color": "red" },
+                { "value": 80, "color": "yellow" },
+                { "value": 95, "color": "green" }
+              ]
+            }
+          }
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 }
+      },
+      {
+        "id": 3,
+        "title": "总请求数 (5分钟)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(gm_offer_circuit_breaker_requests_total[5m]))",
+            "legendFormat": "Total Requests"
+          }
+        ],
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 }
+      },
+      {
+        "id": 4,
+        "title": "当前失败数",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "gm_offer_circuit_breaker_failures_total{type=\"consecutive\"}",
+            "legendFormat": "Consecutive Failures"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 3, "color": "yellow" },
+                { "value": 5, "color": "red" }
+              ]
+            }
+          }
+        },
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 }
+      },
+      {
+        "id": 5,
+        "title": "请求速率 (requests/sec)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(gm_offer_circuit_breaker_requests_total{result=\"success\"}[1m])",
+            "legendFormat": "Success"
+          },
+          {
+            "expr": "rate(gm_offer_circuit_breaker_requests_total{result=\"failure\"}[1m])",
+            "legendFormat": "Failure"
+          }
+        ],
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 }
+      },
+      {
+        "id": 6,
+        "title": "失败率趋势 (%)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "(rate(gm_offer_circuit_breaker_requests_total{result=\"failure\"}[5m]) / rate(gm_offer_circuit_breaker_requests_total[5m])) * 100",
+            "legendFormat": "Failure Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent"
+          }
+        },
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 }
+      },
+      {
+        "id": 7,
+        "title": "断路器状态历史",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "gm_offer_circuit_breaker_state{breaker=\"billing\"}",
+            "legendFormat": "State (0=Closed, 1=Half-Open, 2=Open)"
+          }
+        ],
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 }
+      },
+      {
+        "id": 8,
+        "title": "累计统计",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "gm_offer_circuit_breaker_successes_total{type=\"total\"}",
+            "legendFormat": "Total Successes",
+            "instant": true
+          },
+          {
+            "expr": "gm_offer_circuit_breaker_failures_total{type=\"total\"}",
+            "legendFormat": "Total Failures",
+            "instant": true
+          },
+          {
+            "expr": "gm_offer_circuit_breaker_failures_total{type=\"consecutive\"}",
+            "legendFormat": "Consecutive Failures",
+            "instant": true
+          }
+        ],
+        "gridPos": { "h": 6, "w": 12, "x": 0, "y": 20 }
+      },
+      {
+        "id": 9,
+        "title": "状态切换频率 (10分钟)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "changes(gm_offer_circuit_breaker_state[10m])",
+            "legendFormat": "State Changes"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 2, "color": "yellow" },
+                { "value": 4, "color": "red" }
+              ]
+            }
+          }
+        },
+        "gridPos": { "h": 6, "w": 12, "x": 12, "y": 20 }
+      }
+    ],
+    "refresh": "10s",
+    "time": { "from": "now-1h", "to": "now" }
+  },
+  "overwrite": true
+}

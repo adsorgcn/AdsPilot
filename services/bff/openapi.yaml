@@ -1,0 +1,243 @@
+openapi: 3.0.3
+info:
+  title: BFF Service API
+  description: Backend for Frontend - 用户端Dashboard聚合服务
+  version: 1.0.0
+servers:
+  - url: /api/v1
+    description: BFF API v1
+
+paths:
+  /dashboard/stats:
+    get:
+      summary: 获取用户Dashboard统计数据
+      description: |
+        聚合多个微服务数据，返回用户Dashboard完整统计信息。
+
+        **数据源**:
+        - Offer Service - Offer统计
+        - Siterank Service - 评估统计、最近评估
+        - Billing Service - Token余额、订阅信息
+        - Adscenter Service - 广告账号统计
+        - Useractivity Service - 签到、邀请统计
+
+        **缓存策略**: Redis缓存5分钟
+      operationId: getDashboardStats
+      tags:
+        - Dashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成功返回Dashboard统计数据
+          headers:
+            X-Cache-Status:
+              description: 缓存状态 (HIT/MISS)
+              schema:
+                type: string
+                enum: [HIT, MISS]
+            X-Partial-Errors:
+              description: 部分服务失败数量
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStats'
+        '401':
+          description: 未认证
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: 服务器错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase JWT Token
+
+  schemas:
+    DashboardStats:
+      type: object
+      required:
+        - userId
+        - totalOffers
+        - evaluatedOffers
+        - pendingEvaluations
+        - tokensTotal
+        - tokensConsumed
+        - tokensRemaining
+        - subscriptionPlan
+        - checkinStreak
+        - totalCheckins
+        - totalReferrals
+        - successfulReferrals
+        - recentEvaluations
+        - lastUpdated
+      properties:
+        userId:
+          type: string
+          description: 用户ID
+        totalOffers:
+          type: integer
+          description: Offer总数
+        evaluatedOffers:
+          type: integer
+          description: 已评估Offer数
+        pendingEvaluations:
+          type: integer
+          description: 待评估数量
+        aiEvaluationsTotal:
+          type: integer
+          description: AI评估总数
+        aiEvaluationsSuccess:
+          type: integer
+          description: AI评估成功数
+        aiEvaluationsFailed:
+          type: integer
+          description: AI评估失败数
+        tokensTotal:
+          type: integer
+          format: int64
+          description: Token总额
+        tokensConsumed:
+          type: integer
+          format: int64
+          description: 已消耗Token
+        tokensRemaining:
+          type: integer
+          format: int64
+          description: 剩余Token
+        subscriptionPlan:
+          type: string
+          description: 订阅套餐
+          enum: [Starter, Pro, Elite]
+        subscriptionEnd:
+          type: string
+          format: date-time
+          description: 订阅结束时间
+          nullable: true
+        adsAccounts:
+          $ref: '#/components/schemas/AdsAccountStats'
+        checkinStreak:
+          type: integer
+          description: 签到连续天数
+        totalCheckins:
+          type: integer
+          description: 总签到次数
+        totalReferrals:
+          type: integer
+          description: 总邀请数
+        successfulReferrals:
+          type: integer
+          description: 成功邀请数
+        recentEvaluations:
+          type: array
+          description: 最近评估记录
+          items:
+            $ref: '#/components/schemas/RecentEvaluation'
+        lastUpdated:
+          type: string
+          format: date-time
+          description: 数据更新时间
+
+    AdsAccountStats:
+      type: object
+      required:
+        - totalAccounts
+        - activeAccounts
+        - pendingAuthorization
+        - offersCoverage
+      properties:
+        totalAccounts:
+          type: integer
+          description: 广告账号总数
+        activeAccounts:
+          type: integer
+          description: 活跃账号数
+        pendingAuthorization:
+          type: integer
+          description: 待授权数
+        offersCoverage:
+          type: number
+          format: float
+          description: Offer覆盖率（百分比）
+          minimum: 0
+          maximum: 100
+
+    RecentEvaluation:
+      type: object
+      required:
+        - id
+        - offerId
+        - type
+        - status
+        - tokensConsumed
+        - createdAt
+      properties:
+        id:
+          type: string
+          description: 评估ID
+        offerId:
+          type: string
+          description: Offer ID
+        type:
+          type: string
+          enum: [ai, basic]
+          description: 评估类型
+        status:
+          type: string
+          enum: [success, failed, pending]
+          description: 评估状态
+        tokensConsumed:
+          type: integer
+          description: 消耗Token数
+        brandName:
+          type: string
+          description: 品牌名
+          nullable: true
+        domain:
+          type: string
+          description: 域名
+          nullable: true
+        aiScore:
+          type: integer
+          description: AI评分 (0-100)
+          minimum: 0
+          maximum: 100
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          description: 完成时间
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: 错误代码
+        message:
+          type: string
+          description: 错误消息
+        details:
+          type: object
+          description: 错误详情
+          additionalProperties: true

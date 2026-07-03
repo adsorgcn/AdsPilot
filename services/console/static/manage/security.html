@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>安全设置 - Recovery Code</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; margin: 20px; background: #f9fafb; }
+    h2, h3 { margin: 16px 0; color: #111827; }
+    .row { display:flex; gap:8px; align-items:center; margin-bottom: 12px; }
+    button { padding:8px 16px; font-size: 13px; cursor:pointer; border: none; border-radius: 6px; font-weight: 500; }
+    button.primary { background: #3b82f6; color: white; }
+    button.secondary { background: #6b7280; color: white; }
+    button.danger { background: #ef4444; color: white; }
+    .card { background: white; border-radius: 8px; padding: 20px; border: 1px solid #e5e7eb; margin-bottom: 16px; }
+    .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; }
+    .alert.warning { background: #fef3c7; border-left: 4px solid #f59e0b; color: #92400e; }
+    .alert.info { background: #dbeafe; border-left: 4px solid #3b82f6; color: #1e40af; }
+    .stat-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e5e7eb; }
+    .code-display { background: #f3f4f6; padding: 24px; border-radius: 8px; font-family: 'Monaco', monospace; font-size: 18px; letter-spacing: 2px; text-align: center; margin: 20px 0; }
+    table { width:100%; border-collapse: collapse; background: white; }
+    th, td { border:1px solid #e5e7eb; padding:12px; font-size: 13px; text-align: left; }
+    th { background:#f3f4f6; font-weight: 600; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge.used { background: #fee2e2; color: #991b1b; }
+    .badge.unused { background: #d1fae5; color: #065f46; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+    .modal.show { display: flex; align-items: center; justify-content: center; }
+    .modal-content { background: white; border-radius: 8px; padding: 24px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+  </style>
+  <script>
+    async function fetchJSON(u, opt){ const r = await fetch(u, opt||{}); if(!r.ok) throw new Error(await r.text()); return r.json(); }
+
+    let codes = [];
+
+    async function load(){
+      try {
+        const res = await fetchJSON('/api/v1/console/recovery-codes');
+        codes = res.items || [];
+        renderStats(res.unused || 0);
+        renderTable();
+      } catch(e){ alert('加载失败: ' + e.message); }
+    }
+
+    function renderStats(unused){
+      const total = codes.length;
+      const used = codes.filter(c => c.used).length;
+      const expired = codes.filter(c => !c.used && new Date(c.expiresAt) < new Date()).length;
+
+      document.querySelector('#statTotal').textContent = total;
+      document.querySelector('#statUsed').textContent = used;
+      document.querySelector('#statExpired').textContent = expired;
+      document.querySelector('#statUnused').textContent = unused;
+    }
+
+    function renderTable(){
+      const tbody = document.querySelector('#codesList');
+      tbody.innerHTML = '';
+
+      if (codes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#6b7280; padding:40px;">尚未生成恢复码</td></tr>';
+        return;
+      }
+
+      for(const code of codes){
+        const tr = document.createElement('tr');
+        const statusBadge = code.used
+          ? `<span class="badge used">已使用</span>`
+          : `<span class="badge unused">未使用</span>`;
+
+        const usedInfo = code.used
+          ? `<div>${new Date(code.usedAt).toLocaleString()}</div><div class="muted">IP: ${code.usedFromIp || '-'}</div>`
+          : '-';
+
+        tr.innerHTML = `
+          <td><code>****-****</code></td>
+          <td>${statusBadge}</td>
+          <td class="muted">${new Date(code.createdAt).toLocaleString()}</td>
+          <td>${usedInfo}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function generateCodes(){
+      const reason = prompt('生成理由（必填，至少10字）:');
+      if (!reason || reason.trim().length < 10) {
+        alert('理由至少10个字符');
+        return;
+      }
+
+      if (!confirm('⚠️ 生成新恢复码将撤销所有旧恢复码，确定继续？')) return;
+
+      try {
+        const res = await fetchJSON('/api/v1/console/recovery-codes/generate', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ count: 10, expiryDays: 90, reason })
+        });
+
+        showCodesModal(res.codes);
+        await load();
+      } catch(e){ alert('生成失败: ' + e.message); }
+    }
+
+    function showCodesModal(codes){
+      const codesText = codes.map(c => c.code).join('\\n');
+      document.querySelector('#modalBody').innerHTML = `
+        <div class="alert warning">
+          ⚠️ <strong>请立即保存这些恢复码！</strong><br>
+          刷新页面后将无法再次查看。建议保存到密码管理器或加密文件。
+        </div>
+        <div class="code-display">${codesText.replace(/\\n/g, '<br>')}</div>
+        <button class="primary" onclick="downloadCodes(\`${codesText}\`)">下载为 TXT</button>
+        <button class="secondary" onclick="copyToClipboard(\`${codesText}\`)">复制到剪贴板</button>
+      `;
+      document.querySelector('#codesModal').classList.add('show');
+    }
+
+    function downloadCodes(text){
+      const blob = new Blob([text], {type: 'text/plain'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gm_recovery_codes_${new Date().toISOString().split('T')[0]}.txt`;
+      a.click();
+    }
+
+    function copyToClipboard(text){
+      navigator.clipboard.writeText(text);
+      alert('✓ 已复制到剪贴板');
+    }
+
+    function closeModal(){
+      document.querySelector('#codesModal').classList.remove('show');
+      location.reload(); // 刷新页面隐藏恢复码
+    }
+
+    window.addEventListener('DOMContentLoaded', load);
+  </script>
+</head>
+<body>
+  <h2>🔒 安全设置 - Recovery Code</h2>
+
+  <div class="row">
+    <button class="secondary" onclick="window.location.href='/manage/index.html'">← 返回仪表盘</button>
+    <button class="secondary" onclick="load()">🔄 刷新</button>
+  </div>
+
+  <div class="alert info">
+    💡 <strong>什么是 Recovery Code？</strong><br>
+    Recovery Code（恢复码）是用于 Google OAuth 登录故障时的应急访问方式。每个恢复码仅可使用一次，建议妥善保管。
+  </div>
+
+  <!-- Stats -->
+  <div class="card">
+    <h3>📊 恢复码状态</h3>
+    <div class="stat-row">
+      <span>总恢复码数：</span>
+      <strong id="statTotal">0</strong>
+    </div>
+    <div class="stat-row">
+      <span>可用恢复码：</span>
+      <strong id="statUnused" style="color:#10b981;">0</strong>
+    </div>
+    <div class="stat-row">
+      <span>已使用：</span>
+      <strong id="statUsed" style="color:#6b7280;">0</strong>
+    </div>
+    <div class="stat-row">
+      <span>已过期：</span>
+      <strong id="statExpired" style="color:#ef4444;">0</strong>
+    </div>
+    <div style="margin-top:16px;">
+      <button class="primary" onclick="generateCodes()">🔑 生成新恢复码</button>
+    </div>
+  </div>
+
+  <!-- Codes List -->
+  <div class="card">
+    <h3>📋 恢复码列表</h3>
+    <table style="margin-top:12px;">
+      <thead>
+        <tr>
+          <th>恢复码</th>
+          <th>状态</th>
+          <th>创建时间</th>
+          <th>使用信息</th>
+        </tr>
+      </thead>
+      <tbody id="codesList">
+        <tr><td colspan="4" style="text-align:center; padding:40px;">加载中...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="alert warning">
+    ⚠️ <strong>安全提示：</strong><br>
+    1. 恢复码应保存在安全位置（密码管理器、加密文件）<br>
+    2. 不要将恢复码分享给任何人<br>
+    3. 使用恢复码登录后请立即重新生成新码<br>
+    4. 恢复码有效期 90 天，过期后自动失效
+  </div>
+
+  <!-- Modal -->
+  <div id="codesModal" class="modal" onclick="if(event.target===this) closeModal()">
+    <div class="modal-content">
+      <h3>✅ 恢复码已生成</h3>
+      <div id="modalBody"></div>
+      <div style="margin-top:16px; text-align:right;">
+        <button class="secondary" onclick="closeModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

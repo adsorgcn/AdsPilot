@@ -1,0 +1,45 @@
+substitutions:
+  _ENV: preview # preview|prod
+  _TAG: preview-local
+  _SERVICE: console-preview
+  _REGION: asia-northeast1
+  _HOSTING_SITE: gm-console-preview
+  _IMAGE: gcr.io/$PROJECT_ID/console:${_TAG}
+
+steps:
+  # 1) Build image (Go Console service with static assets)
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - services/console/Dockerfile
+      - -t
+      - ${_IMAGE}
+      - -t
+      - gcr.io/$PROJECT_ID/console:${_ENV}-latest
+      - .
+
+  # 2) Deploy to Cloud Run
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_IMAGE}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+
+  # 3) Deploy Hosting site (rewrite all to Cloud Run)
+  - name: gcr.io/firebase-public/cli
+    entrypoint: bash
+    args:
+      - -lc
+      - |
+        firebase deploy --only hosting:${_HOSTING_SITE} --project $PROJECT_ID --non-interactive
+
+images:
+  - ${_IMAGE}
+  - gcr.io/$PROJECT_ID/console:${_ENV}-latest
+

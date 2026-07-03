@@ -1,0 +1,209 @@
+{
+  "dashboard": {
+    "title": "AI评估成本与性能监控",
+    "tags": ["siterank", "ai", "gemini", "cost"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 0,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Gemini API成本趋势 (USD)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(siterank_gemini_api_cost_usd_sum[5m])) * 3600",
+            "legendFormat": "每小时成本",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(siterank_gemini_api_cost_usd_sum[1h])) * 86400",
+            "legendFormat": "每天成本（预估）",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "currencyUSD", "label": "成本"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Gemini Token使用量",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, siterank_gemini_input_tokens_bucket)",
+            "legendFormat": "Input Tokens (P50)",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, siterank_gemini_input_tokens_bucket)",
+            "legendFormat": "Input Tokens (P95)",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.50, siterank_gemini_output_tokens_bucket)",
+            "legendFormat": "Output Tokens (P50)",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "short", "label": "Tokens"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 3,
+        "title": "AI评估请求速率",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "rate(siterank_evaluation_requests_total{type=\"ai\",status=\"success\"}[5m])",
+            "legendFormat": "成功",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(siterank_evaluation_requests_total{type=\"ai\",status=\"failed\"}[5m])",
+            "legendFormat": "失败",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"format": "reqps", "label": "请求/秒"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 4,
+        "title": "AI评估推荐指数分布",
+        "type": "heatmap",
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8},
+        "targets": [
+          {
+            "expr": "siterank_ai_recommendation_score_bucket",
+            "format": "heatmap",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Token定价覆盖率",
+        "type": "singlestat",
+        "gridPos": {"h": 4, "w": 4, "x": 16, "y": 8},
+        "targets": [
+          {
+            "expr": "(histogram_quantile(0.95, siterank_gemini_api_cost_usd_bucket) * 1000000) / 3",
+            "refId": "A"
+          }
+        ],
+        "format": "percent",
+        "valueName": "current",
+        "thresholds": "50,80",
+        "colors": ["#d44a3a", "#e0b400", "#299c46"],
+        "description": "3 tokens定价是否覆盖P95 Gemini成本"
+      },
+      {
+        "id": 6,
+        "title": "Gemini API延迟",
+        "type": "graph",
+        "gridPos": {"h": 4, "w": 8, "x": 16, "y": 12},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, siterank_gemini_api_latency_seconds_bucket)",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, siterank_gemini_api_latency_seconds_bucket)",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, siterank_gemini_api_latency_seconds_bucket)",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"format": "s", "label": "延迟"},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 7,
+        "title": "SimilarWeb缓存命中率",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "rate(siterank_similarweb_cache_hits_total{hit=\"hit\"}[5m]) / (rate(siterank_similarweb_cache_hits_total{hit=\"hit\"}[5m]) + rate(siterank_similarweb_cache_hits_total{hit=\"miss\"}[5m])) * 100",
+            "legendFormat": "缓存命中率 (%)",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"format": "percent", "label": "命中率", "min": 0, "max": 100},
+          {"format": "short"}
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Token计费状态",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "targets": [
+          {
+            "expr": "rate(siterank_token_reserve_success_total[5m])",
+            "legendFormat": "预扣成功",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(siterank_token_commit_success_total[5m])",
+            "legendFormat": "确认成功",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(siterank_token_release_success_total[5m])",
+            "legendFormat": "退款成功",
+            "refId": "C"
+          },
+          {
+            "expr": "rate(siterank_token_reserve_failed_total[5m])",
+            "legendFormat": "预扣失败",
+            "refId": "D"
+          }
+        ],
+        "yaxes": [
+          {"format": "ops", "label": "操作/秒"},
+          {"format": "short"}
+        ]
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "environment",
+          "type": "query",
+          "query": "label_values(siterank_evaluation_requests_total, environment)",
+          "current": {"text": "preview", "value": "preview"}
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "changes(siterank_gemini_api_cost_usd_count[1m]) > 0",
+          "name": "AI评估事件"
+        }
+      ]
+    }
+  }
+}

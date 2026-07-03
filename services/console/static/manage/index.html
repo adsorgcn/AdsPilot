@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>管理员仪表盘</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, PingFang SC, Noto Sans, sans-serif; margin: 20px; }
+    h2 { margin: 12px 0; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+    .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { border:1px solid #e5e7eb; padding:6px; font-size: 13px; }
+    th { background:#f3f4f6; text-align:left; }
+    .muted { color:#6b7280; font-size:12px; }
+    .row { display:flex; gap:8px; align-items:center; margin-bottom: 8px; }
+    button { padding:6px 10px; font-size: 13px; cursor:pointer; }
+  </style>
+  <script>
+    async function fetchJSON(u){ const r = await fetch(u); if(!r.ok) throw new Error(r.status); return r.json(); }
+    async function load(){
+      // Dashboard Stats (新增实时业务大盘)
+      try {
+        const ds = await fetchJSON('/api/v1/console/dashboard/stats');
+        document.querySelector('#todayStats').innerHTML = `
+          <div class="grid">
+            <div class="card" style="border-left:3px solid #10b981;">
+              <div class="muted">今日新增用户</div><div><b>${ds.todayNewUsers||0}</b></div>
+            </div>
+            <div class="card" style="border-left:3px solid #3b82f6;">
+              <div class="muted">今日新增 Offer</div><div><b>${ds.todayNewOffers||0}</b></div>
+            </div>
+            <div class="card" style="border-left:3px solid #f59e0b;">
+              <div class="muted">今日新增订阅</div><div><b>${ds.todayNewSubscriptions||0}</b></div>
+            </div>
+            <div class="card" style="border-left:3px solid #ef4444;">
+              <div class="muted">今日 Token 消耗</div><div><b>${formatNumber(ds.todayTokensConsumed||0)}</b></div>
+            </div>
+          </div>
+        `;
+
+        document.querySelector('#healthStats').innerHTML = `
+          <div class="grid">
+            <div class="card">
+              <div class="muted">负余额用户</div>
+              <div style="color:#ef4444;"><b>${ds.negativeBalanceUsers||0}</b></div>
+            </div>
+            <div class="card">
+              <div class="muted">7天内到期订阅</div>
+              <div style="color:#f59e0b;"><b>${ds.expiringSubscriptions||0}</b></div>
+            </div>
+            <div class="card">
+              <div class="muted">逾期订阅</div>
+              <div style="color:#ef4444;"><b>${ds.pastDueSubscriptions||0}</b></div>
+            </div>
+            <div class="card">
+              <div class="muted">评估失败率（7天）</div>
+              <div style="color:${(ds.failedOfferRate||0)>0.2?'#ef4444':'#6b7280'};"><b>${((ds.failedOfferRate||0)*100).toFixed(1)}%</b></div>
+            </div>
+          </div>
+          <div class="muted" style="margin-top:6px;">更新时间: ${new Date(ds.updatedAt).toLocaleString()}</div>
+        `;
+      } catch(e){ console.warn('dashboard stats', e); }
+
+      // Stats (保留原有统计)
+      try {
+        const s = await fetchJSON('/api/v1/console/stats');
+        const c = s.counters || {}; const updated = s.updatedAt || '';
+        document.querySelector('#stats').innerHTML = `
+          <div class="grid">
+            <div class="card"><div>Offers</div><div><b>${c.offers||0}</b></div></div>
+            <div class="card"><div>Active Subscriptions</div><div><b>${c.subscriptionsActive||0}</b></div></div>
+            <div class="card"><div>Tokens Total</div><div><b>${c.tokensTotal||0}</b></div></div>
+          </div>
+          <div class="muted" style="margin-top:6px;">Last updated: ${new Date(updated).toLocaleString()}</div>
+        `;
+      } catch(e){ console.warn('stats', e); }
+      // SLO
+      try {
+        const slo = await fetchJSON('/api/v1/console/slo');
+        const svcs = slo.services || {}; const updated = slo.updatedAt || '';
+        const rows = Object.keys(svcs).sort().map(k=>{
+          const it = svcs[k]||{}; const p95 = (it.p95||0).toFixed(0);
+          const err = ((it.errorRate||0)*100).toFixed(2)+'%';
+          const total = it.total||0;
+          return `<tr><td>${k}</td><td>${p95} ms</td><td>${err}</td><td>${total}</td></tr>`;
+        }).join('');
+        document.querySelector('#slo').innerHTML = `
+          <table><thead><tr><th>Service</th><th>P95</th><th>ErrorRate</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>
+          <div class="row muted"><span>Last updated: ${new Date(updated).toLocaleString()}</span>
+          <button onclick="refreshSLO()">强制刷新</button>
+          <a href="/console/rules/index.html" style="margin-left:8px;">告警规则</a>
+          <a href="/console/" style="margin-left:8px;">返回控制台</a></div>`;
+      } catch(e){ console.warn('slo', e); }
+      // Alerts
+      try {
+        const a = await fetchJSON('/api/v1/console/alerts?level=warn&sinceHours=168&limit=100');
+        const items = a.items||[];
+        document.querySelector('#alerts').innerHTML = items.slice(0,20).map(x=>
+          `<div class="card"><div><b>${x.title}</b></div><div class="muted">${new Date(x.createdAt).toLocaleString()} · ${x.severity||''}</div></div>`
+        ).join('');
+      } catch(e){ console.warn('alerts', e); }
+      // Incidents
+      try {
+        const ins = await fetchJSON('/api/v1/console/incidents?days=14');
+        const d = ins.days||[];
+        const rows = d.map(x=>`<tr><td>${x.date}</td><td>${x.error}</td><td>${x.warn}</td></tr>`).join('');
+        document.querySelector('#incidents').innerHTML = `<table><thead><tr><th>日期</th><th>错误</th><th>警告</th></tr></thead><tbody>${rows}</tbody></table>`;
+      } catch(e){ console.warn('incidents', e); }
+    }
+    function formatNumber(n){ return new Intl.NumberFormat('zh-CN').format(n); }
+    async function refreshSLO(){ await fetchJSON('/api/v1/console/slo?force=1'); await load(); }
+    window.addEventListener('DOMContentLoaded', load);
+  </script>
+</head>
+<body>
+  <h2>管理员仪表盘</h2>
+  <div class="row">
+    <button onclick="load()">刷新</button>
+    <a href="/manage/users.html" style="margin-left:8px;">用户管理</a>
+    <a href="/manage/tokens.html" style="margin-left:8px;">💰Token管理</a>
+    <a href="/manage/offers.html" style="margin-left:8px;">📊Offer管理</a>
+    <a href="/manage/subscriptions.html" style="margin-left:8px;">💳订阅管理</a>
+    <a href="/manage/token-rules.html" style="margin-left:8px;">Token规则</a>
+    <a href="/manage/packages.html" style="margin-left:8px;">套餐管理</a>
+    <a href="/manage/config.html" style="margin-left:8px;">动态配置</a>
+    <a href="/manage/security.html" style="margin-left:8px;">🔒安全设置</a>
+    <a href="/manage/audit-logs.html" style="margin-left:8px;">📊审计日志</a>
+  </div>
+  <h3>📈 今日数据</h3>
+  <div id="todayStats">加载中...</div>
+  <h3>⚠️ 健康指标</h3>
+  <div id="healthStats">加载中...</div>
+  <h3>核心统计</h3>
+  <div id="stats">加载中...</div>
+  <h3>SLO 概览</h3>
+  <div id="slo">加载中...</div>
+  <h3>最新告警</h3>
+  <div id="alerts" class="grid"></div>
+  <h3>近14天事件</h3>
+  <div id="incidents"></div>
+  <div class="muted" style="margin-top:12px;">需要管理员权限。数据来源：/api/v1/console/stats、/api/v1/console/slo、/api/v1/console/alerts、/api/v1/console/incidents。</div>
+</body>
+</html>

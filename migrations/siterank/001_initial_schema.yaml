@@ -1,0 +1,112 @@
+version: "001"
+service: "siterank"
+description: "从内嵌DDL迁移的初始表结构 - 包含offer_evaluations, evaluation_aggregations, token_reservations表"
+author: "system-migration"
+created_at: "2025-01-19T12:00:00Z"
+risk_level: "high"
+dependencies: []
+
+changes:
+  - type: "CREATE_TABLE"
+    name: "offer_evaluations"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "offer_evaluations" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "offer_id" TEXT NOT NULL,
+          "user_id" TEXT NOT NULL,
+          "url_hash" TEXT NOT NULL,
+          "domain" TEXT NOT NULL,
+          "brand_name" TEXT,
+          "similarweb_data" JSONB,
+          "ai_score" INTEGER CHECK (ai_score >= 0 AND ai_score <= 100),
+          "ai_reasons" JSONB,
+          "ai_model_version" TEXT,
+          "evaluation_cost_tokens" INTEGER NOT NULL DEFAULT 1,
+          "evaluation_status" TEXT NOT NULL DEFAULT 'pending',
+          "error_message" TEXT,
+          "cache_ttl_until" TIMESTAMPTZ,
+          "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+          "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    description: "offer评估结果表，存储AI评估的详细结果和成本信息"
+
+  - type: "CREATE_TABLE"
+    name: "evaluation_aggregations"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "evaluation_aggregations" (
+          "url_hash" TEXT NOT NULL PRIMARY KEY,
+          "domain" TEXT NOT NULL,
+          "brand_name" TEXT,
+          "avg_ai_score" NUMERIC(5,2),
+          "total_evaluations" INTEGER NOT NULL DEFAULT 0,
+          "successful_evaluations" INTEGER NOT NULL DEFAULT 0,
+          "last_evaluation_at" TIMESTAMPTZ,
+          "category" TEXT,
+          "category_rank" INTEGER,
+          "total_visits" TEXT,
+          "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+          "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    description: "评估聚合统计表，按URL哈希聚合多个评估结果"
+
+  - type: "CREATE_TABLE"
+    name: "token_reservations"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "token_reservations" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "user_id" TEXT NOT NULL,
+          "offer_id" TEXT NOT NULL,
+          "tokens_reserved" INTEGER NOT NULL,
+          "reservation_type" TEXT NOT NULL,
+          "status" TEXT NOT NULL DEFAULT 'reserved',
+          "expires_at" TIMESTAMPTZ NOT NULL,
+          "confirmed_at" TIMESTAMPTZ,
+          "refunded_at" TIMESTAMPTZ,
+          "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+          "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    description: "代币预留表，管理AI评估的代币预留和退款"
+
+rollback:
+  - type: "DROP_TABLE"
+    name: "offer_evaluations"
+    sql: DROP TABLE IF EXISTS "offer_evaluations";
+    description: "回滚：删除offer评估结果表"
+
+  - type: "DROP_TABLE"
+    name: "evaluation_aggregations"
+    sql: DROP TABLE IF EXISTS "evaluation_aggregations";
+    description: "回滚：删除评估聚合统计表"
+
+  - type: "DROP_TABLE"
+    name: "token_reservations"
+    sql: DROP TABLE IF EXISTS "token_reservations";
+    description: "回滚：删除代币预留表"
+
+validation:
+  - type: "table_exists"
+    name: "offer_evaluations"
+    description: "验证offer_evaluations表已创建"
+
+  - type: "table_exists"
+    name: "evaluation_aggregations"
+    description: "验证evaluation_aggregations表已创建"
+
+  - type: "table_exists"
+    name: "token_reservations"
+    description: "验证token_reservations表已创建"
+
+  - type: "column_exists"
+    name: "offer_evaluations"
+    column: "ai_score"
+    description: "验证ai_score字段存在且有约束"
+
+  - type: "column_exists"
+    name: "offer_evaluations"
+    column: "cache_ttl_until"
+    description: "验证cache_ttl_until字段存在"
+
+  - type: "column_exists"
+    name: "token_reservations"
+    column: "expires_at"
+    description: "验证expires_at字段存在"

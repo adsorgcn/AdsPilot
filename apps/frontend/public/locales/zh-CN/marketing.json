@@ -1,0 +1,1354 @@
+{
+  "newsletter": {
+    "emailAriaLabel": "您的邮箱地址",
+    "emailPlaceholder": "your@email.com",
+    "successMessage": "订阅成功！感谢关注。",
+    "subscribeDescription": "订阅我们的资讯，第一时间获取更新。"
+  },
+  "hero": {
+    "badge": "AI 驱动的落地页评估与广告投放平台",
+    "headline": {
+      "prefix": "1分钟预判",
+      "highlight": "Offer 投放回报"
+    },
+    "description": "Google-Monetize 用 AI 智能分析落地页的12个关键维度，精准预估盈利潜力、给出预算建议，让你的每一笔广告投入都有数据支撑。",
+    "primaryCta": "免费试用14天",
+    "secondaryCta": "查看功能演示",
+    "sellingPoints": {
+      "noCreditCard": "无需信用卡",
+      "quickSetup": "5 分钟接入账号",
+      "freeTrial": "14天全功能试用"
+    },
+    "stats": {
+      "evaluationSpeed": "评估速度",
+      "evaluationSpeedValue": "1分钟完成",
+      "efficiencyGain": "效率提升",
+      "efficiencyGainValue": "120倍",
+      "timeSaving": "时间节省",
+      "timeSavingValue": "60%+",
+      "analysisDepth": "分析维度",
+      "analysisDepthValue": "12个维度"
+    },
+    "socialProof": {
+      "heading": "被专业营销人员信赖",
+      "stat": "500+",
+      "description": "联盟营销人员和独立站主的选择"
+    }
+  },
+  "trustBar": {
+    "tagline": "全球 1000+ 增长团队的共同选择",
+    "stats": {
+      "activeAdvertisers": "活跃投放团队",
+      "averageRecommendation": "AI 推荐平均分",
+      "newOffers": "近 30 日新增 Offer",
+      "newOffersValue": "{{value}} 个新 Offer"
+    },
+    "defaultLogos": [
+      "Nova Retail",
+      "Origin Labs",
+      "Dawn Studio"
+    ],
+    "industryHeadline": "高潜行业趋势"
+  },
+  "features": {
+    "heading": "4大核心能力，让投放决策更智能",
+    "subheading": "从 Offer 评估、账号管理到预算优化，Google-Monetize 为联盟营销人员提供全流程智能工具。",
+    "defaults": [
+      {
+        "title": "AI 智能落地页评估",
+        "description": "1分钟完成12维度深度分析，精准预判投放回报，给出可执行的预算建议。",
+        "icon": "SparklesIcon",
+        "highlights": [
+          "✅ 1分钟生成完整评估报告（120倍效率）",
+          "✅ 12维度智能分析（流量、LTV、竞争、季节性等）",
+          "✅ 智能预算建议（测试阶段+扩量策略）"
+        ],
+        "cta": "了解AI评估"
+      },
+      {
+        "title": "跨平台账号统一管理",
+        "description": "一个后台管理所有广告账号，数据实时同步，节省60%+运营时间。",
+        "icon": "LinkIcon",
+        "highlights": [
+          "✅ 支持 Google Ads、Meta、TikTok",
+          "✅ 数据自动同步，无需手动导出",
+          "✅ 账号异常/花费超支实时告警"
+        ],
+        "cta": "查看支持平台"
+      },
+      {
+        "title": "全球代理IP测试",
+        "description": "一键切换全球任意地区，模拟真实用户访问，发现地域差异和合规风险。",
+        "icon": "GlobeAltIcon",
+        "highlights": [
+          "✅ 支持全球50+国家地区",
+          "✅ 真实用户视角，避免机器人检测",
+          "✅ 批量测试，快速发现问题"
+        ],
+        "cta": "了解全球测试"
+      },
+      {
+        "title": "智能投放驾驶舱",
+        "description": "跨渠道数据整合，AI自动生成优化方案，批量操作支持回滚。",
+        "icon": "ChartBarIcon",
+        "highlights": [
+          "✅ 统一ROI/ROAS指标，准确对比",
+          "✅ AI生成预算优化建议",
+          "✅ 批量操作+回滚+全程追溯"
+        ],
+        "cta": "查看数据面板"
+      }
+    ]
+  },
+  "howItWorks": {
+    "heading": "3 步实现智能投放决策",
+    "subheading": "从 Offer 评估到投放执行，Google-Monetize 用 AI 加速决策，让你专注于高回报的策略优化。",
+    "stepLabel": "步骤 {{index}}",
+    "steps": [
+      {
+        "title": "1分钟 AI 评估 Offer",
+        "description": "输入落地页 URL，AI 立即完成12维度深度分析，包括流量潜力、季节性、竞争态势、LTV 预估等，给出明确的投放建议和预算方案。",
+        "icon": "ClipboardDocumentListIcon",
+        "highlights": [
+          "12维度智能分析（流量/LTV/竞争/季节性）",
+          "智能预算建议（测试+扩量阶段）",
+          "1分钟生成完整报告，效率提升120倍"
+        ]
+      },
+      {
+        "title": "连接广告账号并同步数据",
+        "description": "一键接入 Google Ads、Meta、TikTok 广告账号，实时同步投放数据，在统一后台管理所有渠道，节省60%运营时间。",
+        "icon": "ArrowPathIcon",
+        "highlights": [
+          "支持 Google Ads、Meta Ads、TikTok Ads",
+          "数据自动同步，无需手动导出",
+          "账号异常/预算超支实时告警"
+        ]
+      },
+      {
+        "title": "执行投放并持续优化",
+        "description": "根据 AI 评估结果分配预算，在投放驾驶舱查看实时 ROI/ROAS，AI 自动生成优化建议，支持批量操作和全程回滚。",
+        "icon": "RocketLaunchIcon",
+        "highlights": [
+          "跨渠道数据整合，统一ROI指标",
+          "AI生成预算优化建议",
+          "批量操作+全程可追溯+支持回滚"
+        ]
+      }
+    ]
+  },
+  "benefits": {
+    "heading": "解决联盟营销人员的3大核心痛点",
+    "subheading": "Google-Monetize 让你的投放决策更快、更准、更安心。",
+    "painPoints": {
+      "defaults": [
+        {
+          "title": "Offer 评估太慢，错失先机",
+          "description": "手动评估需2小时，等分析完好 Offer 已被抢。AI 1分钟完成12维度评估。",
+          "solution": "Google-Monetize 1分钟完成12维度AI评估",
+          "metric": "效率提升120倍"
+        },
+        {
+          "title": "多平台账号管理混乱",
+          "description": "多平台切换导出报表耗时易错。一个后台统一管理，数据自动同步。",
+          "solution": "一个后台统一管理，数据自动同步",
+          "metric": "节省60%运营时间"
+        },
+        {
+          "title": "投放决策全凭感觉",
+          "description": "不知道给哪个 Offer 加预算、何时投放，盲目投入浪费预算。",
+          "solution": "AI给出明确的预算建议和时机分析",
+          "metric": "数据驱动决策"
+        }
+      ]
+    },
+    "comparisons": {
+      "defaults": [
+        {
+          "title": "传统代理模式",
+          "description": "流程复杂、沟通延迟、费用高昂且难以沉淀组织能力。",
+          "highlights": [
+            "对接多个系统，信息不透明",
+            "缺少落地页评估和资产协同",
+            "费用按人头计价，可扩展性差"
+          ]
+        },
+        {
+          "title": "Google-Monetize AI 协同",
+          "description": "统一账号资产、落地页评估与投放执行流程，全流程自动化协同。",
+          "highlights": [
+            "1 分钟完成账号接入与资产同步",
+            "GenAI 驱动的落地页评估和优化建议",
+            "跨组织协作、审批、归档一体化"
+          ]
+        }
+      ]
+    },
+    "timeline": {
+      "heading": "典型客户的 30 天升级路径",
+      "defaults": [
+        {
+          "title": "第 1 天 · 账号与数据接入",
+          "description": "连接广告账户，导入落地页 URL，系统自动同步关键数据并完成基线诊断。",
+          "result": "完成部署仅需 30 分钟"
+        },
+        {
+          "title": "第 7 天 · 建立评估节奏",
+          "description": "使用 AI 评估报告优化核心落地页并开启 A/B 实验，形成迭代节奏。",
+          "result": "识别 5 项高影响改进项"
+        },
+        {
+          "title": "第 30 天 · 自动化预算调度",
+          "description": "依托投放驾驶舱调整预算策略，跨团队协同完成投放迭代与经验沉淀。",
+          "result": "整体转化率提升 18%"
+        }
+      ]
+    }
+  },
+  "pricing": {
+    "heading": "选择适合你的增长计划",
+    "subheading": "从个人测试到专业运营，Google-Monetize 提供灵活的套餐选择。14天免费试用，无需信用卡，随时取消。",
+    "hero": {
+      "title": "选择适合你的增长计划",
+      "description": "从个人测试到专业运营，Google-Monetize 提供灵活的套餐选择。14天免费试用，无需信用卡，随时取消。",
+      "ctaPrimary": "免费开始试用",
+      "ctaSecondary": "查看完整对比"
+    },
+    "plans": {
+      "starter": {
+        "name": "Starter",
+        "price": "298",
+        "priceAnnual": "149",
+        "period": "月",
+        "annualSaving": "年付5折",
+        "description": "适合个人联盟营销人员，小规模测试阶段",
+        "features": [
+          "100 tokens/月",
+          "基础评估（1 token/次）",
+          "✅ 真实补点击",
+          "1个并发评估",
+          "最多3个广告账号",
+          "✅ 美国(US)代理IP",
+          "邮件支持",
+          "基础报表"
+        ],
+        "limitations": [
+          "❌ 无AI智能评估",
+          "❌ 仅支持美国代理IP",
+          "❌ 无优先支持"
+        ],
+        "cta": "开始试用"
+      },
+      "professional": {
+        "name": "Professional",
+        "price": "998",
+        "priceAnnual": "499",
+        "period": "月",
+        "annualSaving": "年付5折",
+        "badge": "推荐",
+        "description": "适合专业营销人员和小型工作室",
+        "features": [
+          "1000 tokens/月",
+          "✅ AI智能评估（12维度分析）",
+          "✅ 真实补点击",
+          "5个并发评估",
+          "最多10个广告账号",
+          "✅ 全球10+地区代理IP",
+          "优先邮件支持",
+          "高级报表与数据导出"
+        ],
+        "highlights": [
+          "包含AI评估",
+          "全球代理IP",
+          "真实补点击"
+        ],
+        "cta": "立即升级"
+      },
+      "elite": {
+        "name": "Elite",
+        "price": "2998",
+        "priceAnnual": "1499",
+        "period": "月",
+        "annualSaving": "年付5折",
+        "description": "适合独立站主和代理商",
+        "features": [
+          "10000 tokens/月",
+          "✅ 无限AI评估",
+          "✅ 真实补点击",
+          "无限并发评估",
+          "无限广告账号",
+          "✅ 全球50+地区代理IP池",
+          "专属客户成功经理",
+          "自定义集成支持",
+          "白标报告"
+        ],
+        "highlights": [
+          "无限AI评估",
+          "全球代理IP",
+          "专属支持"
+        ],
+        "cta": "联系销售"
+      }
+    },
+    "comparison": {
+      "title": "详细功能对比",
+      "subtitle": "选择最适合你当前阶段的套餐，随时可升级",
+      "categories": [
+        {
+          "name": "AI评估能力",
+          "features": [
+            {
+              "name": "基础评估（流量+品牌抓取）",
+              "starter": true,
+              "professional": true,
+              "elite": true
+            },
+            {
+              "name": "AI智能评估（12维度分析）",
+              "starter": false,
+              "professional": true,
+              "elite": true
+            },
+            {
+              "name": "季节性时机分析",
+              "starter": false,
+              "professional": true,
+              "elite": true
+            },
+            {
+              "name": "竞争态势评估",
+              "starter": false,
+              "professional": true,
+              "elite": true
+            },
+            {
+              "name": "智能预算建议",
+              "starter": false,
+              "professional": true,
+              "elite": true
+            }
+          ]
+        },
+        {
+          "name": "配额与限制",
+          "features": [
+            {
+              "name": "月度Tokens",
+              "starter": "100",
+              "professional": "500",
+              "elite": "2000"
+            },
+            {
+              "name": "并发评估数",
+              "starter": "1个",
+              "professional": "5个",
+              "elite": "无限"
+            },
+            {
+              "name": "广告账号数量",
+              "starter": "3个",
+              "professional": "10个",
+              "elite": "无限"
+            },
+            {
+              "name": "Offer管理数量",
+              "starter": "50个",
+              "professional": "500个",
+              "elite": "无限"
+            }
+          ]
+        },
+        {
+          "name": "全球代理IP",
+          "features": [
+            {
+              "name": "代理IP访问",
+              "starter": "仅美国(US)",
+              "professional": "10+地区",
+              "elite": "50+地区"
+            },
+            {
+              "name": "支持的地区",
+              "starter": "美国",
+              "professional": "美国、英国、德国、日本等",
+              "elite": "全球所有主流地区"
+            },
+            {
+              "name": "并发代理请求",
+              "starter": "1个",
+              "professional": "5个",
+              "elite": "无限"
+            },
+            {
+              "name": "真实补点击",
+              "starter": true,
+              "professional": true,
+              "elite": true
+            }
+          ]
+        },
+        {
+          "name": "支持与服务",
+          "features": [
+            {
+              "name": "邮件支持",
+              "starter": "标准",
+              "professional": "优先",
+              "elite": "专属"
+            },
+            {
+              "name": "响应时间",
+              "starter": "48小时",
+              "professional": "24小时",
+              "elite": "4小时"
+            },
+            {
+              "name": "客户成功经理",
+              "starter": false,
+              "professional": false,
+              "elite": true
+            },
+            {
+              "name": "自定义集成",
+              "starter": false,
+              "professional": false,
+              "elite": true
+            }
+          ]
+        }
+      ]
+    },
+    "features": {
+      "title": "所有套餐都包含",
+      "subtitle": "核心功能在所有套餐中均可使用",
+      "items": [
+        {
+          "title": "跨平台账号管理",
+          "description": "统一管理 Google Ads、Meta、TikTok 广告账号，实时同步数据，节省60%运营时间。"
+        },
+        {
+          "title": "投放智能驾驶舱",
+          "description": "跨渠道数据整合，统一ROI/ROAS指标，批量操作支持回滚，操作全程可追溯。"
+        },
+        {
+          "title": "安全与合规",
+          "description": "数据加密存储，符合GDPR/SOC2标准，支持SSO单点登录（Enterprise）。"
+        }
+      ]
+    },
+    "faq": {
+      "title": "常见问题",
+      "items": [
+        {
+          "question": "14天免费试用包含哪些功能？",
+          "answer": "免费试用期间可以使用 Professional 套餐的所有功能，包括 AI 智能评估、全球代理IP、最多10个广告账号管理。无需信用卡，试用结束后可选择升级或继续使用免费的 Starter 套餐。"
+        },
+        {
+          "question": "什么是 Token？如何计费？",
+          "answer": "Token 是使用评估功能的计量单位。基础评估消耗 1 Token，AI 智能评估消耗 3 Token。各套餐包含月度 Token 配额（Starter: 100，Professional: 1000，Elite: 10000）。Token 不会过期，未用完的会累积到下个月。"
+        },
+        {
+          "question": "AI评估和基础评估有什么区别？",
+          "answer": "基础评估提供流量数据抓取和品牌信息提取。AI评估在此基础上增加12个维度的智能分析，包括季节性时机、竞争态势、LTV预估、盈利能力分析、智能预算建议等，帮助你做出更准确的投放决策。"
+        },
+        {
+          "question": "可以随时升级或降级套餐吗？",
+          "answer": "可以随时升级套餐，升级后立即生效。降级套餐会在当前计费周期结束后生效。支持按月付费和按年付费（年付享5折优惠，相当于买6个月送6个月）。"
+        },
+        {
+          "question": "什么是'真实补点击'功能？",
+          "answer": "真实补点击功能可以模拟真实用户的点击行为，帮助你测试落地页的点击热区、追踪代码是否正常工作。这在测试广告落地页时特别有用，可以确保追踪像素和转化代码正确触发。所有套餐都包含此功能。"
+        },
+        {
+          "question": "全球代理IP支持哪些地区？",
+          "answer": "Starter 套餐支持美国(US)代理IP。Professional 套餐支持10+主流地区（美国、英国、德国、法国、日本、澳大利亚等）。Elite 套餐支持全球50+国家和地区的代理IP访问，可以从任意目标市场的视角测试落地页。"
+        },
+        {
+          "question": "如果Token用完了怎么办？",
+          "answer": "Token用完后可以选择：1) 升级到更高套餐获得更多月度配额；2) 单独购买 Token 包（100 tokens ¥99）；3) 等待下个月配额自动刷新。"
+        },
+        {
+          "question": "支持哪些支付方式？",
+          "answer": "支持支付宝、微信支付、银行卡支付（国内），以及信用卡支付（国际）。企业客户支持对公转账和月结。"
+        },
+        {
+          "question": "数据安全吗？",
+          "answer": "您的数据安全是我们的首要任务。我们采用银行级加密存储，符合 GDPR 和 SOC2 标准。广告账号通过 OAuth 授权，Google-Monetize 不会存储您的账号密码。您可以随时撤销授权。"
+        }
+      ]
+    },
+    "cta": {
+      "title": "准备好让 AI 提升你的投放效率了吗？",
+      "description": "14天免费试用 Professional 套餐，体验 AI 智能评估、全球代理IP和跨平台账号管理。无需信用卡，随时取消。",
+      "primary": "立即免费开始",
+      "secondary": "查看功能演示"
+    }
+  },
+  "careers": {
+    "hero": {
+      "title": "加入我们",
+      "description": "Google-Monetize 由一支热爱增长与自动化的团队组成，欢迎对 AI 应用、增长策略与广告协同充满热情的伙伴加入。"
+    },
+    "positions": [
+      {
+        "title": "前端工程师（Next.js）",
+        "location": "上海 / 远程",
+        "description": "负责 Google-Monetize 前端架构与组件体系升级，推进营销站点与工作台体验优化，对 AI 协同体验有浓厚兴趣。"
+      },
+      {
+        "title": "增长策略顾问",
+        "location": "北京 / 远程",
+        "description": "为客户提供落地页诊断、营销自动化与投放策略咨询，协助团队沉淀最佳实践。"
+      },
+      {
+        "title": "产品运营",
+        "location": "深圳",
+        "description": "负责社区运营、案例策划与内容输出，连接客户需求与产品迭代方向。"
+      }
+    ],
+    "applyCta": "投递简历 {{email}}"
+  },
+  "caseStudies": {
+    "heading": "客户案例与真实成果",
+    "subheading": "从增长团队到品牌电商，Google-Monetize 正在帮助不同规模的团队实现可持续增长。",
+    "defaults": [
+      {
+        "name": "陈思雨",
+        "role": "营销自动化负责人",
+        "company": "智链云科技",
+        "avatar": "",
+        "quote": "使用 Google-Monetize 之后，我们可以把更多精力放在策略与创意。AI 评估让落地页问题在 10 分钟内被定位，整体转化提升了 26%。",
+        "improvement": "转化率提升 26%"
+      },
+      {
+        "name": "Liam Walker",
+        "role": "Growth Lead",
+        "company": "Nova Retail",
+        "avatar": "",
+        "quote": "我们把 Google Ads、Meta 和 TikTok 的账户统一交给 Google-Monetize 管理，预算分配和投放监控实现了每日自动化。",
+        "improvement": "投放效率提升 3 倍"
+      },
+      {
+        "name": "王婧",
+        "role": "品牌电商总监",
+        "company": "原点生活",
+        "avatar": "",
+        "quote": "营销、设计、投放团队在一个平台协同，审批和执行链路都可追踪，推广活动上线速度提升了一倍。",
+        "improvement": "上线时间缩短 50%"
+      }
+    ]
+  },
+  "caseStudiesPage": {
+    "hero": {
+      "title": "客户案例",
+      "description": "不同规模与行业的增长团队，正在通过 Google-Monetize 的 AI 能力与自动化协同快速获得验证成果。"
+    },
+    "items": [
+      {
+        "company": "智链云科技",
+        "industry": "B2B SaaS",
+        "improvement": "转化率提升 26%",
+        "summary": "通过落地页体检与自动化实验，优化下载流程与价值表达，7 天内定位出 3 个高影响问题。",
+        "details": [
+          "利用 AI 评估识别加载性能与表单体验瓶颈",
+          "协同设计与投放团队快速完成创意迭代",
+          "投放 ROI 提升 18%"
+        ]
+      },
+      {
+        "company": "Nova Retail",
+        "industry": "跨境电商",
+        "improvement": "投放效率提升 3 倍",
+        "summary": "统一管理多地区广告账号与预算策略，实现每日自动化调度与异常告警。",
+        "details": [
+          "整合 Google / Meta / TikTok 渠道数据与预算",
+          "应用智能驾驶舱自动分配预算并生成报告",
+          "运营团队节省 68% 报表整理时间"
+        ]
+      },
+      {
+        "company": "原点生活",
+        "industry": "品牌电商",
+        "improvement": "活动上线时间缩短 50%",
+        "summary": "借助审批流与资产协同中心，设计、投放与品类协同效率显著提升。",
+        "details": [
+          "所有素材、脚本与落地页版本统一管理",
+          "审批状态透明可追踪，减少线下沟通成本",
+          "大促活动上线耗时由 2 周缩短至 1 周"
+        ]
+      }
+    ]
+  },
+  "highValueOffers": {
+    "hero": {
+      "title": "高价值 Offer 推荐",
+      "description": "基于 AI 多维度评估，为您精选高转化、高收益的优质 Offer，助您快速提升投放 ROI。"
+    },
+    "scoreLabel": "评分",
+    "reasonLabel": "AI 推荐理由:",
+    "items": [
+      {
+        "offerName": "跨境电商 SaaS 平台免费试用",
+        "advertiser": "ShopifyPlus",
+        "country": "美国",
+        "aiScore": 92,
+        "payout": "$85 / CPA",
+        "highlights": [
+          "目标受众明确，中小企业主转化意愿强",
+          "免费试用降低用户决策门槛",
+          "历史 CR 达 8.2%，高于行业平均 3 倍"
+        ],
+        "reason": "该 Offer 佣金高、转化路径清晰，且广告主品牌知名度强，适合精准投放中小企业主群体。"
+      },
+      {
+        "offerName": "在线英语课程 1 对 1 试听",
+        "advertiser": "VIPKid Global",
+        "country": "加拿大",
+        "aiScore": 88,
+        "payout": "$45 / Lead",
+        "highlights": [
+          "教育类 Offer 用户 LTV 高",
+          "试听转化率稳定在 12%+",
+          "支持多语言落地页，适配全球市场"
+        ],
+        "reason": "教育赛道长期价值高，试听环节转化数据优异，且支持灵活的地域拓展。"
+      },
+      {
+        "offerName": "健身 App 订阅优惠",
+        "advertiser": "FitPro+",
+        "country": "英国",
+        "aiScore": 85,
+        "payout": "$32 / Install + Trial",
+        "highlights": [
+          "订阅制收益模式稳定",
+          "新年健身季流量红利期",
+          "落地页加载速度快，移动端体验优秀"
+        ],
+        "reason": "健身类 App 在 Q1 季度表现突出，订阅转化率高，适合移动端信息流投放。"
+      },
+      {
+        "offerName": "金融理财工具注册",
+        "advertiser": "WealthWise",
+        "country": "澳大利亚",
+        "aiScore": 90,
+        "payout": "$68 / Registration",
+        "highlights": [
+          "金融类 Offer 用户价值高",
+          "注册流程简洁，3 步完成",
+          "广告主信誉良好，结算及时"
+        ],
+        "reason": "金融理财用户付费意愿强，注册门槛低，且佣金结算周期短，资金回流快。"
+      },
+      {
+        "offerName": "旅游预订平台首单优惠",
+        "advertiser": "TravelNow",
+        "country": "新加坡",
+        "aiScore": 83,
+        "payout": "$28 / First Booking",
+        "highlights": [
+          "旅游旺季流量增长迅速",
+          "首单优惠吸引力强，转化率 9.5%",
+          "支持多币种结算"
+        ],
+        "reason": "旅游类 Offer 季节性强，当前处于预订高峰期，首单优惠策略转化效果显著。"
+      },
+      {
+        "offerName": "云服务免费套餐注册",
+        "advertiser": "CloudX Solutions",
+        "country": "德国",
+        "aiScore": 87,
+        "payout": "$52 / Sign-up",
+        "highlights": [
+          "B2B 云服务需求持续增长",
+          "免费套餐转付费率达 22%",
+          "技术支持完善，用户留存率高"
+        ],
+        "reason": "云服务赛道需求稳定，免费套餐吸引中小企业试用，后续转化为付费用户概率高。"
+      }
+    ]
+  },
+  "finalCta": {
+    "heading": "现在就让 AI 接管重复的投放工作",
+    "subheading": "立即注册体验 AI 驱动的落地页诊断与广告协同，或预约与增长顾问一起规划上线路径。",
+    "primaryCta": "免费开始试用",
+    "secondaryCta": "联系我们",
+    "note": "14 天试用 · 无需信用卡 · 随时取消"
+  },
+  "updates": {
+    "hero": {
+      "title": "产品动态",
+      "description": "了解 Google-Monetize 的最新功能、产品路线图和未来规划。"
+    },
+    "tabs": {
+      "roadmap": "产品路线图",
+      "changelog": "更新日志"
+    }
+  },
+  "roadmap": {
+    "sections": [
+      {
+        "title": "进行中",
+        "items": [
+          "Offer 智能推荐：基于 AI 多维度评估推荐高价值 Offer",
+          "多账号预算协同：针对代理和多品牌团队的预算池管理",
+          "实时数据管道：Edge Streaming 提升投放监控的实时性"
+        ]
+      },
+      {
+        "title": "规划中",
+        "items": [
+          "广告素材智能生成与变体测试",
+          "与 CRM / CDP 对接，获取更完整的转化归因数据",
+          "支持更多广告平台（Bing Ads、YouTube Ads 等）"
+        ]
+      },
+      {
+        "title": "已完成",
+        "items": [
+          "AI Offer 评估与自动诊断报告",
+          "跨渠道投放驾驶舱与预算异常告警",
+          "全球 50+ 地区代理 IP 测试"
+        ]
+      }
+    ]
+  },
+  "changelog": {
+    "releases": [
+      {
+        "version": "v1.2.0",
+        "date": "2025-01-15",
+        "highlights": [
+          "上线高价值 Offer 推荐页面，支持 AI 多维度评估",
+          "优化主题选择器，移除副标题使界面更紧凑",
+          "Footer 采用毛玻璃效果，与 Header 设计统一"
+        ]
+      },
+      {
+        "version": "v1.1.0",
+        "date": "2024-12-20",
+        "highlights": [
+          "新增全球 50+ 地区代理 IP 测试功能",
+          "优化定价页面布局，移除不必要边框",
+          "修复 FAQ 页面中不准确的套餐描述"
+        ]
+      },
+      {
+        "version": "v1.0.0",
+        "date": "2024-11-01",
+        "highlights": [
+          "Google-Monetize 正式上线",
+          "AI Offer 评估核心功能发布",
+          "支持 Google Ads、Meta、TikTok 账号管理"
+        ]
+      }
+    ]
+  },
+  "featuresPage": {
+    "hero": {
+      "title": "功能亮点",
+      "description": "Google-Monetize 聚焦于落地页评估、投放协同与跨渠道经营洞察，帮助增长团队构建持续优化的自动化能力。"
+    },
+    "blocks": [
+      {
+        "title": "AI 落地页体检",
+        "description": "结合 SimilarWeb 流量、页面体验指标与 Vertex AI 推理，识别影响转化的关键问题，并输出优先级明确的优化方案。",
+        "highlights": [
+          "10 分钟生成多维评估报告",
+          "自动识别文案、体验、加载问题",
+          "沉淀历史报告，形成可复用知识库"
+        ]
+      },
+      {
+        "title": "跨渠道投放协同",
+        "description": "统一管理 Google Ads、Meta、TikTok 等主流渠道账号与预算策略，提供角色权限控制与审批流，确保协同安全合规。",
+        "highlights": [
+          "内置账号授权与权限管理",
+          "预算分配与异常消耗告警",
+          "团队协作与操作审计留痕"
+        ]
+      },
+      {
+        "title": "智能投放驾驶舱",
+        "description": "整合 ROI、ROAS、成本、转化等指标，提供实时经营视角，并根据表现生成自动化建议与脚本，快速执行投放策略。",
+        "highlights": [
+          "统一指标口径与趋势分析",
+          "AI 生成预算优化建议",
+          "支持自定义视图与报告导出"
+        ]
+      }
+    ]
+  },
+  "docsPage": {
+    "hero": {
+      "title": "文档中心正在迁移",
+      "description": "我们正在将使用手册、API 文档与最佳实践迁移到全新的 Supabase 架构。"
+    },
+    "content": "预计上线版本将包含：快速入门、BFF API 契约、Go 服务部署指南以及常见故障排查。如需即时帮助，请联系支持团队或查看 Slack 社区的 pinned 帖子。"
+  },
+  "blogPage": {
+    "hero": {
+      "title": "Google-Monetize 博客",
+      "description": "分享增长策略、产品更新与真实案例，帮助团队快速掌握 AI 驱动的投放方法论。"
+    },
+    "cta": {
+      "changelog": "查看产品更新",
+      "rss": "订阅 RSS",
+      "resources": "访问资源中心",
+      "readMore": "阅读详情 →",
+      "title": "准备好用 AI 提升投放效率了吗？",
+      "description": "立即开始 7 天免费试用，体验 12 维度 AI 评估、真实补点击和全球代理 IP。",
+      "backToBlog": "返回博客列表"
+    },
+    "migration": "博客内容仍在迁移中，将陆续发布最佳实践与客户案例。欢迎订阅邮件或加入社区，及时获取最新文章。",
+    "featuredPosts": [
+      {
+        "title": "Brand Bidding 完全指南：如何用 AI 预判落地页投放回报",
+        "summary": "从零开始学习 Brand Bidding 策略，掌握落地页评估、预算分配和 AI 智能分析的完整方法论。了解如何将评估效率提升 120 倍（从 2 小时降到 1 分钟）。",
+        "category": "Brand Bidding 教程",
+        "slug": "brand-bidding-complete-guide",
+        "readingTime": "10 分钟"
+      },
+      {
+        "title": "5 个 Brand Bidding 案例分析：如何用 AI 评估实现 ROI 300%+",
+        "summary": "真实案例拆解：从选品到投放，看 5 位营销人员如何用 AI 评估工具提升 Brand Bidding ROI。包括健身器材、电商、多地区测试、竞品分析和追踪优化等实战案例。",
+        "category": "案例分析",
+        "slug": "brand-bidding-case-studies",
+        "readingTime": "12 分钟"
+      },
+      {
+        "title": "Brand Bidding 的 7 个致命错误：从落地页评估到预算分配",
+        "summary": "拆解 Brand Bidding 中最常见的 7 个错误，以及如何用 AI 工具避免这些坑，节省数万元测试成本。包括追踪像素、预算分配、设备差异、地区差异等关键问题。",
+        "category": "Brand Bidding 避坑指南",
+        "slug": "brand-bidding-common-mistakes",
+        "readingTime": "10 分钟"
+      }
+    ]
+  },
+  "privacyPage": {
+    "hero": {
+      "title": "隐私政策",
+      "description": "Google-Monetize 致力于保护客户数据的安全性与隐私性，以下条款适用于所有使用 Google-Monetize 产品的团队。"
+    },
+    "sections": [
+      {
+        "title": "数据收集与使用",
+        "content": [
+          "我们收集账号注册信息、广告账号授权数据与落地页评估数据，仅用于提供 Google-Monetize 服务。",
+          "不会将客户数据出售或用于未经授权的商业用途。"
+        ]
+      },
+      {
+        "title": "数据存储与安全",
+        "content": [
+          "关键数据存储于 Google Cloud 与 Supabase，使用行级安全（RLS）确保租户隔离。",
+          "敏感凭证与访问密钥通过 GCP Secret Manager 管理，并定期审计访问日志。"
+        ]
+      },
+      {
+        "title": "客户数据权利",
+        "content": [
+          "客户可以随时导出或删除自身数据，提交请求后我们会在 72 小时内完成处理。",
+          "如需签署数据处理协议（DPA），请联系 privacy@autoads.dev。"
+        ]
+      }
+    ]
+  },
+  "resourcesPage": {
+    "hero": {
+      "title": "资源中心",
+      "description": "汇总上手指南、策略模板与支持渠道，帮助团队快速搭建 AI 驱动的投放流程。"
+    },
+    "sections": [
+      {
+        "title": "快速上手",
+        "description": "按照逐步指引完成平台初始化配置，包括团队邀请、套餐设置与 Token 配置。",
+        "links": [
+          { "label": "Google-Monetize 入门指南", "href": "/docs/getting-started" },
+          { "label": "账号接入手册", "href": "/docs/playbooks/account-setup" }
+        ]
+      },
+      {
+        "title": "投放实践",
+        "description": "学习如何使用 AI 评估、预算调度与跨渠道协同提升广告表现。",
+        "links": [
+          { "label": "AI 评估最佳实践", "href": "/docs/playbooks/evaluation-report" },
+          { "label": "预算与策略模板", "href": "/docs/playbooks/budget-allocation" }
+        ]
+      },
+      {
+        "title": "支持与社区",
+        "description": "加入社区获取最新动态，或联系支持团队获得一对一协助。",
+        "links": [
+          { "label": "帮助中心", "href": "/support" },
+          { "label": "提交工单", "href": "/contact" }
+        ]
+      }
+    ],
+    "support": {
+      "title": "需要更多个性化支持？",
+      "description": "联系 Google-Monetize 专家获取团队培训、数据迁移与私有化部署方案。",
+      "salesCta": "联系销售团队"
+    }
+  },
+  "support": {
+    "hero": {
+      "title": "支持中心",
+      "description": "获取快速帮助、文档资源与社区支持，让您的团队充分发挥 Google-Monetize 的价值。"
+    },
+    "sections": [
+      {
+        "title": "快速入门",
+        "items": [
+          { "label": "新手指南", "href": "/docs/getting-started" },
+          { "label": "账号接入教程", "href": "/docs/account-setup" },
+          { "label": "常见问题 FAQ", "href": "/faq" }
+        ]
+      },
+      {
+        "title": "产品文档",
+        "items": [
+          { "label": "落地页评估指南", "href": "/docs/offer-evaluation" },
+          { "label": "广告协同中心", "href": "/docs/ads-center" },
+          { "label": "API 文档", "href": "/docs/api" }
+        ]
+      },
+      {
+        "title": "获取帮助",
+        "items": [
+          { "label": "联系支持团队", "href": "/contact" },
+          { "label": "提交工单", "href": "/contact" },
+          { "label": "加入社区", "href": "https://discord.gg/gm" }
+        ]
+      }
+    ],
+    "cta": {
+      "title": "需要进一步协助？",
+      "description": "我们的支持团队随时准备帮助您解决问题。",
+      "primary": "联系我们",
+      "secondary": "发送邮件至 {{email}}"
+    }
+  },
+  "privacyPage": {
+    "hero": {
+      "title": "隐私政策",
+      "description": "Google-Monetize 致力于保护您的隐私。本政策说明我们如何收集、使用和保护您的个人信息。最后更新时间：2025年10月"
+    },
+    "sections": [
+      {
+        "title": "1. 信息收集",
+        "content": [
+          "账户信息：注册时提供的邮箱、姓名、公司信息",
+          "使用数据：您在平台上的操作记录、评估历史、API调用日志",
+          "广告账户数据：通过OAuth授权获取的广告账户信息（仅用于产品功能）",
+          "设备信息：IP地址、浏览器类型、操作系统（用于安全防护）",
+          "Cookie数据：用于保持登录状态和改善用户体验"
+        ]
+      },
+      {
+        "title": "2. 信息使用",
+        "content": [
+          "提供核心服务：落地页评估、AI分析、广告协同管理",
+          "改进产品体验：分析使用模式以优化功能和性能",
+          "账户安全：检测异常行为、防止欺诈和滥用",
+          "客户支持：响应您的问题和请求",
+          "法律合规：遵守相关法律法规和监管要求",
+          "营销通讯：发送产品更新、功能介绍（可随时退订）"
+        ]
+      },
+      {
+        "title": "3. 数据共享",
+        "content": [
+          "我们不会出售您的个人信息",
+          "第三方服务商：仅在必要时共享（如支付处理、云存储），均签署保密协议",
+          "法律要求：在法律、法规或司法程序要求时披露",
+          "业务转让：在合并、收购等情况下，数据可能随业务转移（会提前通知）",
+          "匿名统计：可能共享匿名、聚合的统计数据用于行业研究"
+        ]
+      },
+      {
+        "title": "4. 数据安全",
+        "content": [
+          "加密传输：所有数据通过HTTPS/TLS加密传输",
+          "访问控制：严格的身份验证和权限管理系统",
+          "数据加密：敏感信息在数据库中加密存储",
+          "定期审计：定期进行安全审计和漏洞扫描",
+          "员工培训：所有员工签署保密协议并接受安全培训",
+          "备份与恢复：定期备份数据以防灾难性损失"
+        ]
+      },
+      {
+        "title": "5. 您的权利",
+        "content": [
+          "访问权：查看我们收集的您的个人信息",
+          "更正权：更新或修改不准确的信息",
+          "删除权：要求删除您的个人信息（需符合法律要求）",
+          "导出权：以结构化格式导出您的数据",
+          "反对权：反对我们处理您的个人信息用于特定目的",
+          "撤回同意：撤回之前授予的同意（不影响撤回前的处理）"
+        ]
+      },
+      {
+        "title": "6. Cookie政策",
+        "content": [
+          "必要Cookie：维持登录状态、保障安全（无法关闭）",
+          "功能Cookie：记住您的偏好设置",
+          "分析Cookie：帮助我们了解使用情况并改进产品（可在设置中关闭）",
+          "营销Cookie：用于个性化广告（可在设置中关闭）",
+          "第三方Cookie：来自集成服务（如Google Analytics），可通过浏览器设置管理"
+        ]
+      },
+      {
+        "title": "7. 数据保留",
+        "content": [
+          "活跃账户：在账户存续期间保留数据",
+          "已删除账户：删除后30天内完全清除个人信息",
+          "法律要求：某些数据可能因法律要求保留更长时间",
+          "匿名化处理：某些数据在匿名化后可能用于长期研究"
+        ]
+      },
+      {
+        "title": "8. 未成年人隐私",
+        "content": [
+          "我们的服务面向企业用户，不针对18岁以下未成年人",
+          "如发现收集了未成年人信息，将立即删除",
+          "父母或监护人可联系我们删除未成年人信息"
+        ]
+      },
+      {
+        "title": "9. 政策更新",
+        "content": [
+          "我们可能不时更新本政策以反映法律变化或业务实践",
+          "重大变更将通过邮件或站内通知提前30天告知",
+          "继续使用服务即表示您接受更新后的政策",
+          "历史版本可在此页面底部查看"
+        ]
+      },
+      {
+        "title": "10. 联系我们",
+        "content": [
+          "隐私问题或请求：privacy@autoads.dev",
+          "数据保护官：dpo@autoads.dev",
+          "响应时间：我们将在30天内响应您的请求"
+        ]
+      }
+    ]
+  },
+  "terms": {
+    "hero": {
+      "title": "服务条款",
+      "description": "使用 Google-Monetize 服务前，请仔细阅读本服务条款。使用我们的服务即表示您同意这些条款。最后更新时间：2025年10月"
+    },
+    "sections": [
+      {
+        "title": "1. 服务说明",
+        "clauses": [
+          "Google-Monetize 提供基于AI的落地页评估、广告账户管理和投放协同服务",
+          "服务包括但不限于：Offer评估、实时竞价分析、多平台账户接入、预算优化建议",
+          "我们保留随时修改、暂停或终止部分或全部服务的权利",
+          "服务内容和功能可能因您选择的套餐而异",
+          "Beta功能可能不稳定，我们不对其可用性做出保证"
+        ]
+      },
+      {
+        "title": "2. 账户注册与使用",
+        "clauses": [
+          "您必须年满18岁且具有完全民事行为能力",
+          "注册时提供的信息必须真实、准确、完整",
+          "您对账户安全和保密负全部责任",
+          "禁止共享账户凭证或允许未授权人员访问",
+          "发现账户被盗用或安全漏洞应立即通知我们",
+          "一个主体仅允许注册一个账户（除非经我们书面许可）"
+        ]
+      },
+      {
+        "title": "3. 付费与订阅",
+        "clauses": [
+          "费用按所选套餐和计费周期（月度/年度）收取",
+          "所有价格均不含税，税费由您承担",
+          "付款方式包括信用卡、支付宝、微信支付等（具体视地区而定）",
+          "订阅自动续费，可随时在账户设置中取消",
+          "取消后服务将持续至当前计费周期结束",
+          "退款政策：免费试用期内可全额退款，试用期后按比例退还未使用部分",
+          "逾期未付款将导致服务暂停，超过30天将删除账户数据"
+        ]
+      },
+      {
+        "title": "4. 使用限制",
+        "clauses": [
+          "禁止用于任何非法目的或违反当地法律的活动",
+          "禁止发布虚假、误导性或侵犯他人权利的内容",
+          "禁止攻击、干扰或破坏我们的服务器和网络",
+          "禁止使用自动化工具（如机器人、爬虫）访问服务（API除外）",
+          "禁止反向工程、反编译或试图提取我们的源代码",
+          "禁止转售、出租或以其他方式商业化我们的服务",
+          "违反上述规定将导致账户立即终止，且不予退款"
+        ]
+      },
+      {
+        "title": "5. 知识产权",
+        "clauses": [
+          "Google-Monetize 服务及其所有内容（代码、设计、算法、文档等）归我们所有",
+          "您保留对上传数据的所有权，但授予我们使用该数据提供服务的许可",
+          "您同意我们可以使用匿名、聚合的数据改进服务和进行研究",
+          "未经书面许可，不得复制、修改、分发我们的任何内容",
+          "Google-Monetize 商标、标志和品牌元素为我们的财产，未经许可不得使用"
+        ]
+      },
+      {
+        "title": "6. 数据与隐私",
+        "clauses": [
+          "我们按照《隐私政策》处理您的个人信息",
+          "您授权我们访问第三方广告平台（如Google Ads、Meta Ads）的账户数据",
+          "我们不会访问或存储您的广告平台账户密码",
+          "您对上传至平台的数据内容负责，确保不侵犯他人权利",
+          "我们采取合理措施保护数据安全，但无法保证绝对安全",
+          "数据泄露或安全事件将按法律要求及时通知您"
+        ]
+      },
+      {
+        "title": "7. 服务可用性与支持",
+        "clauses": [
+          "我们力求提供99.9%的服务正常运行时间（不含计划维护）",
+          "计划维护将提前24小时通知，紧急维护可能无预警",
+          "支持渠道包括邮件、在线聊天、工单系统（根据套餐而定）",
+          "响应时间：Starter 48小时，Professional 24小时，Elite 4小时",
+          "我们不对第三方服务（如广告平台API）的中断负责"
+        ]
+      },
+      {
+        "title": "8. 免责声明",
+        "clauses": [
+          "服务按现状提供，不作任何明示或暗示的保证",
+          "我们不保证服务完全无错误、不中断或满足您的所有需求",
+          "AI评估结果仅供参考，实际投放效果可能因多种因素而异",
+          "您对基于服务做出的任何投放决策自行承担风险",
+          "我们不对广告账户被封禁、投放损失或第三方平台政策变化负责",
+          "在法律允许的最大范围内，我们排除所有责任"
+        ]
+      },
+      {
+        "title": "9. 责任限制",
+        "clauses": [
+          "我们对任何间接、偶然、特殊或后果性损害不承担责任",
+          "即使我们已被告知可能发生此类损害，责任限制仍然适用",
+          "我们的总责任不超过您在过去12个月内支付的费用",
+          "某些司法管辖区不允许排除或限制责任，上述限制可能不适用于您",
+          "您同意赔偿我们因您违反本条款而遭受的任何损失"
+        ]
+      },
+      {
+        "title": "10. 服务终止",
+        "clauses": [
+          "您可以随时通过账户设置取消订阅",
+          "我们可以因任何理由（包括违反条款）暂停或终止您的账户",
+          "终止后，您将失去访问服务和数据的权限",
+          "您可以在终止前30天内导出数据",
+          "终止后某些条款（如知识产权、免责声明）仍然有效"
+        ]
+      },
+      {
+        "title": "11. 适用法律与争议解决",
+        "clauses": [
+          "本条款受[您所在司法管辖区]法律管辖",
+          "因本条款引起的任何争议应首先通过友好协商解决",
+          "协商不成的，提交[指定仲裁机构]进行仲裁",
+          "仲裁裁决为终局裁决，对双方均有约束力",
+          "您同意放弃参与集体诉讼的权利"
+        ]
+      },
+      {
+        "title": "12. 条款变更",
+        "clauses": [
+          "我们可能不时更新本条款以反映法律或业务变化",
+          "重大变更将通过邮件或站内通知提前30天告知",
+          "继续使用服务即表示您接受更新后的条款",
+          "如不同意变更，您可以在生效前终止服务并申请退款（按比例）",
+          "历史版本可在此页面底部查看"
+        ]
+      },
+      {
+        "title": "13. 其他条款",
+        "clauses": [
+          "本条款构成您与Google-Monetize之间的完整协议",
+          "如本条款任何部分被认定为无效，其余部分仍然有效",
+          "我们未行使任何权利不构成对该权利的放弃",
+          "您不得在未经我们书面同意的情况下转让本条款下的权利",
+          "本条款的中英文版本如有冲突，以中文版本为准"
+        ]
+      },
+      {
+        "title": "14. 联系我们",
+        "clauses": [
+          "法律与合规问题：legal@autoads.dev",
+          "账户与订阅问题：billing@autoads.dev",
+          "技术支持：support@autoads.dev",
+          "一般咨询：hello@autoads.dev",
+          "响应时间：工作日1-2个工作日"
+        ]
+      }
+    ]
+  },
+  "featuresPage": {
+    "hero": {
+      "title": "核心功能",
+      "description": "Google-Monetize 提供完整的落地页评估与广告投放协同解决方案，帮助您做出数据驱动的投放决策。"
+    },
+    "blocks": [
+      {
+        "title": "AI 智能评估 - 12维度深度分析",
+        "description": "Google-Monetize 的AI引擎从12个关键维度分析落地页，包括内容质量、用户体验、技术性能、转化优化等，生成综合评分和详细建议。",
+        "highlights": [
+          "内容维度：标题吸引力、价值主张清晰度、社会证明可信度",
+          "体验维度：页面加载速度、移动端适配、导航流畅度",
+          "转化维度：CTA明确性、表单优化、信任元素完整性",
+          "技术维度：SEO友好度、安全性检查、代码质量",
+          "1分钟生成专业评估报告，效率提升120倍",
+          "每次评估仅消耗1-3 tokens，成本极低"
+        ]
+      },
+      {
+        "title": "真实补点击 - 模拟真实用户行为",
+        "description": "使用真实的浏览器环境和用户行为模式访问落地页，绕过反作弊检测，获取真实的页面加载数据和转化流程体验。",
+        "highlights": [
+          "真实浏览器环境：Chrome/Firefox/Safari随机切换",
+          "随机用户代理：模拟不同设备和系统组合",
+          "自然行为模式：页面滚动、鼠标移动、停留时间模拟",
+          "Cookie和指纹管理：避免被识别为机器人",
+          "支持JavaScript渲染：捕获SPA单页应用完整内容",
+          "绕过Cloudflare、DataDome等反作弊系统"
+        ]
+      },
+      {
+        "title": "全球代理IP - 50+地区覆盖",
+        "description": "使用来自全球50多个国家和地区的住宅代理IP，模拟不同地区用户访问，测试地域定向广告效果和落地页本地化表现。",
+        "highlights": [
+          "50+国家/地区覆盖：北美、欧洲、亚太、拉美全覆盖",
+          "住宅IP质量：真实用户IP，不易被识别为代理",
+          "Starter套餐：仅支持美国(US)代理IP",
+          "Professional套餐：支持10+核心地区",
+          "Elite套餐：支持全部50+地区",
+          "自动IP轮换：每次请求使用不同IP，避免封禁"
+        ]
+      },
+      {
+        "title": "多平台账号管理",
+        "description": "一站式接入Google Ads、Meta Ads(Facebook/Instagram)、TikTok Ads等主流广告平台，集中管理多个账号和广告活动。",
+        "highlights": [
+          "OAuth安全授权：无需提供账号密码",
+          "支持多账号：同时管理数十个广告账户",
+          "实时数据同步：广告活动、预算、效果数据自动更新",
+          "跨平台对比：一目了然对比不同平台投放效果",
+          "批量操作：一键暂停/启用多个广告活动",
+          "权限管理：团队成员分级访问控制"
+        ]
+      },
+      {
+        "title": "预算智能分配",
+        "description": "基于AI评估结果和历史投放数据，自动推荐最优预算分配方案，最大化ROI。",
+        "highlights": [
+          "智能推荐：根据Offer评分和预期转化率给出预算建议",
+          "动态调整：实时监控投放效果，自动调整预算分配",
+          "A/B测试支持：同时测试多个落地页，智能分配流量",
+          "风险控制：设置每日/总预算上限，避免超支",
+          "历史分析：查看过往投放数据，优化未来决策",
+          "投放日历：规划长期投放策略，预算分配可视化"
+        ]
+      },
+      {
+        "title": "实时监控与告警",
+        "description": "7x24小时监控广告账户和落地页状态，异常情况立即通知，避免预算浪费和机会损失。",
+        "highlights": [
+          "落地页可用性监控：定期检查落地页是否正常访问",
+          "广告账户状态监控：检测账号封禁、限额异常等问题",
+          "预算消耗告警：接近预算上限时提前通知",
+          "效果异常告警：转化率骤降、CPA异常升高立即提醒",
+          "多渠道通知：邮件、Webhook、Slack、微信等",
+          "自定义告警规则：根据业务需求设置告警阈值"
+        ]
+      }
+    ]
+  },
+  "about": {
+    "hero": {
+      "title": "关于我们",
+      "subtitle": "Google-Monetize 致力于通过 AI 和自动化技术，帮助联盟营销人员和增长团队提升广告投放效率与 ROI。"
+    },
+    "mission": {
+      "paragraph1": "我们深知联盟营销的核心挑战：如何在海量 Offer 中快速识别高价值机会，如何高效测试落地页转化效果，如何在多个广告平台间协同预算分配。这些重复性高、耗时长的工作，正是 Google-Monetize 要解决的问题。",
+      "paragraph2": "通过 AI 驱动的 Offer 评估、全球代理 IP 测试、跨渠道投放协同等核心功能，我们帮助用户将投放决策从经验驱动转变为数据驱动，从手动操作转变为自动化流程，从而释放更多时间专注于战略和创意。",
+      "paragraph3": "Google-Monetize 团队由来自 Google、Meta 广告平台的工程师和资深联盟营销从业者组成。我们相信技术与行业经验的深度结合，才能打造真正解决实际问题的产品。"
+    },
+    "valuesTitle": "我们的核心价值观",
+    "values": [
+      {
+        "title": "效率至上",
+        "description": "我们相信自动化和 AI 能够将营销人员从重复劳动中解放出来，让他们专注于更有价值的战略决策和创意工作。"
+      },
+      {
+        "title": "数据驱动",
+        "description": "所有投放决策都应基于真实数据和 AI 洞察，而非主观猜测。我们提供透明、可追溯的评估报告，帮助用户做出明智选择。"
+      },
+      {
+        "title": "持续创新",
+        "description": "广告技术和市场环境快速变化，我们持续迭代产品功能，确保用户始终拥有最先进的工具应对挑战。"
+      },
+      {
+        "title": "用户成功",
+        "description": "我们的成功建立在用户成功的基础上。无论是个人营销者还是企业团队，我们都致力于帮助他们实现 ROI 最大化。"
+      }
+    ]
+  },
+  "security": {
+    "hero": {
+      "title": "安全与合规",
+      "description": "我们致力于保护您的数据安全，确保平台符合国际安全标准和合规要求。"
+    },
+    "sections": [
+      {
+        "title": "数据安全",
+        "details": [
+          "所有数据传输使用 TLS 1.3 加密",
+          "敏感信息采用 AES-256 加密存储",
+          "定期进行安全审计和渗透测试",
+          "实施多层防火墙和入侵检测系统"
+        ]
+      },
+      {
+        "title": "隐私保护",
+        "details": [
+          "严格遵守 GDPR 和 CCPA 等数据保护法规",
+          "用户数据最小化收集原则",
+          "提供数据导出和删除功能",
+          "不向第三方出售或共享用户数据"
+        ]
+      },
+      {
+        "title": "访问控制",
+        "details": [
+          "支持双因素认证（2FA）",
+          "基于角色的访问控制（RBAC）",
+          "API 密钥管理和权限控制",
+          "异常登录检测和通知"
+        ]
+      },
+      {
+        "title": "基础设施安全",
+        "details": [
+          "托管在符合 SOC 2 标准的云服务商",
+          "数据备份和灾难恢复计划",
+          "99.9% 服务可用性保证",
+          "实时监控和告警系统"
+        ]
+      },
+      {
+        "title": "合规认证",
+        "details": [
+          "符合国际信息安全管理体系标准",
+          "定期进行第三方安全审计",
+          "遵守广告行业相关法规",
+          "透明的安全事件披露机制"
+        ]
+      }
+    ]
+  }
+}

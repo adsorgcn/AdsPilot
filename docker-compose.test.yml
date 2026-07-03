@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: gm-test-db
+    environment:
+      POSTGRES_DB: gm_test
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+    ports:
+      - "5433:5432"  # 使用 5433 避免与本地 PostgreSQL 冲突
+    volumes:
+      - ./scripts/init-test-db.sql:/docker-entrypoint-initdb.d/init.sql
+      - test-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d gm_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: gm-test-redis
+    ports:
+      - "6380:6379"  # 使用 6380 避免与本地 Redis 冲突
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+volumes:
+  test-db-data:
+
+networks:
+  test-network:
+    driver: bridge

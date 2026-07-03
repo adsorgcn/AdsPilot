@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# AdsPilot pre-commit: block credentials from entering git history.
+# Enable once per clone:  git config core.hooksPath .githooks
+exec "$(git rev-parse --show-toplevel)/scripts/security/scan-secrets.sh" scan-staged

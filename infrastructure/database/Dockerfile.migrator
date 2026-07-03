@@ -1,0 +1,38 @@
+# 数据库迁移Dockerfile - 超轻量级设计（使用Unix Socket）
+# 基于DATABASE_MIGRATION_BEST_PRACTICES.md
+
+# 使用Alpine Linux作为基础镜像（最小体积）
+FROM alpine:latest
+
+# 安装必要工具
+RUN apk add --no-cache \
+    postgresql-client \
+    ca-certificates \
+    curl \
+    bash
+
+# 安装golang-migrate工具
+RUN curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz | \
+    tar xvz && \
+    mv migrate /usr/local/bin/migrate && \
+    chmod +x /usr/local/bin/migrate
+
+# 创建工作目录
+WORKDIR /migrations
+
+# 复制所有迁移文件和脚本（构建上下文已经包含优化后的文件结构）
+COPY . .
+
+# 设置迁移脚本权限
+RUN chmod +x /usr/local/bin/migrate-unix-socket.sh 2>/dev/null || \
+    (test -f migrate-unix-socket.sh && mv migrate-unix-socket.sh /usr/local/bin/ && chmod +x /usr/local/bin/migrate-unix-socket.sh)
+
+# 设置环境变量
+ENV MIGRATION_DIR=/migrations
+ENV CLOUD_SQL_CONNECTION_NAME=""
+ENV DB_NAME=gm_db
+ENV DB_USER=postgres
+
+# 默认执行迁移脚本
+ENTRYPOINT ["/usr/local/bin/migrate-unix-socket.sh"]
+CMD ["up"]

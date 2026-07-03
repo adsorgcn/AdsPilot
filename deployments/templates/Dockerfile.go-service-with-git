@@ -1,0 +1,65 @@
+# Standard Dockerfile Template for Go Services with Private Git Dependencies
+#
+# Use this template when your service requires:
+#   - Private GitHub/GitLab repositories
+#   - External Go modules not in GOPROXY
+#
+# Usage:
+#   1. Copy to services/{YOUR_SERVICE}/Dockerfile
+#   2. Replace {SERVICE_NAME}
+#   3. Configure git access tokens via build args or secrets
+#
+# This template adds:
+#   - Git installation and configuration
+#   - Module download caching layer
+#   - Support for private repositories
+
+# =============================================================================
+# Build Stage
+# =============================================================================
+FROM golang:1.25.1-alpine as builder
+
+WORKDIR /workspace
+
+# Install and configure Git for private repositories
+RUN apk add --no-cache git && \
+    git config --global user.name "Cloud Build" && \
+    git config --global user.email "builder@gcp.com" && \
+    git config --global url."https://github.com/".insteadOf "git@github.com:" && \
+    git config --global credential.helper ''
+
+ENV GIT_TERMINAL_PROMPT=0
+
+# Prime module cache (separate layer for better caching)
+COPY go.work ./
+RUN mkdir -p services/{SERVICE_NAME}
+COPY services/{SERVICE_NAME}/go.mod services/{SERVICE_NAME}/go.mod
+COPY services/{SERVICE_NAME}/go.sum services/{SERVICE_NAME}/go.sum
+RUN GOPROXY=https://proxy.golang.org,direct GOPRIVATE="" go mod download || true
+
+# Copy full codebase and build
+COPY . .
+WORKDIR /workspace/services/{SERVICE_NAME}
+
+ARG COMMIT_SHA=local
+ARG BUILD_TIME=""
+
+RUN GOPROXY=https://proxy.golang.org,direct go mod tidy && \
+    CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -ldflags="-s -w -X main.buildVersion=${COMMIT_SHA} -X main.buildTime=${BUILD_TIME:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" \
+    -o /{SERVICE_NAME}-service .
+
+# =============================================================================
+# Runtime Stage
+# =============================================================================
+FROM alpine:latest
+
+WORKDIR /
+RUN apk --no-cache add ca-certificates tzdata
+
+COPY --from=builder /{SERVICE_NAME}-service /{SERVICE_NAME}-service
+
+EXPOSE 8080
+
+CMD ["/{SERVICE_NAME}-service"]

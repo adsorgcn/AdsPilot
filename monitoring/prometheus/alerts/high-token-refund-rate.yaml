@@ -1,0 +1,53 @@
+# Alert Policy: High Token Refund Rate
+# Triggers when token refund rate exceeds 10% for 15 minutes
+
+displayName: "Google-Monetize - High Token Refund Rate"
+documentation:
+  content: |
+    ## High Token Refund Rate Alert
+
+    **Service:** Billing Service
+    **Threshold:** Refund rate > 10%
+    **Duration:** 15 minutes
+
+    ### Investigation Steps:
+    1. Query top users with refunds:
+       ```
+       # Check Cloud Monitoring for:
+       gm:billing:top_users_tokens_refunded:topk
+       ```
+    2. Review refund reasons:
+       ```
+       gm_billing_tokens_refunded_total (group by reason)
+       ```
+    3. Check for recent offer failures
+    4. Investigate user complaints/tickets
+
+    ### Common Causes:
+    - Offer creation failures
+    - Ad campaign issues
+    - System bugs causing rollbacks
+    - Abusive user behavior
+
+    ### Mitigation:
+    - Review offer creation logs
+    - Check circuit breaker status
+    - Investigate high-refund users manually
+
+conditions:
+  - displayName: "Token Refund Rate > 10%"
+    conditionThreshold:
+      filter: |
+        resource.type = "cloud_run_revision"
+        AND metric.type = "prometheus.googleapis.com/gm_billing_tokens_refunded_total/counter"
+      aggregations:
+        - alignmentPeriod: "300s"
+          perSeriesAligner: "ALIGN_RATE"
+          crossSeriesReducer: "REDUCE_SUM"
+      comparison: "COMPARISON_GT"
+      thresholdValue: 0.10
+      duration: "900s"
+
+combiner: "OR"
+enabled: true
+notificationChannels: []

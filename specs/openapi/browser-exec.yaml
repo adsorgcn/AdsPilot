@@ -1,0 +1,195 @@
+openapi: 3.0.3
+info:
+  title: Browser Exec Service
+  version: 0.1.0
+  license:
+    name: Elastic-Internal
+servers:
+  - url: /api/v1/browser
+security: []
+paths:
+  /parse-url:
+    post:
+      operationId: parseUrl
+      summary: Parse URL and extract hostname and brand
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url: { type: string }
+              required: [url]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  hostname: { type: string }
+                  brand: { type: string }
+  /check-availability:
+    post:
+      operationId: checkAvailability
+      summary: Check URL availability via HTTP HEAD/GET
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url: { type: string }
+                timeoutMs: { type: integer, minimum: 1000, maximum: 15000 }
+                method: { type: string, enum: [HEAD, GET] }
+                fingerprint:
+                  type: object
+                  properties:
+                    locale: { type: string }
+                    timezoneId: { type: string }
+                    viewport:
+                      type: object
+                      properties: { width: { type: integer }, height: { type: integer } }
+                    geolocation:
+                      type: object
+                      properties: { latitude: { type: number }, longitude: { type: number }, accuracy: { type: number } }
+                    colorScheme: { type: string, enum: [light, dark, no-preference] }
+                    userAgent: { type: string }
+                proxy:
+                  type: object
+                  properties:
+                    server: { type: string }
+                    username: { type: string }
+                    password: { type: string }
+              required: [url]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  status: { type: integer }
+                  engine: { type: string, enum: [playwright, fetch] }
+                  timings:
+                    type: object
+                    properties:
+                      navMs: { type: integer }
+                      clickMs: { type: integer }
+                  error: { type: string }
+  /simulate-click:
+    post:
+      operationId: simulateClick
+      summary: Simulate click (queued)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url: { type: string }
+                selector: { type: string, description: "CSS selector to click first" }
+                wait:
+                  type: object
+                  properties:
+                    until: { type: string, enum: [domcontentloaded, networkidle, selector] }
+                    selector: { type: string }
+                    timeoutMs: { type: integer }
+                dwellMs: { type: integer, description: "Wait after click (ms)" }
+                fingerprint:
+                  $ref: '#/components/schemas/Fingerprint'
+                proxy:
+                  $ref: '#/components/schemas/Proxy'
+              required: [url]
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  taskId: { type: string }
+                  status: { type: string }
+  /batch-execute:
+    post:
+      operationId: batchExecute
+      summary: Submit tasks for batch execution (queued)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tasks:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      url: { type: string }
+                      fingerprint: { $ref: '#/components/schemas/Fingerprint' }
+                      proxy: { $ref: '#/components/schemas/Proxy' }
+                    required: [url]
+                concurrency: { type: integer, minimum: 1, maximum: 8 }
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted: { type: integer }
+                  taskGroupId: { type: string }
+  /tasks/{id}:
+    get:
+      operationId: getTask
+      summary: Get task status
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [queued, running, completed, failed] }
+                  result: { type: object }
+                  error: { type: string }
+                  groupId: { type: string }
+        '404':
+          description: Not found
+components:
+  schemas:
+    Fingerprint:
+      type: object
+      properties:
+        locale: { type: string }
+        timezoneId: { type: string }
+        viewport:
+          type: object
+          properties: { width: { type: integer }, height: { type: integer } }
+        geolocation:
+          type: object
+          properties: { latitude: { type: number }, longitude: { type: number }, accuracy: { type: number } }
+        colorScheme: { type: string, enum: [light, dark, no-preference] }
+        userAgent: { type: string }
+    Proxy:
+      type: object
+      properties:
+        server: { type: string }
+        username: { type: string }
+        password: { type: string }

@@ -1,0 +1,29 @@
+# 修复版本 Cloud Build 配置
+steps:
+  # Step 1: 构建修复版本镜像
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-fixed'
+    args:
+      - 'build'
+      - '-t'
+      - '${_IMAGE}'
+      - '-f'
+      - 'deployments/db-migrator/Dockerfile.fixed'
+      - '.'
+    timeout: '300s'
+    waitFor: ['-']
+
+# 构建选项
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+# 超时设置
+timeout: '600s'
+
+# 镜像输出
+images:
+  - '${_IMAGE}'
+
+# 替换变量
+substitutions:
+  _IMAGE: 'asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/db-migrator-fixed:latest'

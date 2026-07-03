@@ -1,0 +1,42 @@
+# 快速修复 Cloud Build 配置
+steps:
+  # Step 1: 构建修复镜像
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-fix'
+    args:
+      - 'build'
+      - '-t'
+      - '${_IMAGE}'
+      - '-f'
+      - 'deployments/db-migrator/Dockerfile.quickfix'
+      - '.'
+    timeout: '300s'
+    waitFor: ['-']
+
+  # Step 2: 验证镜像
+  - name: '${_IMAGE}'
+    id: 'verify-fix'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        echo "验证修复镜像..."
+        ls -la /fix-user-schema.sql /apply-fix.sh
+        echo "✅ 修复镜像验证成功"
+    timeout: '30s'
+    waitFor: ['build-fix']
+
+# 构建选项
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+# 超时设置
+timeout: '600s'
+
+# 镜像输出
+images:
+  - '${_IMAGE}'
+
+# 替换变量
+substitutions:
+  _IMAGE: 'asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/db-migrator-fix:latest'

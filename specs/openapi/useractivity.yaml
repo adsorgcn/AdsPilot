@@ -1,0 +1,123 @@
+openapi: 3.0.0
+info:
+  title: UserActivity Service API
+  version: 1.0.0
+  description: User activity management including check-ins and referrals
+
+servers:
+  - url: /api/v1
+    description: API Gateway
+
+paths:
+  /check-in:
+    post:
+      summary: Perform daily check-in
+      operationId: performCheckin
+      tags:
+        - Check-in
+      responses:
+        '200':
+          description: Check-in successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformCheckinResponse'
+
+  /check-in/status:
+    get:
+      summary: Get check-in status
+      operationId: getCheckinStatus
+      tags:
+        - Check-in
+      responses:
+        '200':
+          description: Check-in status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinStatus'
+
+  /check-in/history:
+    get:
+      summary: Get check-in history
+      operationId: getCheckinHistory
+      tags:
+        - Check-in
+      responses:
+        '200':
+          description: Check-in history retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CheckinRecord'
+
+  /referral:
+    get:
+      summary: Get referral information
+      operationId: getReferral
+      tags:
+        - Referral
+      responses:
+        '200':
+          description: Referral information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferralSummary'
+
+components:
+  schemas:
+    PerformCheckinResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        tokensEarned:
+          type: integer
+        message:
+          type: string
+
+    CheckinStatus:
+      type: object
+      properties:
+        hasCheckedInToday:
+          type: boolean
+        currentStreak:
+          type: integer
+        lastCheckinDate:
+          type: string
+          format: date-time
+        nextCheckinAvailable:
+          type: string
+          format: date-time
+
+    CheckinRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        checkinDate:
+          type: string
+          format: date-time
+        tokensEarned:
+          type: integer
+        streak:
+          type: integer
+
+    ReferralSummary:
+      type: object
+      properties:
+        referralCode:
+          type: string
+        referralLink:
+          type: string
+        totalInvites:
+          type: integer
+        successfulInvites:
+          type: integer
+        totalRewards:
+          type: integer

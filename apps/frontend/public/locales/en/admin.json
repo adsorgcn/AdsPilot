@@ -1,0 +1,322 @@
+{
+  "systemAlerts": {
+    "highErrorRate": {
+      "title": "High Error Rate Detected",
+      "description": "Error rate is {{value}}% (threshold: {{threshold}}%)"
+    },
+    "serviceDown": {
+      "title": "Service Health Issue",
+      "description": "One or more services are not responding"
+    },
+    "databaseSlowQueries": {
+      "title": "Database Performance Warning",
+      "description": "{{count}} slow queries detected (> {{threshold}}s)"
+    },
+    "highMemoryUsage": {
+      "title": "High Memory Usage",
+      "description": "Memory usage at {{value}}% (threshold: {{threshold}}%)"
+    },
+    "dismiss": "Dismiss alert"
+  },
+  "featureFlags": {
+    "pageTitle": "Feature Flags",
+    "pageDescription": "Manage dynamic feature toggles for your application.",
+    "pageCreateButton": "Create Flag",
+    "error": {
+      "loadTitle": "Failed to load feature flags",
+      "loadDescription": "We couldn't fetch the feature flag list. Please try again later."
+    },
+    "stats": {
+      "total": "Total Flags",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "table": {
+      "heading": "All Feature Flags",
+      "columns": {
+        "key": "Key",
+        "status": "Status",
+        "description": "Description",
+        "updatedAt": "Last Updated",
+        "actions": "Actions"
+      },
+      "status": {
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      },
+      "actions": {
+        "edit": "Edit",
+        "history": "History",
+        "delete": "Delete"
+      },
+      "emptyTitle": "No feature flags yet",
+      "emptyDescription": "You haven't created any feature flags. Click the button to get started.",
+      "emptyAction": "Create Feature Flag"
+    },
+    "modals": {
+      "create": {
+        "title": "Create Feature Flag",
+        "fields": {
+          "key": "Key",
+          "keyPlaceholder": "feature_key",
+          "enabled": "Enabled",
+          "description": "Description",
+          "reason": "Reason",
+          "reasonPlaceholder": "Optional reason for audit trail"
+        },
+        "cancel": "Cancel",
+        "submit": "Create"
+      },
+      "edit": {
+        "title": "Edit Feature Flag",
+        "fields": {
+          "key": "Key",
+          "enabled": "Enabled",
+          "description": "Description",
+          "reason": "Reason",
+          "reasonPlaceholder": "Optional reason for audit trail"
+        },
+        "cancel": "Cancel",
+        "submit": "Save Changes"
+      },
+      "history": {
+        "title": "Change History",
+        "close": "Close",
+        "errorTitle": "Failed to load history",
+        "errorDescription": "We couldn't fetch this flag's change history. Please try again later.",
+        "emptyTitle": "No history yet",
+        "emptyDescription": "This feature flag hasn't been changed yet."
+      },
+      "delete": {
+        "confirm": "Are you sure you want to delete feature flag \"{{key}}\"?"
+      }
+    },
+    "history": {
+      "status": {
+        "updated": "Updated",
+        "enabled": "Enabled",
+        "disabled": "Disabled"
+      },
+      "noReason": "No reason provided",
+      "systemAccount": "System",
+      "changedBy": "Changed by: {{author}}"
+    },
+    "placeholder": "Feature Flags Page (Under Construction)"
+  },
+  "notifications": {
+    "banner": {
+      "title": "Notification Management Center",
+      "description": "Create templates and broadcast messages to your users. Supports email and in-app delivery with status and engagement tracking."
+    },
+    "toasts": {
+      "createSuccess": "Template created successfully",
+      "createFailure": "Failed to create template",
+      "noTemplate": "Please select a template before sending",
+      "broadcastQueued": "Broadcast queued and will reach {{count}} users",
+      "broadcastFailure": "Failed to send broadcast",
+      "previewFailure": "Failed to preview template"
+    },
+    "status": {
+      "pending": "Pending",
+      "sending": "Sending",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
+    "errors": {
+      "fetch": {
+        "title": "Unable to load notification data",
+        "description": "We couldn't fetch templates or broadcast history. Please retry later."
+      }
+    },
+    "stats": {
+      "totalBroadcasts": "Total broadcasts",
+      "totalSent": "Total sent",
+      "failed": "Failed",
+      "successRate": "Success rate"
+    },
+    "statsEmpty": {
+      "title": "No broadcast metrics yet",
+      "description": "Send your first broadcast to see delivery metrics here."
+    },
+    "templates": {
+      "heading": "Templates",
+      "empty": {
+        "title": "No templates yet",
+        "description": "Create a template to launch your first broadcast."
+      },
+      "subject": "Subject",
+      "createdAt": "Created {{date}}"
+    },
+    "broadcasts": {
+      "heading": "Broadcast History",
+      "empty": {
+        "title": "No broadcasts yet",
+        "description": "Once you send a broadcast, the delivery history will appear here."
+      },
+      "table": {
+        "template": "Template",
+        "targetGroup": "Target group",
+        "status": "Status",
+        "sentTotal": "Sent / Total",
+        "created": "Created"
+      },
+      "failedCount": "({{count}} failed)",
+      "targetGroups": {
+        "all": "All users",
+        "vip": "VIP users",
+        "subscribed": "Subscribed users",
+        "active": "Active users (last 30 days)"
+      }
+    },
+    "actions": {
+      "create": "Create",
+      "send": "Send",
+      "preview": "Preview",
+      "refresh": "Refresh",
+      "cancel": "Cancel",
+      "createTemplate": "Create template",
+      "sendBroadcast": "Send broadcast",
+      "close": "Close"
+    },
+    "modal": {
+      "create": {
+        "title": "Create Notification Template",
+        "fields": {
+          "name": "Template name",
+          "type": "Template type",
+          "subject": "Subject",
+          "body": "Message body"
+        },
+        "placeholders": {
+          "name": "e.g., Welcome Email",
+          "subject": "Welcome {{user.name}}!",
+          "body": "Hello {{user.name}}, ..."
+        },
+        "type": {
+          "email": "Email",
+          "inapp": "In-app"
+        },
+        "helpers": {
+          "title": "Template variables:",
+          "description": "Use {{placeholder}} for dynamic content. Available: {{variables}}. Conditional blocks: {{condition}}"
+        }
+      },
+      "broadcast": {
+        "title": "Broadcast Notification",
+        "fields": {
+          "targetGroup": "Target group"
+        },
+        "warning": "⚠️ This will send a broadcast to the selected audience. Please confirm before proceeding."
+      },
+      "preview": {
+        "title": "Template Preview",
+        "subjectLabel": "Subject",
+        "subjectPlaceholder": "Preview subject",
+        "bodyLabel": "Body",
+        "bodyPlaceholder": "Preview body"
+      }
+    }
+  },
+  "dashboardTrends": {
+    "error": {
+      "title": "Failed to load trends",
+      "description": "We could not fetch the dashboard trend data. Please try again later."
+    },
+    "header": "Platform Trends",
+    "presets": {
+      "7d": "7 Days",
+      "30d": "30 Days",
+      "90d": "90 Days"
+    },
+    "empty": "No trend data available for this period.",
+    "charts": {
+      "userGrowth": "User Growth",
+      "revenueGrowth": "Revenue Growth",
+      "tokenConsumption": "Token Consumption",
+      "offersAndTasks": "Offers & Tasks",
+      "offersSeries": "Offers Created",
+      "tasksSeries": "Tasks Completed"
+    }
+  },
+  "tokens": {
+    "management": {
+      "errorTitle": "Failed to load token balances",
+      "errorDescription": "We could not fetch the token balance list. Please try again later.",
+      "searchPlaceholder": "Search by email or user ID…",
+      "reset": "Reset",
+      "search": "Search",
+      "searching": "Searching…",
+      "table": {
+        "user": "User",
+        "email": "Email",
+        "balance": "Balance",
+        "lastTransaction": "Last Transaction",
+        "actions": "Actions",
+        "balanceValue": "{{amount}} tokens",
+        "noTransaction": "--"
+      },
+      "emptyTitle": "No users found",
+      "emptyDescription": "Try adjusting the search filters or refresh later.",
+      "emptyRefresh": "Refresh list",
+      "actions": {
+        "topUp": "Top Up",
+        "deduct": "Deduct"
+      }
+    }
+  },
+  "exports": {
+    "errors": {
+      "unsupportedType": "Export type not supported",
+      "failed": "Export failed, please try again later",
+      "loadFailed": "Failed to load export history",
+      "loadDescription": "Unable to fetch export history at this time."
+    },
+    "success": {
+      "started": "Export task started"
+    },
+    "emptyState": {
+      "stats": {
+        "title": "No Export Statistics",
+        "description": "Statistics will appear after sending your first export task."
+      },
+      "history": {
+        "title": "No Export Records",
+        "description": "Export records will appear here after you create an export task."
+      }
+    }
+  },
+  "performance": {
+    "title": "Performance Monitoring",
+    "description": "Real-time monitoring of Web Vitals core metrics to quantify optimization results",
+    "sections": {
+      "trends": "Performance Trends",
+      "distribution": "Score Distribution",
+      "explanation": "Metrics Explanation"
+    },
+    "metrics": {
+      "lcp": {
+        "description": "Largest Contentful Paint time, measures loading performance"
+      },
+      "fid": {
+        "description": "First Input Delay, measures interactivity response speed"
+      },
+      "cls": {
+        "description": "Cumulative Layout Shift, measures visual stability"
+      },
+      "inp": {
+        "description": "Interaction to Next Paint, measures overall responsiveness"
+      },
+      "fcp": {
+        "description": "First Contentful Paint, measures initial rendering speed"
+      },
+      "ttfb": {
+        "description": "Time to First Byte, measures server response speed"
+      }
+    },
+    "thresholds": {
+      "good": "Good",
+      "needsImprovement": "Needs Improvement",
+      "poor": "Poor"
+    }
+  }
+}

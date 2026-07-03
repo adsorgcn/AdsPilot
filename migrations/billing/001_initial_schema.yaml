@@ -1,0 +1,77 @@
+# Billing服务初始数据库结构
+# 从 services/billing/internal/migrations/000001_create_initial_tables.up.sql 迁移
+
+version: "001"
+service: "billing"
+description: "创建Billing服务初始表结构"
+
+up: |
+  -- 创建用户表
+  CREATE TABLE IF NOT EXISTS "User" (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      name TEXT,
+      role TEXT DEFAULT 'user',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  -- 创建用户Token表
+  CREATE TABLE IF NOT EXISTS "UserToken" (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      token_balance BIGINT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      FOREIGN KEY (user_id) REFERENCES "User"(id) ON DELETE CASCADE
+  );
+
+  -- 创建Token交易记录表
+  CREATE TABLE IF NOT EXISTS "TokenTransaction" (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      amount BIGINT NOT NULL,
+      type TEXT NOT NULL, -- 'credit', 'debit', 'refund', 'bonus'
+      source TEXT NOT NULL, -- 'purchase', 'usage', 'refund', 'bonus', 'adjustment'
+      description TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      FOREIGN KEY (user_id) REFERENCES "User"(id) ON DELETE CASCADE
+  );
+
+  -- 创建订阅表
+  CREATE TABLE IF NOT EXISTS "Subscription" (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      plan_name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active', -- 'active', 'cancelled', 'expired', 'trial'
+      current_period_end TIMESTAMPTZ NOT NULL,
+      trial_ends_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      FOREIGN KEY (user_id) REFERENCES "User"(id) ON DELETE CASCADE
+  );
+
+  -- 创建索引
+  CREATE INDEX IF NOT EXISTS idx_user_token_user_id ON "UserToken"(user_id);
+  CREATE INDEX IF NOT EXISTS idx_token_transaction_user_id ON "TokenTransaction"(user_id);
+  CREATE INDEX IF NOT EXISTS idx_token_transaction_created_at ON "TokenTransaction"(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_subscription_user_id ON "Subscription"(user_id);
+  CREATE INDEX IF NOT EXISTS idx_subscription_status ON "Subscription"(status);
+  CREATE INDEX IF NOT EXISTS idx_subscription_current_period_end ON "Subscription"(current_period_end);
+
+down: |
+  -- 删除索引
+  DROP INDEX IF EXISTS idx_subscription_current_period_end;
+  DROP INDEX IF EXISTS idx_subscription_status;
+  DROP INDEX IF EXISTS idx_subscription_user_id;
+  DROP INDEX IF EXISTS idx_token_transaction_created_at;
+  DROP INDEX IF EXISTS idx_token_transaction_user_id;
+  DROP INDEX IF EXISTS idx_user_token_user_id;
+
+  -- 删除表（按依赖关系逆序）
+  DROP TABLE IF EXISTS "Subscription";
+  DROP TABLE IF EXISTS "TokenTransaction";
+  DROP TABLE IF EXISTS "UserToken";
+  DROP TABLE IF EXISTS "User";
+
+dependencies: []

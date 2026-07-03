@@ -1,0 +1,89 @@
+{
+  "commandPalette": {
+    "buttonLabel": "Quick Navigation",
+    "dialogTitle": "Search Settings",
+    "dialogDescription": "Type a keyword to jump to the target settings page.",
+    "inputPlaceholder": "Search: tokens, subscription, MFA...",
+    "empty": "No matching settings found. Try different keywords.",
+    "items": {
+      "profile": {
+        "title": "Profile",
+        "description": "Update avatar, display name, and basic details",
+        "keywords": ["profile", "name", "avatar", "details"]
+      },
+      "authentication": {
+        "title": "Account Security · MFA",
+        "description": "Configure MFA and additional security factors",
+        "keywords": ["mfa", "security", "authentication", "2fa"]
+      },
+      "email": {
+        "title": "Email Settings",
+        "description": "Change login email and receive verification messages",
+        "keywords": ["email", "address", "login"]
+      },
+      "password": {
+        "title": "Password Management",
+        "description": "Update your password to keep the account secure",
+        "keywords": ["password", "security", "credentials"]
+      },
+      "tokens": {
+        "title": "Token Usage & Insights",
+        "description": "Track balance, renewal forecast, and usage trends",
+        "keywords": ["token", "usage", "balance", "renewal"]
+      },
+      "subscription": {
+        "title": "Subscription & Billing",
+        "description": "Upgrade plans, manage billing, and invoicing",
+        "keywords": ["subscription", "billing", "plan", "invoice"]
+      },
+      "checkin": {
+        "title": "Daily Check-in",
+        "description": "Check in daily to earn tokens and maintain streaks",
+        "keywords": ["checkin", "daily", "tokens", "rewards"]
+      },
+      "referral": {
+        "title": "Referral Program",
+        "description": "Invite friends to earn trial periods and rewards",
+        "keywords": ["referral", "invite", "rewards", "program"]
+      },
+      "dashboard": {
+        "title": "Back to Dashboard",
+        "description": "Return to the main overview and core features",
+        "keywords": ["dashboard", "home", "overview"]
+      }
+    }
+  },
+  "title": "Settings",
+  "description": "Manage your account settings and preferences",
+  "loading": "Loading settings...",
+  "profile": {
+    "title": "Profile Information",
+    "email": "Email",
+    "name": "Name",
+    "subscription": "Subscription",
+    "tokens": "Token Balance"
+  },
+  "subscription": {
+    "title": "Subscription",
+    "description": "Manage your subscription plan and billing",
+    "manage": "Manage Subscription"
+  },
+  "checkin": {
+    "title": "Daily Check-in",
+    "streak": "Current Streak",
+    "totalTokens": "Total Earned",
+    "completed": "Completed Today",
+    "checkin": "Check In Now"
+  },
+  "referral": {
+    "title": "Referral Program",
+    "totalReferrals": "Total Referrals",
+    "rewards": "Rewards Earned",
+    "invite": "Invite Friends"
+  },
+  "admin": {
+    "title": "Admin Panel",
+    "description": "Manage users, subscriptions, and system settings",
+    "manage": "Open Admin Panel"
+  }
+}

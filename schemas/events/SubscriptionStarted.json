@@ -1,0 +1,19 @@
+{
+  "$id": "https://gm.com/schemas/events/SubscriptionStarted.json",
+  "type": "object",
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventName": { "type": "string", "const": "SubscriptionStarted" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "subscriptionId": { "type": "string" },
+        "userId": { "type": "string" },
+        "planId": { "type": "string" }
+      },
+      "required": ["subscriptionId", "userId", "planId"]
+    }
+  },
+  "required": ["eventId", "eventName", "timestamp", "payload"]
+}

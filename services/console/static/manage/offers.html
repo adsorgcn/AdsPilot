@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Offer 管理</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; margin: 20px; background: #f9fafb; }
+    h2, h3 { margin: 16px 0; color: #111827; }
+    .row { display:flex; gap:8px; align-items:center; margin-bottom: 12px; flex-wrap: wrap; }
+    button { padding:8px 16px; font-size: 13px; cursor:pointer; border: none; border-radius: 6px; font-weight: 500; }
+    button.primary { background: #3b82f6; color: white; }
+    button.secondary { background: #6b7280; color: white; }
+    button.danger { background: #ef4444; color: white; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
+    .card { background: white; border-radius: 8px; padding: 20px; border: 1px solid #e5e7eb; margin-bottom: 16px; }
+    .alert { padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; }
+    .alert.info { background: #dbeafe; border-left: 4px solid #3b82f6; color: #1e40af; }
+    .alert.success { background: #d1fae5; border-left: 4px solid #10b981; color: #065f46; }
+    .alert.error { background: #fee2e2; border-left: 4px solid #ef4444; color: #991b1b; }
+    table { width:100%; border-collapse: collapse; background: white; }
+    th, td { border:1px solid #e5e7eb; padding:12px; font-size: 13px; text-align: left; }
+    th { background:#f3f4f6; font-weight: 600; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .badge.pending { background: #fef3c7; color: #92400e; }
+    .badge.deployed { background: #d1fae5; color: #065f46; }
+    .badge.ready { background: #dbeafe; color: #1e3a8a; }
+    .badge.archived { background: #f3f4f6; color: #6b7280; }
+    .badge.failed { background: #fee2e2; color: #991b1b; }
+    input, select { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; }
+    .muted { color:#6b7280; font-size:12px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; }
+    .stat-value { font-size: 24px; font-weight: 600; color: #111827; }
+    .stat-label { font-size: 13px; color: #6b7280; margin-top: 4px; }
+    .filter-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .checkbox { margin-right: 8px; }
+  </style>
+  <script>
+    async function fetchJSON(u, opt){ const r = await fetch(u, opt||{}); if(!r.ok) throw new Error(await r.text()); return r.json(); }
+
+    let offers = [];
+    let stats = null;
+    let selectedIds = new Set();
+    let currentPage = 1;
+    let totalPages = 1;
+    let filters = {
+      status: '',
+      search: '',
+      userEmail: '',
+      minScore: '',
+      maxScore: '',
+      sortBy: 'created_at',
+      sortOrder: 'desc'
+    };
+
+    async function load(){
+      try {
+        // Load stats
+        const statsRes = await fetchJSON('/api/v1/console/offers/stats');
+        stats = statsRes;
+        renderStats();
+
+        // Load offers
+        await loadOffers();
+      } catch(e){
+        showAlert('加载失败: ' + e.message, 'error');
+      }
+    }
+
+    async function loadOffers(){
+      try {
+        const params = new URLSearchParams({
+          page: currentPage,
+          pageSize: 20,
+          ...filters
+        });
+
+        const res = await fetchJSON(`/api/v1/console/offers?${params}`);
+        offers = res.offers || [];
+        totalPages = res.totalPages || 1;
+
+        renderTable();
+        renderPagination();
+      } catch(e){
+        showAlert('加载 Offer 失败: ' + e.message, 'error');
+      }
+    }
+
+    function renderStats(){
+      if (!stats) return;
+
+      document.querySelector('#statTotal').textContent = stats.totalOffers || 0;
+      document.querySelector('#statPending').textContent = stats.pendingEvaluation || 0;
+      document.querySelector('#statReady').textContent = stats.readyToDeploy || 0;
+      document.querySelector('#statDeployed').textContent = stats.deployed || 0;
+      document.querySelector('#statRevenue').textContent = formatCurrency(stats.totalRevenue || 0);
+      document.querySelector('#statScore').textContent = (stats.avgSiterankScore || 0).toFixed(1);
+    }
+
+    function renderTable(){
+      const tbody = document.querySelector('#offersList');
+      tbody.innerHTML = '';
+
+      if (offers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#6b7280; padding:40px;">无数据</td></tr>';
+        return;
+      }
+
+      for(const offer of offers){
+        const tr = document.createElement('tr');
+
+        const statusBadge = getStatusBadge(offer.status);
+        const scoreBadge = offer.siterankScore
+          ? `<span class="badge" style="background:#e0e7ff; color:#3730a3;">${offer.siterankScore.toFixed(1)}</span>`
+          : '-';
+
+        const checked = selectedIds.has(offer.id) ? 'checked' : '';
+
+        tr.innerHTML = `
+          <td><input type="checkbox" class="checkbox" ${checked} onchange="toggleSelection('${offer.id}', this.checked)" /></td>
+          <td>
+            <div><strong>${escapeHtml(offer.name)}</strong></div>
+            <div class="muted">${escapeHtml(offer.userEmail || offer.userId)}</div>
+          </td>
+          <td>
+            <div class="muted">${escapeHtml(offer.domain || '-')}</div>
+            <a href="${escapeHtml(offer.originalUrl)}" target="_blank" style="font-size:11px;">查看原始URL</a>
+          </td>
+          <td>${statusBadge}</td>
+          <td>${scoreBadge}</td>
+          <td>${formatNumber(offer.clicks)}</td>
+          <td>${formatCurrency(offer.totalRevenue)}</td>
+          <td class="muted">${new Date(offer.createdAt).toLocaleDateString()}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function renderPagination(){
+      const container = document.querySelector('#pagination');
+      container.innerHTML = '';
+
+      if (totalPages <= 1) return;
+
+      const prev = document.createElement('button');
+      prev.textContent = '上一页';
+      prev.className = 'secondary';
+      prev.disabled = currentPage === 1;
+      prev.onclick = () => { currentPage--; loadOffers(); };
+      container.appendChild(prev);
+
+      const info = document.createElement('span');
+      info.textContent = `第 ${currentPage} / ${totalPages} 页`;
+      info.style.margin = '0 12px';
+      container.appendChild(info);
+
+      const next = document.createElement('button');
+      next.textContent = '下一页';
+      next.className = 'secondary';
+      next.disabled = currentPage === totalPages;
+      next.onclick = () => { currentPage++; loadOffers(); };
+      container.appendChild(next);
+    }
+
+    function getStatusBadge(status){
+      const badges = {
+        'pending_evaluation': '<span class="badge pending">待评估</span>',
+        'evaluating': '<span class="badge pending">评估中</span>',
+        'ready_to_deploy': '<span class="badge ready">可投放</span>',
+        'deployed': '<span class="badge deployed">已投放</span>',
+        'archived': '<span class="badge archived">已归档</span>',
+        'evaluation_failed': '<span class="badge failed">评估失败</span>'
+      };
+      return badges[status] || status;
+    }
+
+    function toggleSelection(offerId, checked){
+      if (checked) {
+        selectedIds.add(offerId);
+      } else {
+        selectedIds.delete(offerId);
+      }
+      updateBulkActions();
+    }
+
+    function toggleAll(checked){
+      if (checked) {
+        offers.forEach(o => selectedIds.add(o.id));
+      } else {
+        selectedIds.clear();
+      }
+      renderTable();
+      updateBulkActions();
+    }
+
+    function updateBulkActions(){
+      const bulkBar = document.querySelector('#bulkActions');
+      const count = document.querySelector('#selectedCount');
+
+      if (selectedIds.size > 0) {
+        bulkBar.style.display = 'flex';
+        count.textContent = selectedIds.size;
+      } else {
+        bulkBar.style.display = 'none';
+      }
+    }
+
+    async function batchArchive(){
+      if (selectedIds.size === 0) return;
+
+      const reason = prompt('批量归档原因（必填）:');
+      if (!reason || reason.trim().length < 10) {
+        showAlert('请填写原因（至少10个字符）', 'error');
+        return;
+      }
+
+      if (!confirm(`确认归档 ${selectedIds.size} 个 Offer？`)) return;
+
+      try {
+        await fetchJSON('/api/v1/console/offers/batch-archive', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            offerIds: Array.from(selectedIds),
+            reason
+          })
+        });
+
+        showAlert('✓ 批量归档成功', 'success');
+        selectedIds.clear();
+        await load();
+      } catch(e) {
+        showAlert('批量归档失败: ' + e.message, 'error');
+      }
+    }
+
+    function applyFilters(){
+      filters.status = document.querySelector('#filterStatus').value;
+      filters.search = document.querySelector('#filterSearch').value;
+      filters.userEmail = document.querySelector('#filterUserEmail').value;
+      filters.minScore = document.querySelector('#filterMinScore').value;
+      filters.maxScore = document.querySelector('#filterMaxScore').value;
+      filters.sortBy = document.querySelector('#filterSortBy').value;
+      filters.sortOrder = document.querySelector('#filterSortOrder').value;
+
+      currentPage = 1;
+      loadOffers();
+    }
+
+    function clearFilters(){
+      document.querySelector('#filterStatus').value = '';
+      document.querySelector('#filterSearch').value = '';
+      document.querySelector('#filterUserEmail').value = '';
+      document.querySelector('#filterMinScore').value = '';
+      document.querySelector('#filterMaxScore').value = '';
+      document.querySelector('#filterSortBy').value = 'created_at';
+      document.querySelector('#filterSortOrder').value = 'desc';
+
+      filters = { status: '', search: '', userEmail: '', minScore: '', maxScore: '', sortBy: 'created_at', sortOrder: 'desc' };
+      currentPage = 1;
+      loadOffers();
+    }
+
+    function showAlert(message, type){
+      const alertEl = document.querySelector('#alertBox');
+      alertEl.className = 'alert ' + type;
+      alertEl.textContent = message;
+      alertEl.style.display = 'block';
+
+      setTimeout(() => {
+        alertEl.style.display = 'none';
+      }, 5000);
+    }
+
+    function formatNumber(n){ return new Intl.NumberFormat('zh-CN').format(n); }
+    function formatCurrency(n){ return '¥' + new Intl.NumberFormat('zh-CN', {minimumFractionDigits: 2}).format(n); }
+    function escapeHtml(text){ const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+
+    window.addEventListener('DOMContentLoaded', load);
+  </script>
+</head>
+<body>
+  <h2>📊 Offer 管理</h2>
+
+  <div class="row">
+    <button class="secondary" onclick="window.location.href='/manage/index.html'">← 返回仪表盘</button>
+    <button class="secondary" onclick="load()">🔄 刷新</button>
+  </div>
+
+  <div id="alertBox" class="alert" style="display:none;"></div>
+
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" id="statTotal">0</div>
+      <div class="stat-label">Offer 总数</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statPending" style="color:#f59e0b;">0</div>
+      <div class="stat-label">待评估</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statReady" style="color:#3b82f6;">0</div>
+      <div class="stat-label">可投放</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statDeployed" style="color:#10b981;">0</div>
+      <div class="stat-label">已投放</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statRevenue">¥0</div>
+      <div class="stat-label">总收入</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statScore">0</div>
+      <div class="stat-label">平均评分</div>
+    </div>
+  </div>
+
+  <div class="alert info">
+    💡 <strong>Offer 管理功能：</strong> 全局搜索、按状态/评分筛选、批量归档、收入统计
+  </div>
+
+  <!-- Filters -->
+  <div class="card">
+    <h3>🔍 筛选条件</h3>
+    <div class="filter-row" style="margin-bottom:12px;">
+      <select id="filterStatus">
+        <option value="">全部状态</option>
+        <option value="pending_evaluation">待评估</option>
+        <option value="evaluating">评估中</option>
+        <option value="ready_to_deploy">可投放</option>
+        <option value="deployed">已投放</option>
+        <option value="archived">已归档</option>
+        <option value="evaluation_failed">评估失败</option>
+      </select>
+
+      <input type="text" id="filterSearch" placeholder="搜索 Offer 名称/域名" />
+      <input type="text" id="filterUserEmail" placeholder="用户邮箱" />
+      <input type="number" id="filterMinScore" placeholder="最低评分" step="0.1" />
+      <input type="number" id="filterMaxScore" placeholder="最高评分" step="0.1" />
+    </div>
+
+    <div class="filter-row">
+      <label style="font-size:13px;">排序:</label>
+      <select id="filterSortBy">
+        <option value="created_at">创建时间</option>
+        <option value="updated_at">更新时间</option>
+        <option value="siterank_score">评分</option>
+        <option value="total_revenue">收入</option>
+        <option value="clicks">点击量</option>
+      </select>
+
+      <select id="filterSortOrder">
+        <option value="desc">降序</option>
+        <option value="asc">升序</option>
+      </select>
+
+      <button class="primary" onclick="applyFilters()">应用筛选</button>
+      <button class="secondary" onclick="clearFilters()">清除</button>
+    </div>
+  </div>
+
+  <!-- Bulk Actions Bar -->
+  <div id="bulkActions" class="row" style="display:none; background:#fef3c7; padding:12px; border-radius:6px; border:1px solid #f59e0b;">
+    <span>已选择 <strong id="selectedCount">0</strong> 项</span>
+    <button class="danger" onclick="batchArchive()">批量归档</button>
+    <button class="secondary" onclick="selectedIds.clear(); renderTable(); updateBulkActions();">清除选择</button>
+  </div>
+
+  <!-- Offers Table -->
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th><input type="checkbox" onchange="toggleAll(this.checked)" /></th>
+          <th>Offer 名称</th>
+          <th>域名 / URL</th>
+          <th>状态</th>
+          <th>评分</th>
+          <th>点击量</th>
+          <th>收入</th>
+          <th>创建时间</th>
+        </tr>
+      </thead>
+      <tbody id="offersList">
+        <tr><td colspan="8" style="text-align:center; padding:40px;">加载中...</td></tr>
+      </tbody>
+    </table>
+
+    <div class="row" id="pagination" style="margin-top:16px; justify-content:center;"></div>
+  </div>
+</body>
+</html>

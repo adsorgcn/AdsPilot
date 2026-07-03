@@ -1,0 +1,32 @@
+# Docker build context optimization for db-migrator
+# Only include what's needed for database migrations
+
+# Exclude everything by default
+**/*
+
+# Include only migration files
+!services/billing/migrations/**
+!services/adscenter/migrations/**
+!services/offer/migrations/**
+!services/console/migrations/**
+
+# Include all migration and utility scripts
+!deployments/db-migrator/migrate.sh
+!deployments/db-migrator/backup.sh
+!deployments/db-migrator/reset.sh
+!deployments/db-migrator/restore.sh
+!deployments/db-migrator/Dockerfile.migrate
+
+# Include SQL scripts
+!deployments/db-migrator/reset-database.sql
+!deployments/db-migrator/validate-database.sql
+
+# Exclude non-SQL files from migrations
+services/**/migrations/**/*.go
+services/**/migrations/**/*.md
+services/**/migrations/**/README*
+services/**/migrations/**/.gitkeep
+
+# Exclude test files
+**/*.test.sql
+**/*_test.sql

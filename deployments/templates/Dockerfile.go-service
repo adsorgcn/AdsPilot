@@ -1,0 +1,57 @@
+# Standard Dockerfile Template for Go Services in Monorepo
+#
+# Usage:
+#   1. Copy this file to services/{YOUR_SERVICE}/Dockerfile
+#   2. Replace {SERVICE_NAME} with your actual service name (e.g., offer, siterank)
+#   3. Adjust EXPOSE port if different from 8080
+#   4. Customize build flags if needed (optional)
+#
+# This template follows monorepo best practices:
+#   - Minimal build context (go.work + pkg + service)
+#   - GOWORK=off to avoid missing module errors
+#   - Multi-stage build for minimal image size
+#   - Distroless runtime for security
+#   - Build optimization flags (-trimpath, -ldflags)
+
+# =============================================================================
+# Build Stage
+# =============================================================================
+FROM golang:1.25-alpine as builder
+
+WORKDIR /workspace
+ENV GO111MODULE=on
+ENV GOWORK=off
+
+# Copy minimal workspace (optimized for Docker layer caching)
+COPY go.work ./go.work
+COPY pkg ./pkg
+COPY services/{SERVICE_NAME} ./services/{SERVICE_NAME}
+
+# Build from service directory
+WORKDIR /workspace/services/{SERVICE_NAME}
+
+# Build arguments for versioning
+ARG COMMIT_SHA=local
+ARG BUILD_TIME=""
+
+RUN go mod tidy && \
+    CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -ldflags="-s -w -X main.buildVersion=${COMMIT_SHA} -X main.buildTime=${BUILD_TIME:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" \
+    -o /{SERVICE_NAME}-service .
+
+# =============================================================================
+# Runtime Stage
+# =============================================================================
+FROM gcr.io/distroless/base-debian12
+
+WORKDIR /
+COPY --from=builder /{SERVICE_NAME}-service /{SERVICE_NAME}-service
+
+# Health check (optional, customize endpoint)
+# HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+#   CMD ["/bin/grpc_health_probe", "-addr=:8080"]
+
+EXPOSE 8080
+
+ENTRYPOINT ["/{SERVICE_NAME}-service"]

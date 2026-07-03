@@ -1,0 +1,36 @@
+# Console Frontend Docker Build
+# Builds console Next.js app into a Docker image
+# Designed to be called from GitHub Actions with _IMAGE substitution
+
+substitutions:
+  _IMAGE: gcr.io/${PROJECT_ID}/console-frontend:preview-local
+
+steps:
+  # Build the Docker image
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - apps/console/Dockerfile
+      - -t
+      - ${_IMAGE}
+      - --build-arg
+      - PREVIEW_STUB=${_PREVIEW_STUB:-false}
+      - .
+    timeout: 1800s
+
+  # Push the image
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_IMAGE}
+
+images:
+  - ${_IMAGE}
+
+options:
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY
+  dynamic_substitutions: true
+
+timeout: 3600s

@@ -1,0 +1,14 @@
+FROM postgres:17-alpine
+
+RUN apk add --no-cache python3
+
+# Copy migration files
+COPY schemas/sql/024_add_missing_ai_fields.sql /migrations/
+COPY schemas/sql/025_evaluation_trends.sql /migrations/
+COPY schemas/sql/026_daily_checkin.sql /migrations/
+
+# Copy migration script
+COPY scripts/run-migrations.sh /run-migrations.sh
+RUN chmod +x /run-migrations.sh
+
+ENTRYPOINT ["/run-migrations.sh"]

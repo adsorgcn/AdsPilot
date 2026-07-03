@@ -1,0 +1,10 @@
+FROM postgres:17-alpine
+
+WORKDIR /app
+
+# 复制脚本
+COPY apply-indexes-v2.sh /app/apply-indexes.sh
+
+RUN chmod +x /app/apply-indexes.sh
+
+ENTRYPOINT ["/app/apply-indexes.sh"]

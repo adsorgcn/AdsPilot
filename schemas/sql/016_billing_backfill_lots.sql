@@ -1,0 +1,24 @@
+-- Disabled temporarily - UserTokenPool table does not exist yet
+-- Backfill TokenCreditLot from existing UserTokenPool balances (idempotent)
+-- WITH pool AS (
+--   SELECT "userId", 'subscription' AS source, subscription::bigint AS amt FROM "UserTokenPool" WHERE subscription > 0
+--   UNION ALL
+--   SELECT "userId", 'activity'     AS source, activity::bigint     AS amt FROM "UserTokenPool" WHERE activity > 0
+--   UNION ALL
+--   SELECT "userId", 'purchased'    AS source, purchased::bigint    AS amt FROM "UserTokenPool" WHERE purchased > 0
+-- ),
+-- lots AS (
+--   SELECT "userId", source, COALESCE(SUM(remaining), 0)::bigint AS rem
+--   FROM "TokenCreditLot"
+--   GROUP BY "userId", source
+-- ),
+-- need AS (
+--   SELECT p."userId", p.source, GREATEST(p.amt - COALESCE(l.rem, 0), 0)::bigint AS diff
+--   FROM pool p
+--   LEFT JOIN lots l ON l."userId" = p."userId" AND l.source = p.source
+-- )
+-- INSERT INTO "TokenCreditLot"("userId", source, amount, remaining, "expiresAt", meta)
+-- SELECT n."userId", n.source, n.diff::int, n.diff::int, NULL,
+--        jsonb_build_object('reason','backfill_from_pool','migration','016','at', NOW())
+-- FROM need n
+-- WHERE n.diff > 0;

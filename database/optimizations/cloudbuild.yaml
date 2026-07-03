@@ -1,0 +1,49 @@
+steps:
+  # 使用已部署的服务通过VPC执行迁移
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # 创建临时SQL文件
+        cat > /workspace/indexes.sql << 'EOSQL'
+        -- Offer 表索引（用户级隔离）
+        CREATE INDEX IF NOT EXISTS idx_offer_user_status ON "Offer"("userId", "status");
+        CREATE INDEX IF NOT EXISTS idx_offer_user_created ON "Offer"("userId", "createdAt" DESC);
+        CREATE INDEX IF NOT EXISTS idx_offer_status_created ON "Offer"("status", "createdAt" DESC);
+
+        -- TokenTransaction 表索引（用户级隔离）
+        CREATE INDEX IF NOT EXISTS idx_token_tx_user_type ON "TokenTransaction"("userId", "type");
+        CREATE INDEX IF NOT EXISTS idx_token_tx_type_created ON "TokenTransaction"("type", "createdAt" DESC);
+        CREATE INDEX IF NOT EXISTS idx_token_tx_source ON "TokenTransaction"("source");
+        CREATE INDEX IF NOT EXISTS idx_token_tx_status ON "TokenTransaction"("status") WHERE "status" = 'pending';
+
+        -- Subscription 表索引（用户级，一对一关系）
+        CREATE INDEX IF NOT EXISTS idx_subscription_status ON "Subscription"("status");
+        CREATE INDEX IF NOT EXISTS idx_subscription_period_end ON "Subscription"("currentPeriodEnd") WHERE "status" = 'active';
+
+        -- UserAdsConnection 表索引（用户级隔离）
+        CREATE INDEX IF NOT EXISTS idx_userads_login_customer ON "UserAdsConnection"("loginCustomerId");
+
+        -- BulkAudit 表索引（用户级隔离）
+        CREATE INDEX IF NOT EXISTS idx_bulk_audit_user_created ON "BulkAudit"("userId", "createdAt" DESC);
+        CREATE INDEX IF NOT EXISTS idx_bulk_audit_status ON "BulkAudit"("status");
+
+        -- Event 表索引（事件溯源）
+        CREATE INDEX IF NOT EXISTS idx_event_created ON "Event"("createdAt" DESC);
+
+        -- AuditEvents 索引
+        CREATE INDEX IF NOT EXISTS idx_audit_events_entity ON "AuditEvents"("entityType", "entityId");
+        CREATE INDEX IF NOT EXISTS idx_audit_events_created ON "AuditEvents"("createdAt" DESC);
+        EOSQL
+
+        # 通过billing服务API执行（billing服务有数据库访问权限）
+        echo "索引SQL已准备好，请手动执行"
+        cat /workspace/indexes.sql
+
+substitutions:
+  _DATABASE_URL: ''
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8

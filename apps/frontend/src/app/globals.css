@@ -1,0 +1,261 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 保留现有的设计令牌和动画导入 */
+@import '../styles/design-tokens.css';
+@import '../styles/animations.css';
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    
+    /* Primary - Optimized for better contrast (5.14:1) */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 8% 46%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 222 47% 11%;
+    
+    /* Destructive - Optimized for better contrast (5.63:1) */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 20% 98%;
+    
+    /* Success - Optimized for better contrast (4.54:1) */
+    --success: 142 76% 45%;
+    --success-foreground: 0 0% 100%;
+    
+    /* Warning - Optimized for better contrast */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 60%;
+    --radius: var(--radius-md);
+    --container-padding: var(--spacing-lg);
+  }
+
+  .dark {
+    --background: 222 47% 6%;
+    --foreground: 210 20% 98%;
+    --card: 222 47% 7%;
+    --card-foreground: 210 20% 98%;
+    --popover: 222 47% 7%;
+    --popover-foreground: 210 20% 98%;
+    
+    /* Primary - Already good contrast (7.02:1) */
+    --primary: 260 91% 65%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 218 25% 20%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 218 25% 20%;
+    --muted-foreground: 215 20% 72%;
+    --accent: 218 25% 20%;
+    --accent-foreground: 210 20% 98%;
+    
+    /* Destructive - Good contrast in dark mode */
+    --destructive: 0 84% 65%;
+    --destructive-foreground: 210 20% 98%;
+    
+    /* Success - Good contrast in dark mode */
+    --success: 142 76% 50%;
+    --success-foreground: 0 0% 100%;
+    
+    /* Warning - Good contrast in dark mode */
+    --warning: 38 92% 55%;
+    --warning-foreground: 222 47% 11%;
+    
+    --border: 217 26% 22%;
+    --input: 217 26% 22%;
+    --ring: 260 91% 65%;
+    --radius: var(--radius-md);
+    --surface-default: hsl(222 47% 8%);
+    --surface-muted: hsl(222 47% 12%);
+    --surface-elevated: hsl(222 47% 10%);
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+}
+
+@layer components {
+  /* Glass Card Effects */
+  .glass-card {
+    background-color: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s;
+  }
+
+  .dark .glass-card {
+    background-color: rgba(15, 23, 42, 0.8);
+    border-color: rgba(148, 163, 184, 0.3);
+  }
+
+  .glass-card:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Gradient Text */
+  .text-gradient {
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    background-image: linear-gradient(to right, #2563eb, #9333ea);
+  }
+
+  .dark .text-gradient {
+    background-image: linear-gradient(to right, #60a5fa, #c084fc);
+  }
+
+  .text-gradient-accent {
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    background-image: linear-gradient(to right, #9333ea, #db2777);
+  }
+
+  .dark .text-gradient-accent {
+    background-image: linear-gradient(to right, #c084fc, #f472b6);
+  }
+
+  /* Gradient Backgrounds */
+  .bg-gradient-primary {
+    background-image: linear-gradient(to bottom right, #2563eb, #9333ea);
+  }
+
+  .bg-gradient-accent {
+    background-image: linear-gradient(to bottom right, #9333ea, #db2777);
+  }
+
+  .bg-gradient-success {
+    background-image: linear-gradient(to bottom right, #16a34a, #059669);
+  }
+
+  .bg-gradient-warning {
+    background-image: linear-gradient(to bottom right, #ea580c, #eab308);
+  }
+
+  .bg-gradient-error {
+    background-image: linear-gradient(to bottom right, #dc2626, #db2777);
+  }
+
+  /* Hero Gradient Background */
+  .hero-gradient {
+    background-image: linear-gradient(to bottom right, #eff6ff, #faf5ff, #fdf2f8);
+  }
+
+  .dark .hero-gradient {
+    background-image: linear-gradient(to bottom right, #0f172a, rgba(88, 28, 135, 0.2), rgba(131, 24, 67, 0.2));
+  }
+}
+
+@layer utilities {
+  /* Backdrop Blur Utilities */
+  .backdrop-blur-brand {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .backdrop-blur-strong {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  /* Animation Utilities */
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes glow {
+    from {
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.5),
+        0 0 20px rgba(139, 92, 246, 0.3);
+    }
+    to {
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.8),
+        0 0 30px rgba(139, 92, 246, 0.5);
+    }
+  }
+
+  /* Smooth Scroll */
+  .smooth-scroll {
+    scroll-behavior: smooth;
+  }
+
+  /* Hide Scrollbar */
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: hsl(var(--muted) / 0.3);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Focus Visible Styles */
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring));
+}
+
+/* Selection Styles */
+::selection {
+  background-color: hsl(var(--primary) / 0.2);
+  color: hsl(var(--foreground));
+}
+
+/* Print Styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

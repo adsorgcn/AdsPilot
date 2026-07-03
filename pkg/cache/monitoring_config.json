@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "interval": "30s",
+  "retention": "24h",
+  "export_format": "json",
+  "export_targets": ["prometheus", "json", "log"],
+  "dashboard_enabled": true,
+  "dashboard_port": 8080,
+  "profiling_enabled": false,
+  "tracing_enabled": true,
+  "alert_thresholds": {
+    "hit_rate_min": 0.7,
+    "memory_usage_max": 0.8,
+    "response_time_max": "100ms",
+    "error_rate_max": 0.05,
+    "connection_pool_min": 5,
+    "eviction_rate_max": 0.1
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "header": {
+    "badge": "Design System",
+    "title": "Google-Monetize Frontend Component Handbook",
+    "description": "A reference of design tokens, typography, foundational components, and icon assets to keep every delivery aligned."
+  },
+  "colors": {
+    "title": "Color & Visual Foundations",
+    "description": "Color palettes and semantic tokens defined in design-tokens.css, covering brand, status, and surface layers.",
+    "footnote": "Design Token",
+    "ariaLabel": "Color example {{label}}",
+    "items": {
+      "brand600": {
+        "label": "Brand 600"
+      },
+      "success500": {
+        "label": "Success 500"
+      },
+      "warning500": {
+        "label": "Warning 500"
+      },
+      "error500": {
+        "label": "Error 500"
+      },
+      "surfaceDefault": {
+        "label": "Surface · Default"
+      },
+      "surfaceMuted": {
+        "label": "Surface · Muted"
+      }
+    }
+  },
+  "typography": {
+    "title": "Typography Samples",
+    "description": "Every size, line-height, and weight is sourced from our token set for consistent reuse in components.",
+    "blocks": {
+      "heading1": {
+        "title": "Heading 1",
+        "content": "Intelligent Campaign Command Center"
+      },
+      "heading2": {
+        "title": "Heading 2",
+        "content": "Offer Evaluation Overview"
+      },
+      "heading3": {
+        "title": "Heading 3",
+        "content": "AI Recommendations & Insights"
+      },
+      "body": {
+        "title": "Body",
+        "content": "Google-Monetize delivers an end-to-end growth workflow, unifying traffic intelligence, creative diagnostics, and performance monitoring to boost conversion ROI."
+      },
+      "caption": {
+        "title": "Caption",
+        "content": "All typography primitives are sourced from the design-tokens.css definitions."
+      }
+    }
+  },
+  "components": {
+    "title": "Component Examples",
+    "description": "Demonstrations of common composition patterns that can be reused in product surfaces.",
+    "buttons": {
+      "title": "Button Set",
+      "primary": "Primary Action",
+      "secondary": "Secondary Action",
+      "tertiary": "Text Button"
+    },
+    "badges": {
+      "title": "Status Badges",
+      "success": "Success",
+      "warning": "Pending",
+      "error": "Failed",
+      "info": "In Experiment"
+    },
+    "card": {
+      "title": "Info Card",
+      "heading": "AI Evaluation Complete",
+      "body": "A fresh evaluation report for Nike.com is ready. AI recommendation score: 92.",
+      "cta": "View Details"
+    }
+  },
+  "icons": {
+    "title": "Icon Library",
+    "description": "Semantic icon names managed by the Icon Registry for quick reuse across components.",
+    "ariaLabel": "System icon catalogue",
+    "labels": {
+      "dashboard": "Dashboard",
+      "offers": "Offers",
+      "ads": "Ads",
+      "tasks": "Tasks",
+      "billing": "Billing",
+      "team": "Team",
+      "settings": "Settings",
+      "profile": "Profile",
+      "automation": "Automation",
+      "reports": "Reports",
+      "notifications": "Notifications",
+      "support": "Support",
+      "security": "Security",
+      "integrations": "Integrations",
+      "global": "Global",
+      "link": "Link"
+    }
+  }
+}

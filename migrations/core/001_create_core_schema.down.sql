@@ -1,0 +1,12 @@
+-- 回滚 core schema (Phase 0)
+BEGIN;
+DROP TABLE IF EXISTS core.browser_profiles CASCADE;
+DROP TABLE IF EXISTS core.ip_intel CASCADE;
+DROP TABLE IF EXISTS core.conversions CASCADE;
+DROP TABLE IF EXISTS core.clicks CASCADE;
+DROP TABLE IF EXISTS core.traffic_sources CASCADE;
+DROP TABLE IF EXISTS core.ad_designs CASCADE;
+DROP TABLE IF EXISTS core.offers CASCADE;
+DROP TABLE IF EXISTS core.affiliate_accounts CASCADE;
+DROP SCHEMA IF EXISTS core CASCADE;
+COMMIT;

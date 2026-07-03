@@ -1,0 +1,67 @@
+version: "002"
+service: "adscenter"
+description: "创建幂等性控制表 - 防止重复操作的服务级幂等性管理"
+author: "system-migration"
+created_at: "2025-01-19T12:00:00Z"
+risk_level: "low"
+dependencies:
+  - "001"
+
+changes:
+  - type: "CREATE_TABLE"
+    name: "idempotency_keys"
+    sql: |
+      CREATE TABLE IF NOT EXISTS idempotency_keys (
+        key        TEXT PRIMARY KEY,
+        user_id    TEXT NOT NULL,
+        scope      TEXT NOT NULL,
+        target_id  TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        expires_at TIMESTAMPTZ NOT NULL
+      );
+    description: "幂等性键值表，确保同一用户在同一作用域内的操作唯一性"
+
+  - type: "CREATE_INDEX"
+    name: "ix_idem_expires"
+    table: "idempotency_keys"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_idem_expires ON idempotency_keys(expires_at);
+    description: "优化过期键清理查询"
+
+  - type: "CREATE_INDEX"
+    name: "ix_idem_user_scope"
+    table: "idempotency_keys"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_idem_user_scope ON idempotency_keys(user_id, scope);
+    description: "优化用户作用域查询"
+
+rollback:
+  - type: "DROP_TABLE"
+    name: "idempotency_keys"
+    sql: DROP TABLE IF EXISTS idempotency_keys;
+    description: "回滚：删除幂等性键值表"
+
+validation:
+  - type: "table_exists"
+    name: "idempotency_keys"
+    description: "验证idempotency_keys表已创建"
+
+  - type: "column_exists"
+    name: "idempotency_keys"
+    column: "key"
+    description: "验证key字段存在且为主键"
+
+  - type: "column_exists"
+    name: "idempotency_keys"
+    column: "expires_at"
+    description: "验证expires_at字段存在"
+
+  - type: "index_exists"
+    name: "ix_idem_expires"
+    table: "idempotency_keys"
+    description: "验证过期时间索引已创建"
+
+  - type: "index_exists"
+    name: "ix_idem_user_scope"
+    table: "idempotency_keys"
+    description: "验证用户作用域索引已创建"

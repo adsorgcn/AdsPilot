@@ -1,0 +1,47 @@
+# Alert Policy: High HTTP Error Rate
+# Triggers when 5xx error rate exceeds 5% for 5 minutes
+
+displayName: "Google-Monetize - High HTTP Error Rate"
+documentation:
+  content: |
+    ## High HTTP Error Rate Alert
+
+    **Service:** Google-Monetize (Cloud Run)
+    **Threshold:** 5xx error rate > 5%
+    **Duration:** 5 minutes
+
+    ### Investigation Steps:
+    1. Check service logs:
+       ```
+       gcloud run logs read SERVICE_NAME --project=gm-439917 --limit=100
+       ```
+    2. View error details in Cloud Logging
+    3. Check recent deployments
+    4. Review circuit breaker metrics
+
+    ### Common Causes:
+    - Database connection issues
+    - Dependency service failures
+    - Resource exhaustion (CPU/memory)
+    - Invalid configurations
+
+conditions:
+  - displayName: "HTTP 5xx Error Rate > 5%"
+    conditionThreshold:
+      filter: |
+        resource.type = "cloud_run_revision"
+        AND metric.type = "run.googleapis.com/request_count"
+        AND metric.label.response_code_class = "5xx"
+      aggregations:
+        - alignmentPeriod: "60s"
+          perSeriesAligner: "ALIGN_RATE"
+          crossSeriesReducer: "REDUCE_SUM"
+          groupByFields:
+            - "resource.service_name"
+      comparison: "COMPARISON_GT"
+      thresholdValue: 0.05
+      duration: "300s"
+
+combiner: "OR"
+enabled: true
+notificationChannels: []

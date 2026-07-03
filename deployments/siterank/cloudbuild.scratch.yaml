@@ -1,0 +1,41 @@
+timeout: "3600s"
+options:
+  logging: CLOUD_LOGGING_ONLY
+substitutions:
+  _IMAGE: "asia-northeast1-docker.pkg.dev/PROJECT/REPO/siterank:preview"
+steps:
+  # Build the Go binary without Docker-in-Docker, using a golang toolchain container.
+  - name: gcr.io/cloud-builders/go
+    id: build-binary
+    dir: services/siterank
+    env:
+      - "GO111MODULE=on"
+      - "GOWORK=/workspace/go.work"
+      - "GOPROXY=https://proxy.golang.org,direct"
+    args: ["build","-trimpath","-ldflags=-s -w","-o","/workspace/siterank-service","."]
+
+  # Create a minimal Dockerfile using scratch to avoid pulling from Docker Hub.
+  - name: gcr.io/cloud-builders/gcloud
+    id: write-dockerfile
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        cat > /workspace/Dockerfile <<'EOF'
+        FROM scratch
+        COPY siterank-service /siterank-service
+        EXPOSE 8080
+        ENTRYPOINT ["/siterank-service"]
+        EOF
+
+  # Build & push the container image using Kaniko (no Docker-in-Docker).
+  - name: gcr.io/kaniko-project/executor:latest
+    id: kaniko-build-push
+    args:
+      - "--destination=${_IMAGE}"
+      - "--dockerfile=/workspace/Dockerfile"
+      - "--context=dir:///workspace"
+      - "--single-snapshot"
+      - "--use-new-run"
+images:
+  - "${_IMAGE}"

@@ -1,0 +1,260 @@
+# Business Metrics Alerts
+# 业务核心指标告警规则
+
+groups:
+  - name: business_kpi_alerts
+    interval: 30s
+    rules:
+      # 1. 评估成功率低于90% - 高优先级
+      - alert: EvaluationSuccessRateLow
+        expr: |
+          (
+            sum(rate(siterank_evaluation_requests_total{status="success"}[5m]))
+            /
+            sum(rate(siterank_evaluation_requests_total[5m]))
+          ) < 0.90
+        for: 5m
+        labels:
+          severity: critical
+          service: siterank
+          component: evaluation
+        annotations:
+          summary: "评估成功率低于90%"
+          description: "过去5分钟评估成功率为 {{ $value | humanizePercentage }}，低于90%阈值"
+          action: "检查siterank服务日志，查看失败原因（billing、browser-exec、AI等）"
+          impact: "用户评估请求可能失败，影响核心业务功能"
+
+      # 2. 评估成功率低于95% - 中优先级
+      - alert: EvaluationSuccessRateWarning
+        expr: |
+          (
+            sum(rate(siterank_evaluation_requests_total{status="success"}[5m]))
+            /
+            sum(rate(siterank_evaluation_requests_total[5m]))
+          ) < 0.95
+        for: 10m
+        labels:
+          severity: warning
+          service: siterank
+          component: evaluation
+        annotations:
+          summary: "评估成功率低于95%"
+          description: "过去10分钟评估成功率为 {{ $value | humanizePercentage }}，低于目标值95%"
+          action: "监控服务状态，准备介入"
+
+      # 3. 系统错误率超过5% - 高优先级
+      - alert: SystemErrorRateHigh
+        expr: |
+          (
+            sum(rate(siterank_evaluation_requests_total{status="error"}[5m]))
+            /
+            sum(rate(siterank_evaluation_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: siterank
+          component: evaluation
+        annotations:
+          summary: "系统错误率超过5%"
+          description: "过去5分钟系统错误率为 {{ $value | humanizePercentage }}，超过5%阈值"
+          action: "立即检查错误日志，定位根因"
+          impact: "大量请求失败，用户体验严重受损"
+
+      # 4. 系统错误率超过1% - 中优先级
+      - alert: SystemErrorRateWarning
+        expr: |
+          (
+            sum(rate(siterank_evaluation_requests_total{status="error"}[5m]))
+            /
+            sum(rate(siterank_evaluation_requests_total[5m]))
+          ) > 0.01
+        for: 10m
+        labels:
+          severity: warning
+          service: siterank
+          component: evaluation
+        annotations:
+          summary: "系统错误率超过1%"
+          description: "过去10分钟系统错误率为 {{ $value | humanizePercentage }}，超过目标值1%"
+          action: "检查近期错误趋势，分析常见错误类型"
+
+      # 5. Token预留失败率高 - 高优先级
+      - alert: TokenReserveFailureHigh
+        expr: |
+          (
+            sum(rate(siterank_token_reserve_failed_total[5m]))
+            /
+            (sum(rate(siterank_token_reserve_success_total[5m])) + sum(rate(siterank_token_reserve_failed_total[5m])))
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: critical
+          service: billing
+          component: token_management
+        annotations:
+          summary: "Token预留失败率超过10%"
+          description: "过去5分钟Token预留失败率为 {{ $value | humanizePercentage }}"
+          action: "检查billing服务状态，查看用户Token余额是否不足"
+          impact: "用户无法开始评估任务"
+
+      # 6. 评估处理时间P95过高 - 中优先级
+      - alert: EvaluationLatencyP95High
+        expr: |
+          histogram_quantile(0.95, sum(rate(siterank_evaluation_duration_seconds_bucket[5m])) by (le, type)) > 60
+        for: 10m
+        labels:
+          severity: warning
+          service: siterank
+          component: evaluation
+        annotations:
+          summary: "评估处理时间P95超过60秒"
+          description: "评估类型 {{ $labels.type }} 的P95延迟为 {{ $value }}秒"
+          action: "检查browser-exec和AI服务响应时间，优化评估流程"
+          impact: "用户等待时间较长，体验下降"
+
+      # 7. SimilarWeb缓存命中率低 - 中优先级
+      - alert: SimilarWebCacheHitRateLow
+        expr: |
+          (
+            sum(rate(siterank_similarweb_cache_hits_total{hit="true"}[5m]))
+            /
+            sum(rate(siterank_similarweb_cache_hits_total[5m]))
+          ) < 0.70
+        for: 15m
+        labels:
+          severity: warning
+          service: siterank
+          component: cache
+        annotations:
+          summary: "SimilarWeb缓存命中率低于70%"
+          description: "过去15分钟缓存命中率为 {{ $value | humanizePercentage }}"
+          action: "检查Redis连接状态，查看缓存TTL配置"
+          impact: "增加SimilarWeb API调用次数，可能增加成本和延迟"
+
+      # 8. Browser-exec错误率高 - 中优先级
+      - alert: BrowserExecErrorRateHigh
+        expr: |
+          rate(siterank_browser_exec_errors_total[5m]) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          service: browser-exec
+          component: browser
+        annotations:
+          summary: "Browser-exec错误率过高"
+          description: "错误类型 {{ $labels.error_type }}，错误率为 {{ $value }}/秒"
+          action: "检查browser-exec服务日志和资源状态"
+          impact: "网站访问和数据抓取可能失败"
+
+      # 9. AI评估API错误 - 高优先级
+      - alert: GeminiAPIErrorRateHigh
+        expr: |
+          rate(siterank_gemini_api_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: siterank
+          component: ai_evaluation
+        annotations:
+          summary: "Gemini API错误率过高"
+          description: "错误类型 {{ $labels.error_type }}，错误率为 {{ $value }}/秒"
+          action: "检查Gemini API配额和认证状态"
+          impact: "AI评估功能不可用"
+
+      # 10. Token消耗速率异常高 - 中优先级
+      - alert: TokenConsumptionRateHigh
+        expr: |
+          rate(siterank_tokens_consumed_total[5m]) * 60 > 1000
+        for: 15m
+        labels:
+          severity: warning
+          service: billing
+          component: token_management
+        annotations:
+          summary: "Token消耗速率异常高"
+          description: "当前Token消耗速率为 {{ $value }}/分钟，超过1000阈值"
+          action: "检查是否有异常大量评估请求，监控成本"
+          impact: "可能导致快速耗尽用户Token余额"
+
+      # 11. Gemini API成本异常 - 中优先级
+      - alert: GeminiAPICostHigh
+        expr: |
+          sum(increase(siterank_gemini_api_cost_usd_sum[1h])) > 5
+        for: 10m
+        labels:
+          severity: warning
+          service: siterank
+          component: ai_evaluation
+        annotations:
+          summary: "Gemini API小时成本超过$5"
+          description: "过去1小时Gemini API成本为 ${{ $value }}"
+          action: "检查AI评估请求量，优化prompt长度"
+          impact: "运营成本可能超出预算"
+
+      # 12. 评估请求量突增 - 信息级别
+      - alert: EvaluationRequestSpike
+        expr: |
+          (
+            sum(rate(siterank_evaluation_requests_total[5m]))
+            /
+            sum(rate(siterank_evaluation_requests_total[5m] offset 1h))
+          ) > 3
+        for: 10m
+        labels:
+          severity: info
+          service: siterank
+          component: evaluation
+        annotations:
+          summary: "评估请求量突增3倍以上"
+          description: "当前请求量为 {{ $value }}x 相比1小时前"
+          action: "监控系统资源，准备扩容"
+          impact: "可能需要增加实例数量"
+
+      # 13. Pub/Sub消息处理延迟 - 中优先级
+      - alert: PubSubProcessingDelayHigh
+        expr: |
+          histogram_quantile(0.95, sum(rate(siterank_pubsub_processing_duration_seconds_bucket[5m])) by (le, event_type)) > 120
+        for: 10m
+        labels:
+          severity: warning
+          service: siterank
+          component: worker
+        annotations:
+          summary: "Pub/Sub消息处理P95延迟超过2分钟"
+          description: "事件类型 {{ $labels.event_type }} 的P95处理时间为 {{ $value }}秒"
+          action: "检查Worker服务资源状态，考虑增加实例数"
+          impact: "任务积压，用户等待时间延长"
+
+# 告警通知渠道配置
+# 需要在Alertmanager或Cloud Monitoring中配置实际通知渠道
+notification_routes:
+  - name: critical_alerts
+    matchers:
+      - severity = critical
+    channels:
+      - slack: "#ops-critical"
+      - pagerduty: "service-key"
+      - email: "ops-team@gm.com"
+    group_wait: 10s
+    group_interval: 5m
+    repeat_interval: 1h
+
+  - name: warning_alerts
+    matchers:
+      - severity = warning
+    channels:
+      - slack: "#ops-warnings"
+      - email: "ops-team@gm.com"
+    group_wait: 30s
+    group_interval: 10m
+    repeat_interval: 4h
+
+  - name: info_alerts
+    matchers:
+      - severity = info
+    channels:
+      - slack: "#ops-info"
+    group_wait: 1m
+    group_interval: 15m
+    repeat_interval: 12h

@@ -1,0 +1,70 @@
+steps:
+  # 构建索引迁移镜像
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/index-migrator:latest'
+      - '-f'
+      - 'Dockerfile.index-migrator'
+      - '.'
+    dir: 'database/optimizations'
+
+  # 推送镜像
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/index-migrator:latest'
+
+  # 部署Cloud Run Job
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+
+        # 尝试创建Job，如果已存在则更新
+        if gcloud run jobs describe apply-performance-indexes \
+             --region=asia-northeast1 \
+             --project=${GCP_PROJECT_ID} 2>/dev/null; then
+          echo "Job已存在，更新镜像..."
+          gcloud run jobs update apply-performance-indexes \
+            --image=asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/index-migrator:latest \
+            --region=asia-northeast1 \
+            --project=${GCP_PROJECT_ID}
+        else
+          echo "创建新Job..."
+          gcloud run jobs create apply-performance-indexes \
+            --image=asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/index-migrator:latest \
+            --region=asia-northeast1 \
+            --project=${GCP_PROJECT_ID} \
+            --set-secrets=DATABASE_URL=DATABASE_URL:latest \
+            --vpc-connector=cr-conn-default-ane1 \
+            --vpc-egress=private-ranges-only \
+            --service-account=codex-dev@${GCP_PROJECT_ID}.iam.gserviceaccount.com \
+            --max-retries=0 \
+            --task-timeout=10m
+        fi
+
+  # 执行Job
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'jobs'
+      - 'execute'
+      - 'apply-performance-indexes'
+      - '--region=asia-northeast1'
+      - '--project=${GCP_PROJECT_ID}'
+      - '--wait'
+
+images:
+  - 'asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/index-migrator:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+  dynamic_substitutions: true
+
+timeout: 1200s

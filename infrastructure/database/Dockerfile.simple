@@ -1,0 +1,21 @@
+# Ultra-lightweight Database Migration Tool
+# Purpose: Execute SQL migrations using golang-migrate
+
+FROM alpine:latest
+
+# Install golang-migrate and PostgreSQL client
+RUN apk add --no-cache \
+    postgresql-client \
+    curl \
+    && curl -L https://github.com/golang-migrate/migrate/releases/download/v4.16.2/migrate.linux-amd64.tar.gz | tar -xzf - -C /usr/local/bin migrate \
+    && chmod +x /usr/local/bin/migrate \
+    && /usr/local/bin/migrate -version
+
+# Copy migration files
+COPY migrations/ /app/migrations/
+
+# Set working directory
+WORKDIR /app
+
+# Default command (will be overridden in Cloud Build)
+CMD ["migrate", "-path=/app/migrations", "-database=postgresql://user:pass@host/dbname", "up"]

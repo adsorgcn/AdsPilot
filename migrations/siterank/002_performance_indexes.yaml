@@ -1,0 +1,166 @@
+version: "002"
+service: "siterank"
+description: "性能优化索引创建 - 为offer_evaluations和token_reservations表创建9个性能索引"
+author: "system-migration"
+created_at: "2025-01-19T12:00:00Z"
+risk_level: "high"
+dependencies:
+  - "001"
+
+changes:
+  # offer_evaluations表的索引
+  - type: "CREATE_INDEX"
+    name: "idx_offer_evaluations_user_id"
+    table: "offer_evaluations"
+    sql: |
+      CREATE INDEX IF NOT EXISTS "idx_offer_evaluations_user_id" ON "offer_evaluations"("user_id");
+    description: "优化按用户ID查询评估结果"
+
+  - type: "CREATE_INDEX"
+    name: "idx_offer_evaluations_offer_id"
+    table: "offer_evaluations"
+    sql: |
+      CREATE INDEX IF NOT EXISTS "idx_offer_evaluations_offer_id" ON "offer_evaluations"("offer_id");
+    description: "优化按offer ID查询评估结果"
+
+  - type: "CREATE_INDEX"
+    name: "idx_offer_evaluations_url_hash"
+    table: "offer_evaluations"
+    sql: |
+      CREATE INDEX IF NOT EXISTS "idx_offer_evaluations_url_hash" ON "offer_evaluations"("url_hash");
+    description: "优化按URL哈希查询评估结果"
+
+  - type: "CREATE_INDEX"
+    name: "idx_offer_evaluations_cache_ttl"
+    table: "offer_evaluations"
+    sql: |
+      CREATE INDEX IF NOT EXISTS "idx_offer_evaluations_cache_ttl" ON "offer_evaluations"("cache_ttl_until");
+    description: "优化缓存TTL查询和清理"
+
+  - type: "CREATE_INDEX"
+    name: "idx_offer_evaluations_offer_created"
+    table: "offer_evaluations"
+    sql: |
+      CREATE INDEX IF NOT EXISTS "idx_offer_evaluations_offer_created" ON "offer_evaluations"("offer_id", "created_at" DESC);
+    description: "复合索引：优化按offer和创建时间排序查询"
+
+  # token_reservations表的索引
+  - type: "CREATE_INDEX"
+    name: "idx_token_reservations_user_id"
+    table: "token_reservations"
+    sql: |
+      CREATE INDEX IF NOT EXISTS "idx_token_reservations_user_id" ON "token_reservations"("user_id");
+    description: "优化按用户ID查询代币预留"
+
+  - type: "CREATE_INDEX"
+    name: "idx_token_reservations_status"
+    table: "token_reservations"
+    sql: |
+      CREATE INDEX IF NOT EXISTS "idx_token_reservations_status" ON "token_reservations"("status");
+    description: "优化按状态查询代币预留"
+
+  - type: "CREATE_INDEX"
+    name: "idx_token_reservations_expires"
+    table: "token_reservations"
+    sql: |
+      CREATE INDEX IF NOT EXISTS "idx_token_reservations_expires" ON "token_reservations"("expires_at");
+    description: "优化过期代币清理查询"
+
+  - type: "CREATE_INDEX"
+    name: "idx_token_reservations_user_demo"
+    table: "token_reservations"
+    sql: |
+      CREATE INDEX IF NOT EXISTS "idx_token_reservations_user_demo" ON "token_reservations"("user_id", "is_demo");
+    description: "复合索引：优化演示数据查询"
+
+rollback:
+  - type: "DROP_INDEX"
+    name: "idx_offer_evaluations_user_id"
+    sql: DROP INDEX IF EXISTS "idx_offer_evaluations_user_id";
+    description: "回滚：删除用户ID索引"
+
+  - type: "DROP_INDEX"
+    name: "idx_offer_evaluations_offer_id"
+    sql: DROP INDEX IF EXISTS "idx_offer_evaluations_offer_id";
+    description: "回滚：删除offer ID索引"
+
+  - type: "DROP_INDEX"
+    name: "idx_offer_evaluations_url_hash"
+    sql: DROP INDEX IF EXISTS "idx_offer_evaluations_url_hash";
+    description: "回滚：删除URL哈希索引"
+
+  - type: "DROP_INDEX"
+    name: "idx_offer_evaluations_cache_ttl"
+    sql: DROP INDEX IF EXISTS "idx_offer_evaluations_cache_ttl";
+    description: "回滚：删除缓存TTL索引"
+
+  - type: "DROP_INDEX"
+    name: "idx_offer_evaluations_offer_created"
+    sql: DROP INDEX IF EXISTS "idx_offer_evaluations_offer_created";
+    description: "回滚：删除offer创建时间复合索引"
+
+  - type: "DROP_INDEX"
+    name: "idx_token_reservations_user_id"
+    sql: DROP INDEX IF EXISTS "idx_token_reservations_user_id";
+    description: "回滚：删除代币预留用户ID索引"
+
+  - type: "DROP_INDEX"
+    name: "idx_token_reservations_status"
+    sql: DROP INDEX IF EXISTS "idx_token_reservations_status";
+    description: "回滚：删除代币预留状态索引"
+
+  - type: "DROP_INDEX"
+    name: "idx_token_reservations_expires"
+    sql: DROP INDEX IF EXISTS "idx_token_reservations_expires";
+    description: "回滚：删除代币预留过期时间索引"
+
+  - type: "DROP_INDEX"
+    name: "idx_token_reservations_user_demo"
+    sql: DROP INDEX IF EXISTS "idx_token_reservations_user_demo";
+    description: "回滚：删除代币预留用户演示数据复合索引"
+
+validation:
+  - type: "index_exists"
+    name: "idx_offer_evaluations_user_id"
+    table: "offer_evaluations"
+    description: "验证用户ID索引已创建"
+
+  - type: "index_exists"
+    name: "idx_offer_evaluations_offer_id"
+    table: "offer_evaluations"
+    description: "验证offer ID索引已创建"
+
+  - type: "index_exists"
+    name: "idx_offer_evaluations_url_hash"
+    table: "offer_evaluations"
+    description: "验证URL哈希索引已创建"
+
+  - type: "index_exists"
+    name: "idx_offer_evaluations_cache_ttl"
+    table: "offer_evaluations"
+    description: "验证缓存TTL索引已创建"
+
+  - type: "index_exists"
+    name: "idx_offer_evaluations_offer_created"
+    table: "offer_evaluations"
+    description: "验证offer创建时间复合索引已创建"
+
+  - type: "index_exists"
+    name: "idx_token_reservations_user_id"
+    table: "token_reservations"
+    description: "验证代币预留用户ID索引已创建"
+
+  - type: "index_exists"
+    name: "idx_token_reservations_status"
+    table: "token_reservations"
+    description: "验证代币预留状态索引已创建"
+
+  - type: "index_exists"
+    name: "idx_token_reservations_expires"
+    table: "token_reservations"
+    description: "验证代币预留过期时间索引已创建"
+
+  - type: "index_exists"
+    name: "idx_token_reservations_user_demo"
+    table: "token_reservations"
+    description: "验证代币预留用户演示数据复合索引已创建"

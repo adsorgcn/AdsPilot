@@ -1,0 +1,74 @@
+version: "006"
+service: "adscenter"
+description: "创建通用审计事件表 - 记录AdsCenter的所有用户操作和系统事件"
+author: "system-migration"
+created_at: "2025-01-19T12:00:00Z"
+risk_level: "low"
+dependencies:
+  - "001"
+  - "002"
+
+changes:
+  - type: "CREATE_TABLE"
+    name: "AuditEvent"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "AuditEvent" (
+        id         BIGSERIAL PRIMARY KEY,
+        user_id    TEXT NOT NULL,
+        kind       TEXT NOT NULL,
+        data       JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    description: "通用审计事件表，记录所有用户操作和系统事件"
+
+  - type: "CREATE_INDEX"
+    name: "ix_audit_event_user_kind_time"
+    table: "AuditEvent"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_audit_event_user_kind_time ON "AuditEvent"(user_id, kind, created_at DESC);
+    description: "复合索引：优化按用户、事件类型和时间的查询"
+
+  - type: "CREATE_INDEX"
+    name: "ix_audit_event_kind"
+    table: "AuditEvent"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_audit_event_kind ON "AuditEvent"(kind);
+    description: "优化按事件类型查询"
+
+  - type: "CREATE_INDEX"
+    name: "ix_audit_event_created"
+    table: "AuditEvent"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_audit_event_created ON "AuditEvent"(created_at DESC);
+    description: "优化按时间倒序查询"
+
+rollback:
+  - type: "DROP_TABLE"
+    name: "AuditEvent"
+    sql: DROP TABLE IF EXISTS "AuditEvent";
+    description: "回滚：删除审计事件表"
+
+validation:
+  - type: "table_exists"
+    name: "AuditEvent"
+    description: "验证AuditEvent表已创建"
+
+  - type: "column_exists"
+    name: "AuditEvent"
+    column: "data"
+    description: "验证data字段存在且为JSONB类型"
+
+  - type: "index_exists"
+    name: "ix_audit_event_user_kind_time"
+    table: "AuditEvent"
+    description: "验证复合索引已创建"
+
+  - type: "index_exists"
+    name: "ix_audit_event_kind"
+    table: "AuditEvent"
+    description: "验证事���类型索引已创建"
+
+  - type: "index_exists"
+    name: "ix_audit_event_created"
+    table: "AuditEvent"
+    description: "验证创建时间索引已创建"

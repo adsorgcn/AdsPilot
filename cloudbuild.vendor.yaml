@@ -1,0 +1,8 @@
+steps:
+- name: 'golang:1.25'
+  entrypoint: 'go'
+  args: ['work', 'vendor']
+artifacts:
+  objects:
+    location: 'gs://${PROJECT_ID}_cloudbuild/artifacts/'
+    paths: ['vendor/', 'go.mod', 'go.sum', 'go.work']

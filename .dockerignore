@@ -1,0 +1,129 @@
+# ==============================================================================
+# Docker Build Context Optimization
+# ==============================================================================
+
+# VCS and IDE
+.git/
+.gitignore
+.gitattributes
+.github/
+.vscode/
+.idea/
+.DS_Store
+.idx/
+
+# Build artifacts and caches
+.gocache/
+.cache/
+.swc/
+node_modules/
+**/node_modules/
+logs/
+*.log
+test-results/
+coverage/
+dist/
+build/
+out/
+.next/
+.firebase/
+
+# Deprecated code
+gofly_admin_v3/
+apps/frontend-legacy/
+docs/archived/
+
+# Documentation (not needed in Docker image)
+docs/
+*.md
+!README.md
+
+# Database schemas (needed for migrations)
+!schemas/
+
+# CI/CD configurations
+.github/
+scripts/
+!scripts/docker/
+!scripts/db/
+
+# Makerkit templates (large submodules)
+makerkit/
+
+# Ignore all apps by default, include only what's needed
+apps/**
+!apps/frontend/**
+!apps/console/**
+apps/frontend/node_modules/**
+apps/frontend/.next/**
+apps/frontend/out/**
+apps/frontend/coverage/**
+apps/frontend/test-results/**
+apps/console/node_modules/**
+apps/console/.next/**
+apps/console/out/**
+apps/console/coverage/**
+apps/console/test-results/**
+
+# Environment variables (use build args instead)
+.env
+.env.*
+!.env.example
+!.env.production
+!.env.preview
+
+# Secrets and credentials (CRITICAL)
+secrets/
+gcloud-config/
+.config/gcloud/
+**/*credentials*.json
+**/adc.json
+**/*service-account*.json
+**/*-key.json
+*.pem
+*.key
+
+# Temporary files
+/tmp/
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+
+# Test files (not needed in production image)
+**/*.test.js
+**/*.test.ts
+**/*.spec.js
+**/*.spec.ts
+**/test/
+**/tests/
+**/__tests__/
+**/__mocks__/
+playwright.config.ts
+cypress/
+cypress.config.js
+
+# Keep workspace essentials for Go multi-module builds
+!go.work
+!go.mod
+!go.sum
+!services/**
+!pkg/**
+
+# Keep Dockerfiles
+!Dockerfile
+!Dockerfile.*
+
+# Exclude large compiled binaries at repo root
+/adscenter
+/batchopen
+/billing
+/console
+/recommendations
+/server
+/siterank
+/identity
+/workflow
+/offer
+/notifications

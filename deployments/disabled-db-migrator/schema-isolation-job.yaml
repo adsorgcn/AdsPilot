@@ -1,0 +1,34 @@
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: schema-isolation-migrator
+  namespace: '${GCP_PROJECT_ID}'
+  labels:
+    cloud.googleapis.com/location: asia-northeast1
+spec:
+  template:
+    spec:
+      template:
+        spec:
+          serviceAccountName: codex-dev@${GCP_PROJECT_ID}.iam.gserviceaccount.com
+          containers:
+          - image: postgres:17-alpine
+            command:
+              - /bin/sh
+              - -c
+              - |
+                psql "$DATABASE_URL" -f /migration/020_schema_isolation_with_views.up.sql
+            env:
+              - name: DATABASE_URL
+                valueFrom:
+                  secretKeyRef:
+                    key: latest
+                    name: DATABASE_URL
+            volumeMounts:
+              - name: migration-script
+                mountPath: /migration
+                readOnly: true
+          volumes:
+            - name: migration-script
+              configMap:
+                name: schema-isolation-migration

@@ -1,0 +1,59 @@
+version: "002"
+service: "offer"
+description: "添加演示数据支持字段 - 为OfferStatusHistory和OfferKpiDeadLetter表添加is_demo字段"
+author: "system-migration"
+created_at: "2025-01-19T12:00:00Z"
+risk_level: "low"
+dependencies:
+  - "001"
+
+changes:
+  - type: "ALTER_TABLE"
+    name: "OfferStatusHistory"
+    sql: |
+      ALTER TABLE "OfferStatusHistory" ADD COLUMN IF NOT EXISTS is_demo BOOLEAN DEFAULT FALSE;
+    description: "为offer状态历史添加演示数据标记字段"
+
+  - type: "ALTER_TABLE"
+    name: "OfferKpiDeadLetter"
+    sql: |
+      ALTER TABLE "OfferKpiDeadLetter" ADD COLUMN IF NOT EXISTS is_demo BOOLEAN DEFAULT FALSE;
+    description: "为KPI死信队列添加演示数据标记字段"
+
+rollback:
+  - type: "DROP_COLUMN"
+    name: "OfferStatusHistory"
+    column: "is_demo"
+    sql: |
+      ALTER TABLE "OfferStatusHistory" DROP COLUMN IF EXISTS is_demo;
+    description: "回滚：删除OfferStatusHistory表的is_demo字段"
+
+  - type: "DROP_COLUMN"
+    name: "OfferKpiDeadLetter"
+    column: "is_demo"
+    sql: |
+      ALTER TABLE "OfferKpiDeadLetter" DROP COLUMN IF EXISTS is_demo;
+    description: "回滚：删除OfferKpiDeadLetter表的is_demo字段"
+
+validation:
+  - type: "column_exists"
+    name: "OfferStatusHistory"
+    column: "is_demo"
+    description: "验证OfferStatusHistory表的is_demo字段已添加"
+
+  - type: "column_exists"
+    name: "OfferKpiDeadLetter"
+    column: "is_demo"
+    description: "验证OfferKpiDeadLetter表的is_demo字段已添加"
+
+  - type: "data_type_check"
+    name: "OfferStatusHistory"
+    column: "is_demo"
+    expected_type: "boolean"
+    description: "验证is_demo字段数据类型为boolean"
+
+  - type: "data_type_check"
+    name: "OfferKpiDeadLetter"
+    column: "is_demo"
+    expected_type: "boolean"
+    description: "验证is_demo字段数据类型为boolean"

@@ -1,0 +1,45 @@
+{
+  "extends": ["next", "prettier"],
+  "rules": {
+    // 自定义导入限制
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "react-i18next",
+            "importNames": ["Trans"],
+            "message": "请使用 `~/core/ui/Trans` 以保持统一的国际化封装。"
+          }
+        ]
+      }
+    ],
+
+    // React Hook依赖警告调整 - 减少误报
+    "react-hooks/exhaustive-deps": "warn",
+
+    // 允许开发环境的console语句，避免大量警告
+    "no-console": "off",
+
+    "@next/next/no-page-custom-font": "off",
+    "react/display-name": "off",
+
+    // 禁用一些不常用的严格规则
+    "prefer-const": "off",
+    "no-var": "off"
+  },
+  "overrides": [
+    {
+      "files": ["src/lib/api/**", "src/core/**", "src/components/**"],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["src/app/**"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
+}

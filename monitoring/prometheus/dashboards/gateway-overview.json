@@ -1,0 +1,314 @@
+{
+  "dashboard": {
+    "title": "Gateway Middleware Overview",
+    "description": "Gateway中间件核心指标监控面板",
+    "tags": ["gateway", "middleware", "jwt", "auth"],
+    "panels": [
+      {
+        "title": "请求概览",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(gateway_requests_total[5m]))",
+            "legendFormat": "总请求率 (req/s)"
+          },
+          {
+            "expr": "sum(rate(gateway_requests_total{status=~\"2..\"}[5m]))",
+            "legendFormat": "成功请求率 (req/s)"
+          },
+          {
+            "expr": "sum(rate(gateway_requests_total{status=~\"4..\"}[5m]))",
+            "legendFormat": "客户端错误率 (req/s)"
+          },
+          {
+            "expr": "sum(rate(gateway_requests_total{status=~\"5..\"}[5m]))",
+            "legendFormat": "服务器错误率 (req/s)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "displayName": "请求率"
+          }
+        }
+      },
+      {
+        "title": "错误率",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "(\n  sum(rate(gateway_requests_total{status=~\"5..\"}[5m]))\n  /\n  sum(rate(gateway_requests_total[5m]))\n) * 100",
+            "legendFormat": "服务器错误率 (%)"
+          },
+          {
+            "expr": "(\n  sum(rate(gateway_requests_total{status=~\"4..\"}[5m]))\n  /\n  sum(rate(gateway_requests_total[5m]))\n) * 100",
+            "legendFormat": "客户端错误率 (%)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "displayName": "��误率",
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 5}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "JWT验证性能",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(gateway_jwt_validation_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P50延迟"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(gateway_jwt_validation_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P95延迟"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(gateway_jwt_validation_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P99延迟"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "s",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "title": "JWT验证成功率",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "(\n  sum(rate(gateway_jwt_validation_success_total[5m]))\n  /\n  sum(rate(gateway_jwt_validation_total[5m]))\n) * 100",
+            "legendFormat": "JWT验证成功率 (%)"
+          },
+          {
+            "expr": "(\n  sum(rate(gateway_jwt_validation_failed_total[5m]))\n  /\n  sum(rate(gateway_jwt_validation_total[5m]))\n) * 100",
+            "legendFormat": "JWT验证失败率 (%)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "displayName": "成功率",
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 90},
+                {"color": "green", "value": 95}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "权限检查性能",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(gateway_permission_check_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P50延迟"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(gateway_permission_check_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P95延迟"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(gateway_permission_check_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P99延迟"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "s",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "title": "订阅查询性能",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(gateway_subscription_query_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P50延迟"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(gateway_subscription_query_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P95延迟"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(gateway_subscription_query_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P99延迟"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "s",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "title": "Token管理性能",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(gateway_token_reserve_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "Token预留P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(gateway_token_reserve_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "Token预留P95"
+          },
+          {
+            "expr": "sum(rate(gateway_token_reserve_success_total[5m]))",
+            "legendFormat": "Token预留成功 (req/s)"
+          },
+          {
+            "expr": "sum(rate(gateway_token_reserve_failed_total[5m]))",
+            "legendFormat": "Token预留失败 (req/s)"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "s",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "title": "缓存性能",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+        "targets": [
+          {
+            "expr": "(\n  sum(rate(gateway_cache_hits_total{hit=\"true\"}[5m]))\n  /\n  sum(rate(gateway_cache_hits_total[5m]))\n) * 100",
+            "legendFormat": "缓存命中率 (%)"
+          },
+          {
+            "expr": "sum(rate(gateway_cache_hits_total{hit=\"true\"}[5m]))",
+            "legendFormat": "缓存命中次数 (req/s)"
+          },
+          {
+            "expr": "sum(rate(gateway_cache_hits_total{hit=\"false\"}[5m]))",
+            "legendFormat": "缓存未命中次数 (req/s)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "displayName": "缓存命中率",
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 70},
+                {"color": "green", "value": 85}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "限流状态",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 32},
+        "targets": [
+          {
+            "expr": "sum(rate(gateway_rate_limit_exceeded_total[5m]))",
+            "legendFormat": "限流触发次数 (req/s)"
+          },
+          {
+            "expr": "sum(rate(gateway_requests_total[5m]))",
+            "legendFormat": "总请求次数 (req/s)"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "reqps",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "title": "代理请求性能",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 32},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(gateway_proxy_request_duration_seconds_bucket[5m])) by (le, service))",
+            "legendFormat": "{{service}} P95延迟"
+          },
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(gateway_proxy_request_duration_seconds_bucket[5m])) by (le, service))",
+            "legendFormat": "{{service}} P50延迟"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "s",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "title": "整体响应时间分布",
+        "type": "heatmap",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 40},
+        "targets": [
+          {
+            "expr": "sum(rate(gateway_request_duration_seconds_bucket[5m])) by (le)",
+            "legendFormat": "{{le}}"
+          }
+        ],
+        "yAxes": [
+          {
+            "unit": "s",
+            "min": 0
+          }
+        ]
+      },
+      {
+        "title": "服务状态",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 24, "x": 0, "y": 48},
+        "targets": [
+          {
+            "expr": "up{job=\"gateway-middleware\"}",
+            "legendFormat": "Gateway服务状态"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "displayName": "服务状态",
+            "mappings": [
+              {"options": {"0": {"text": "DOWN", "color": "red"}}, "type": "value"},
+              {"options": {"1": {"text": "UP", "color": "green"}}, "type": "value"}
+            ]
+          }
+        }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "30s"
+  }
+}

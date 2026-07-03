@@ -1,0 +1,60 @@
+# Cloud Build configuration for Console Database Migration Job
+# Usage: gcloud builds submit --config cloudbuild.migrate.yaml
+
+steps:
+  # Step 1: Build migration Docker image
+  - name: gcr.io/kaniko-project/executor:latest
+    args:
+      - --dockerfile=services/console/Dockerfile.migrate
+      - --destination=asia-northeast1-docker.pkg.dev/${PROJECT_ID}/gm-services/console-migrate:latest
+      - --destination=asia-northeast1-docker.pkg.dev/${PROJECT_ID}/gm-services/console-migrate:${SHORT_SHA}
+      - --context=dir:///workspace/services/console
+      - --cache=true
+      - --cache-ttl=6h
+
+  # Step 2: Create or Update Cloud Run Job
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        if gcloud run jobs describe console-db-migrate --region=asia-northeast1 --project=${PROJECT_ID} 2>/dev/null; then
+          echo "Updating existing job..."
+          gcloud run jobs update console-db-migrate \
+            --image=asia-northeast1-docker.pkg.dev/${PROJECT_ID}/gm-services/console-migrate:latest \
+            --region=asia-northeast1 \
+            --set-env-vars=MIGRATIONS_DIR=/app/migrations \
+            --set-secrets=DATABASE_URL=DATABASE_URL:latest \
+            --max-retries=2 \
+            --task-timeout=300s \
+            --project=${PROJECT_ID}
+        else
+          echo "Creating new job..."
+          gcloud run jobs create console-db-migrate \
+            --image=asia-northeast1-docker.pkg.dev/${PROJECT_ID}/gm-services/console-migrate:latest \
+            --region=asia-northeast1 \
+            --set-env-vars=MIGRATIONS_DIR=/app/migrations \
+            --set-secrets=DATABASE_URL=DATABASE_URL:latest \
+            --max-retries=2 \
+            --task-timeout=300s \
+            --project=${PROJECT_ID}
+        fi
+
+  # Step 3: Execute migration job
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - execute
+      - console-db-migrate
+      - --region=asia-northeast1
+      - --wait
+      - --project=${PROJECT_ID}
+
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+timeout: 900s

@@ -1,0 +1,218 @@
+# Google-Monetize Business Metrics Alert Rules
+# 这是传统 Prometheus Alertmanager 格式的参考文件
+# 实际使用 Grafana Cloud Alerting (通过 UI 配置)
+# 参考: monitoring/grafana/alerts/README.md
+
+groups:
+  - name: token_billing_alerts
+    interval: 1m
+    rules:
+      # 高 Token 退款率告警
+      - alert: HighTokenRefundRate
+        expr: |
+          (
+            sum(rate(gm_billing_tokens_refunded_total[5m]))
+            /
+            sum(rate(gm_billing_tokens_consumed_total[5m]))
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+          service: billing
+          category: quality
+        annotations:
+          summary: "Token 退款率过高"
+          description: "过去 5 分钟 Token 退款率为 {{ $value | humanizePercentage }}，超过阈值 10%。请检查系统质量问题。"
+          runbook_url: "https://github.com/ScientificInternet/Google-Monetize/wiki/Runbooks#high-token-refund-rate"
+
+      # Token 消耗速率异常飙升
+      - alert: TokenConsumptionSpike
+        expr: |
+          sum(rate(gm_billing_tokens_consumed_total[5m]))
+          >
+          1.5 * sum(rate(gm_billing_tokens_consumed_total[1h] offset 1h))
+        for: 10m
+        labels:
+          severity: warning
+          service: billing
+          category: usage
+        annotations:
+          summary: "Token 消耗速率异常飙升"
+          description: "Token 消耗速率比 1 小时前增长了 {{ $value | humanizePercentage }}，可能存在异常行为。"
+
+      # Token 余额不足用户数过多
+      - alert: HighInsufficientBalanceRate
+        expr: |
+          sum(rate(gm_billing_tokens_refunded_total{reason="insufficient_balance"}[5m]))
+          /
+          sum(rate(gm_billing_tokens_consumed_total[5m]))
+          > 0.05
+        for: 15m
+        labels:
+          severity: info
+          service: billing
+          category: revenue
+        annotations:
+          summary: "余额不足退款率过高"
+          description: "{{ $value | humanizePercentage }} 的操作因余额不足被退款，可能需要提醒用户充值。"
+
+  - name: offer_alerts
+    interval: 1m
+    rules:
+      # Offer 失败率过高
+      - alert: HighOfferFailureRate
+        expr: |
+          (
+            sum(rate(gm_offer_offers_failed_total[5m]))
+            /
+            sum(rate(gm_offer_offers_created_total[5m]))
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: critical
+          service: offer
+          category: reliability
+        annotations:
+          summary: "Offer 失败率过高"
+          description: "过去 5 分钟 Offer 失败率为 {{ $value | humanizePercentage }}，超过阈值 10%。请立即检查系统健康状况。"
+          runbook_url: "https://github.com/ScientificInternet/Google-Monetize/wiki/Runbooks#high-offer-failure-rate"
+
+      # Offer 成功率低
+      - alert: LowOfferSuccessRate
+        expr: |
+          (
+            sum(rate(gm_offer_offers_completed_total[5m]))
+            /
+            sum(rate(gm_offer_offers_created_total[5m]))
+          ) < 0.50
+        for: 10m
+        labels:
+          severity: warning
+          service: offer
+          category: quality
+        annotations:
+          summary: "Offer 成功率过低"
+          description: "Offer 成功率仅为 {{ $value | humanizePercentage }}，低于 50% 阈值。"
+
+      # Offer 创建速率异常低
+      - alert: LowOfferCreationRate
+        expr: |
+          sum(rate(gm_offer_offers_created_total[5m])) < 0.01
+        for: 15m
+        labels:
+          severity: info
+          service: offer
+          category: usage
+        annotations:
+          summary: "Offer 创建速率异常低"
+          description: "过去 15 分钟几乎没有 Offer 被创建，可能是用户活动下降或系统问题。"
+
+  - name: ad_campaign_alerts
+    interval: 1m
+    rules:
+      # 广告创建速率异常低
+      - alert: LowAdCreationRate
+        expr: |
+          sum(rate(gm_adscenter_ads_created_total[5m])) < 0.01
+        for: 15m
+        labels:
+          severity: info
+          service: adscenter
+          category: usage
+        annotations:
+          summary: "广告创建速率异常低"
+          description: "过去 15 分钟几乎没有广告被创建。"
+
+      # 单用户广告创建速率过高（可能是异常行为）
+      - alert: SuspiciousAdCreationActivity
+        expr: |
+          sum(rate(gm_adscenter_ads_created_total[5m])) by (user_id) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: adscenter
+          category: security
+        annotations:
+          summary: "检测到异常广告创建活动"
+          description: "用户 {{ $labels.user_id }} 在过去 5 分钟创建了 {{ $value }} 个/秒的广告，可能是异常行为。"
+
+  - name: http_performance_alerts
+    interval: 1m
+    rules:
+      # HTTP 错误率过高
+      - alert: HighHTTPErrorRate
+        expr: |
+          (
+            sum(rate(gm_billing_http_errors_total[5m]))
+            /
+            sum(rate(gm_billing_http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: billing
+          category: reliability
+        annotations:
+          summary: "HTTP 错误率过高"
+          description: "服务 {{ $labels.service }} 错误率为 {{ $value | humanizePercentage }}，超过 5% 阈值。"
+
+      # P99 延迟过高
+      - alert: HighP99Latency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(gm_billing_http_request_duration_seconds_bucket[5m])) by (le, method, path)
+          ) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          service: billing
+          category: performance
+        annotations:
+          summary: "P99 延迟过高"
+          description: "{{ $labels.method }} {{ $labels.path }} 的 P99 延迟为 {{ $value }}s，超过 2s 阈值。"
+
+      # P50 延迟异常
+      - alert: HighP50Latency
+        expr: |
+          histogram_quantile(0.50,
+            sum(rate(gm_billing_http_request_duration_seconds_bucket[5m])) by (le, method, path)
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: info
+          service: billing
+          category: performance
+        annotations:
+          summary: "P50 延迟偏高"
+          description: "{{ $labels.method }} {{ $labels.path }} 的 P50 延迟为 {{ $value }}s，超过 500ms。"
+
+  - name: circuit_breaker_alerts
+    interval: 1m
+    rules:
+      # 断路器打开
+      - alert: CircuitBreakerOpen
+        expr: circuitbreaker_state{state="open"} == 1
+        for: 2m
+        labels:
+          severity: critical
+          category: reliability
+        annotations:
+          summary: "断路器已打开"
+          description: "服务 {{ $labels.service }} 的断路器已打开，依赖服务可能不可用。"
+          runbook_url: "https://github.com/ScientificInternet/Google-Monetize/wiki/Runbooks#circuit-breaker-open"
+
+      # 断路器失败率高
+      - alert: HighCircuitBreakerFailureRate
+        expr: |
+          (
+            sum(rate(circuitbreaker_failures_total[5m])) by (service)
+            /
+            sum(rate(circuitbreaker_requests_total[5m])) by (service)
+          ) > 0.20
+        for: 5m
+        labels:
+          severity: warning
+          category: reliability
+        annotations:
+          summary: "断路器失败率过高"
+          description: "服务 {{ $labels.service }} 的断路器失败率为 {{ $value | humanizePercentage }}。"

@@ -1,0 +1,17 @@
+{
+  "metadata": {
+    "title": "Account Setup"
+  },
+  "page": {
+    "title": "Finish your account setup",
+    "description": "We need a few extra details before you can start using Google-Monetize."
+  },
+  "form": {
+    "displayNameLabel": "Display name",
+    "displayNamePlaceholder": "Your name",
+    "submit": "Complete setup",
+    "errors": {
+      "setupFailed": "We couldn't finish your setup. Please try again."
+    }
+  }
+}

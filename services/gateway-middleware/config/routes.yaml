@@ -1,0 +1,321 @@
+# Gateway Middleware Route Configuration
+# 定义所有API路由及其对应的后端服务、权限和Token消耗
+
+# 环境配置
+environment: preview  # preview | production
+
+# 后端服务地址
+backends:
+  bff: https://bff-preview-yt54xvsg5q-an.a.run.app
+  console: https://console-preview-yt54xvsg5q-an.a.run.app
+  offer: https://offer-preview-yt54xvsg5q-an.a.run.app
+  billing: https://billing-preview-yt54xvsg5q-an.a.run.app
+  adscenter: https://adscenter-preview-yt54xvsg5q-an.a.run.app
+  siterank: https://siterank-api-preview-yt54xvsg5q-an.a.run.app
+  recommendations: https://recommendations-preview-yt54xvsg5q-an.a.run.app
+  user: https://user-preview-yt54xvsg5q-an.a.run.app
+
+# 路由规则
+routes:
+  # Dashboard API路由
+  - prefix: /api/v1/dashboard
+    backend: bff
+    methods: [GET]
+    tokenCost: 0
+    requireAuth: true
+    description: "Dashboard数据聚合API"
+
+  - prefix: /api/v1/dashboard/stats
+    backend: bff
+    methods: [GET]
+    tokenCost: 0
+    requireAuth: true
+    description: "Dashboard统计数据API"
+
+  # ==========================================
+# 统一用户服务路由 (Unified User Service)
+# ==========================================
+
+  # 用户基础信息管理
+  - prefix: /api/v1/users/:userId
+    backend: user
+    methods: [GET]
+    tokenCost: 0
+    requireAuth: true
+    description: "获取用户完整信息"
+
+  - prefix: /api/v1/users/:userId/profile
+    backend: user
+    methods: [GET, PUT]
+    tokenCost: 0
+    requireAuth: true
+    description: "用户档案管理"
+
+  # 用户权限管理
+  - prefix: /api/v1/users/:userId/permissions
+    backend: user
+    methods: [GET, POST]
+    tokenCost: 0
+    requireAuth: true
+    description: "用户权限管理"
+
+  - prefix: /api/v1/users/:userId/permissions/check
+    backend: user
+    methods: [GET]
+    tokenCost: 0
+    requireAuth: true
+    description: "检查特定权限"
+
+  # 用户组织和活动管理
+  - prefix: /api/v1/users/:userId/organizations
+    backend: user
+    methods: [GET, POST]
+    tokenCost: 0
+    requireAuth: true
+    description: "用户组织管理"
+
+  - prefix: /api/v1/users/:userId/activity
+    backend: user
+    methods: [GET, POST]
+    tokenCost: 0
+    requireAuth: true
+    description: "用户活动追踪"
+
+  - prefix: /api/v1/users/:userId/activity/stats
+    backend: user
+    methods: [GET]
+    tokenCost: 0
+    requireAuth: true
+    description: "用户统计数据"
+
+  # Token管理路由
+  - prefix: /api/v1/users/:userId/tokens/balance
+    backend: user
+    methods: [GET]
+    tokenCost: 0
+    requireAuth: true
+    description: "Token余额查询"
+
+  - prefix: /api/v1/users/:userId/tokens/reserve
+    backend: user
+    methods: [POST]
+    tokenCost: 0
+    requireAuth: true
+    description: "Token预留"
+
+  - prefix: /api/v1/users/tokens/:reservationId/confirm
+    backend: user
+    methods: [POST]
+    tokenCost: 0
+    requireAuth: true
+    description: "确认Token预留"
+
+  - prefix: /api/v1/users/tokens/:reservationId/cancel
+    backend: user
+    methods: [POST]
+    tokenCost: 0
+    requireAuth: true
+    description: "取消Token预留"
+
+  # 订阅管理路由
+  - prefix: /api/v1/users/:userId/subscription
+    backend: user
+    methods: [GET]
+    tokenCost: 0
+    requireAuth: true
+    description: "订阅信息查询"
+
+  - prefix: /api/v1/users/:userId/subscription/upgrade
+    backend: user
+    methods: [POST]
+    tokenCost: 0
+    requireAuth: true
+    description: "订阅升级"
+
+  # 数据同步路由
+  - prefix: /api/v1/sync/user/:userId
+    backend: user
+    methods: [POST]
+    tokenCost: 0
+    requireAuth: true
+    description: "用户数据同步"
+
+  # 组织管理路由
+  - prefix: /api/v1/organizations/:orgId
+    backend: user
+    methods: [PUT]
+    tokenCost: 0
+    requireAuth: true
+    description: "组织信息更新"
+
+  # Offer服务路由
+  - prefix: /api/v1/offers
+    backend: offer
+    methods: [GET, POST, PUT, DELETE, PATCH]
+    tokenCost: 0
+    requireAuth: true
+    description: "Offer管理API"
+
+  - prefix: /api/v1/offers/:id/evaluate
+    backend: offer
+    methods: [POST]
+    tokenCost: 10
+    requireAuth: true
+    requirePermission: offer_evaluation
+    description: "Offer评估（消耗10 Token）"
+
+  # Billing服务路由
+  - prefix: /api/v1/billing
+    backend: billing
+    methods: [GET, POST]
+    tokenCost: 0
+    requireAuth: true
+    description: "Billing API"
+
+  # Legacy routes - redirected to user service for backward compatibility
+  - prefix: /api/v1/users/me/tokens
+    backend: user
+    methods: [GET]
+    tokenCost: 0
+    requireAuth: true
+    description: "Token余额查询（兼容路由）"
+
+  - prefix: /api/v1/users/me/subscription
+    backend: user
+    methods: [GET]
+    tokenCost: 0
+    requireAuth: true
+    description: "订阅信息查询（兼容路由）"
+
+  # OAuth认证路由（迁移到user service）
+  - prefix: /api/v1/users/auth/oauth
+    backend: user
+    methods: [GET, POST]
+    tokenCost: 0
+    requireAuth: true
+    description: "用户OAuth认证API"
+
+  # MCC管理路由
+  - prefix: /api/v1/adscenter/mcc
+    backend: adscenter
+    methods: [GET, POST, DELETE]
+    tokenCost: 0
+    requireAuth: true
+    requirePermission: ads_management
+    description: "MCC账号管理API"
+
+  # AdsCenter服务路由（移除OAuth）
+  - prefix: /api/v1/ads
+    backend: adscenter
+    methods: [GET, POST, PUT, DELETE]
+    tokenCost: 0
+    requireAuth: true
+    description: "Ads账号管理API（不包含OAuth）"
+
+  # 真实补点击路由
+  - prefix: /api/v1/clicks
+    backend: adscenter
+    methods: [POST]
+    tokenCost: 1
+    requireAuth: true
+    requirePermission: ads_management
+    description: "真实补点击（消耗1 Token/次）"
+
+  # Siterank服务路由
+  - prefix: /api/v1/siterank
+    backend: siterank
+    methods: [GET, POST]
+    tokenCost: 15
+    requireAuth: true
+    requirePermission: ai_evaluation
+    requireTier: [professional, elite]
+    description: "AI评估服务"
+
+  # 评估API路由（换链接功能）
+  - prefix: /api/v1/evaluations
+    backend: siterank
+    methods: [GET, POST]
+    tokenCost: 1
+    requireAuth: true
+    requirePermission: offer_evaluation
+    description: "评估管理API（普通评估消耗1 Token）"
+
+  # AI评估路由
+  - prefix: /api/v1/evaluations/:id/ai
+    backend: siterank
+    methods: [POST]
+    tokenCost: 2
+    requireAuth: true
+    requirePermission: ai_evaluation
+    requireTier: [professional, elite]
+    description: "AI评估（消耗2 Token）"
+
+  # Recommendations服务路由
+  - prefix: /api/v1/recommendations
+    backend: recommendations
+    methods: [GET]
+    tokenCost: 2
+    requireAuth: true
+    description: "优化建议"
+
+  # Console服务路由（管理后台专用）
+  - prefix: /api/v1/console
+    backend: console
+    methods: [GET, POST, PUT, DELETE]
+    tokenCost: 0
+    requireAuth: true
+    description: "管理后台API"
+
+  # 公共Marketing API路由（无需认证）
+  - prefix: /public/marketing
+    backend: billing
+    methods: [GET]
+    tokenCost: 0
+    requireAuth: false
+    description: "公共营销数据API"
+
+# 权限配置（从数据库动态加载，此为默认值）
+# 根据用户需求配置权限管理
+defaultPermissions:
+  starter:
+    - offer_evaluation
+  professional:
+    - offer_evaluation
+    - ai_evaluation
+  pro:
+    - offer_evaluation
+    - ai_evaluation
+    - ads_management
+  elite:
+    - offer_evaluation
+    - ai_evaluation
+    - ads_management
+    - risk_alerts
+    - custom_click_curves
+
+# Redis配置
+redis:
+  address: localhost:6379
+  password: ""
+  db: 0
+  cacheExpiry:
+    subscription: 300s        # 5分钟
+    permissions: 300s         # 5分钟
+    tokenBalance: 60s         # 1分钟
+    userProfile: 300s         # 5分钟
+    userSession: 600s         # 10分钟
+    syncStatus: 1800s         # 30分钟
+    reservation: 1800s        # 30分钟
+
+# JWT配置 (Supabase Auth)
+jwt:
+  projectURL: https://YOUR_SUPABASE_PROJECT.supabase.co
+  issuer: https://YOUR_SUPABASE_PROJECT.supabase.co/auth/v1
+  audience: authenticated
+  secret: "${JWT_SECRET}"  # JWT secret for HS256 verification (from environment)
+
+# 限流配置
+rateLimit:
+  enabled: true
+  requestsPerMinute: 100
+  burstSize: 20

@@ -1,0 +1,14 @@
+steps:
+  - name: gcr.io/kaniko-project/executor:latest
+    args:
+      - --dockerfile=Dockerfile
+      - --context=dir:///workspace/services/siterank
+      - --destination=${_IMAGE}
+      - --cache=true
+      - --cache-ttl=24h
+      - --compressed-caching=true
+      - --build-arg=GO_WORKSPACE=/workspace
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+timeout: 600s

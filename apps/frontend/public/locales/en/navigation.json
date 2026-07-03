@@ -1,0 +1,22 @@
+{
+  "dashboard": "Dashboard",
+  "checkin": "Daily Check-in",
+  "offers": "Offer Management",
+  "tasks": "Task Center",
+  "adsCenter": "Ads Center",
+  "admin": "Admin Console",
+  "settings": {
+    "label": "System Settings",
+    "profile": "Profile",
+    "subscription": "Subscription & Billing"
+  },
+  "mobileNav": {
+    "ariaLabel": "Bottom quick navigation",
+    "dashboard": "Dashboard",
+    "checkin": "Check-in",
+    "offers": "Offers",
+    "ads": "Ads",
+    "tasks": "Tasks",
+    "me": "Profile"
+  }
+}

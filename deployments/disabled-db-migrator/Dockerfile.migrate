@@ -1,0 +1,61 @@
+# ==============================================================================
+# Database Migrator Dockerfile - Optimized for Google-Monetize
+# ==============================================================================
+# Multi-stage build with minimal runtime image and optimized layers
+
+# Stage 1: Builder - Download golang-migrate
+FROM golang:1.25-alpine AS builder
+ARG MIGRATE_VERSION=v4.17.0
+
+# Install curl and download migrate in single layer
+RUN apk add --no-cache ca-certificates curl && \
+    update-ca-certificates && \
+    curl -L "https://github.com/golang-migrate/migrate/releases/download/${MIGRATE_VERSION}/migrate.linux-amd64.tar.gz" \
+    | tar xvz -C /tmp && \
+    mv /tmp/migrate /usr/local/bin/migrate && \
+    chmod +x /usr/local/bin/migrate && \
+    migrate -version
+
+# Stage 2: Runtime - Alpine with minimal tools
+FROM alpine:3.18
+
+# Metadata
+LABEL maintainer="Google-Monetize DevOps Team" \
+      description="Database migration runner for Google-Monetize services" \
+      version="2.0.0" \
+      build.date="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+      go.version="1.25"
+
+# Install runtime dependencies in single layer
+RUN apk add --no-cache \
+    postgresql-client \
+    bash \
+    ca-certificates \
+    && rm -rf /var/cache/apk/*
+
+# Copy migrate binary
+COPY --from=builder /usr/local/bin/migrate /usr/local/bin/migrate
+COPY services/user/migrations /migrations/user
+COPY services/billing/migrations /migrations/billing
+COPY services/useractivity/migrations /migrations/useractivity
+COPY services/offer/migrations /migrations/offer
+COPY services/siterank/migrations /migrations/siterank
+COPY services/console/migrations /migrations/console
+COPY services/adscenter/migrations /migrations/adscenter
+COPY services/batchopen/migrations /migrations/batchopen
+
+# Copy scripts and set executable permissions
+COPY deployments/db-migrator/migrate.sh /migrate.sh
+COPY deployments/db-migrator/reset.sh /reset.sh
+COPY deployments/db-migrator/reset-database.sql /reset-database.sql
+
+# Make scripts executable
+RUN chmod +x /migrate.sh /reset.sh
+
+# Default environment variables
+ENV SERVICE_NAME=billing \
+    MIGRATION_TIMEOUT=10m \
+    MIGRATE_PATH=/migrations
+
+# Default command
+ENTRYPOINT ["/migrate.sh"]

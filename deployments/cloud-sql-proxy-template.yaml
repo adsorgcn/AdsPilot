@@ -1,0 +1,90 @@
+# Cloud SQL Proxy标准部署配置模板
+# 适用于所有需要数据库连接的Go微服务
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: ${SERVICE_NAME}-${ENVIRONMENT}  # 例如: billing-preview
+  annotations:
+    run.googleapis.com/ingress: internal-and-cloud-load-balancing
+    run.googleapis.com/launch-stage: BETA
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: '1'
+        autoscaling.knative.dev/maxScale: '10'
+
+        # 🔥 Cloud SQL Proxy配置 - 替代VPC Connector
+        # 自动挂载Unix Domain Socket到容器内
+        run.googleapis.com/cloudsql-instances: ${GCP_PROJECT_ID}:asia-northeast1:gm
+
+        # 可选：为纯内网服务启用VPC egress限制
+        # run.googleapis.com/vpc-access-egress: private-ranges-only
+
+    spec:
+      serviceAccountName: codex-dev@${GCP_PROJECT_ID}.iam.gserviceaccount.com
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      containers:
+      - image: asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/${SERVICE_NAME}:${TAG:-latest}
+        ports:
+          - name: http1
+            containerPort: 8080
+        resources:
+          limits:
+            cpu: '2'
+            memory: 2Gi
+        env:
+          # 🔥 Cloud SQL Proxy连接字符串（已配置为Unix Socket）
+          - name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: DATABASE_URL
+                key: latest
+
+          # 连接模式 - 确保使用Cloud SQL
+          - name: DB_CONNECTION_MODE
+            value: "cloudsql"
+
+          # 数据库配置（从Secret Manager获取）
+          - name: SUPABASE_DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: SUPABASE_DB_PASSWORD
+                key: latest
+
+          # 标准服务环境变量
+          - name: GCP_PROJECT_ID
+            value: "${GCP_PROJECT_ID}"
+
+          - name: ENVIRONMENT
+            value: "${ENVIRONMENT}"
+
+          - name: LOG_LEVEL
+            value: "info"
+
+          # 服务间通信（内网URL）
+          - name: BILLING_SERVICE_URL
+            value: "https://billing-${ENVIRONMENT}-885pd7lz.an.gateway.dev"
+          - name: OFFER_SERVICE_URL
+            value: "https://offer-${ENVIRONMENT}-885pd7lz.an.gateway.dev"
+          - name: USERACTIVITY_SERVICE_URL
+            value: "https://useractivity-${ENVIRONMENT}-885pd7lz.an.gateway.dev"
+          - name: CONSOLE_SERVICE_URL
+            value: "https://console-${ENVIRONMENT}-885pd7lz.an.gateway.dev"
+
+          # 🔥 移除VPC Connector相关配置
+          # ❌ 不再需要：
+          # run.googleapis.com/vpc-access-connector: cr-conn-default-ane1
+          # REDIS_ADDR: "10.0.0.3:6379"  # VPC Connector内网地址
+
+# 🔥 迁移命令：
+# 1. 替换VPC Connector为Cloud SQL Proxy
+# 2. 更新内网服务URL为Cloud Run Load Balancer URL
+# 3. 移除VPC Connector依赖
+# 4. 验证数据库连接使用Unix Socket
+
+# 使用方法：
+# envsubst < cloud-sql-proxy-template.yaml > billing/preview-deploy.yaml
+# gcloud run services replace billing/preview-deploy.yaml

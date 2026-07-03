@@ -1,0 +1,544 @@
+[
+  {
+    "name": "ADMIN_POLICY_SECRET",
+    "secret": "ADMIN_POLICY",
+    "description": "Secret Manager resource name for admin policy JSON (projects/.../secrets/.../versions/latest).",
+    "required": false,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "console"
+    ],
+    "notes": "服务端直接读取 Secret Manager 资源名称；如未启用可留空。"
+  },
+  {
+    "name": "ADS_OAUTH_REDIRECT_URL",
+    "secret": "ADS_OAUTH_REDIRECT_URL",
+    "description": "Legacy single redirect URL for Google Ads OAuth fallback.",
+    "required": false,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "adscenter"
+    ],
+    "notes": "可选，推荐使用 ADS_OAUTH_REDIRECT_URLS；保留用于兼容。"
+  },
+  {
+    "name": "ADS_OAUTH_REDIRECT_URLS",
+    "secret": "ADS_OAUTH_REDIRECT_URLS",
+    "description": "Comma separated list of allowed OAuth redirect URLs for Google Ads.",
+    "required": false,
+    "scopes": [
+      "global",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "adscenter"
+    ]
+  },
+  {
+    "name": "AUTH_URL",
+    "secret": "AUTH_URL",
+    "description": "Public authentication redirect base URL (preview).",
+    "required": true,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "frontend",
+      "auth callbacks"
+    ],
+    "notes": "Preview auth base URL (https://www.urlchecker.dev)"
+  },
+  {
+    "name": "DATABASE_URL",
+    "secret": "DATABASE_URL",
+    "description": "Primary PostgreSQL connection string for backend services (internal network address).",
+    "required": true,
+    "scopes": [
+      "global",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "billing",
+      "notifications",
+      "siterank",
+      "adscenter",
+      "projector",
+      "recommendations"
+    ]
+  },
+  {
+    "name": "DOMAIN",
+    "secret": "DOMAIN",
+    "description": "Primary production domain for customer-facing URLs (e.g. autoads.dev).",
+    "required": true,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "frontend"
+    ],
+    "notes": "Production 环境使用 DOMAIN，与 preview 的 NEXT_PUBLIC_DOMAIN 区分。"
+  },
+  {
+    "name": "GEMINI_API_KEY",
+    "secret": "GEMINI_API_KEY",
+    "description": "Google Gemini API key for AI workflows.",
+    "required": true,
+    "scopes": [
+      "global",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "siterank",
+      "ai analyzers"
+    ]
+  },
+  {
+    "name": "GOOGLE_ADS_DEVELOPER_TOKEN",
+    "secret": "GOOGLE_ADS_DEVELOPER_TOKEN",
+    "description": "Google Ads API developer token.",
+    "required": true,
+    "scopes": [
+      "global",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "adscenter"
+    ]
+  },
+  {
+    "name": "GOOGLE_ADS_LOGIN_CUSTOMER_ID",
+    "secret": "GOOGLE_ADS_LOGIN_CUSTOMER_ID",
+    "description": "Google Ads manager account ID for API calls.",
+    "required": true,
+    "scopes": [
+      "global",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "adscenter"
+    ]
+  },
+  {
+    "name": "GOOGLE_ADS_OAUTH_CLIENT_ID",
+    "secret": "GOOGLE_ADS_OAUTH_CLIENT_ID",
+    "description": "OAuth client ID used for Google Ads integration.",
+    "required": true,
+    "scopes": [
+      "global",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "adscenter",
+      "frontend"
+    ]
+  },
+  {
+    "name": "GOOGLE_ADS_OAUTH_CLIENT_SECRET",
+    "secret": "GOOGLE_ADS_OAUTH_CLIENT_SECRET",
+    "description": "OAuth client secret used for Google Ads integration.",
+    "required": true,
+    "scopes": [
+      "global",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "adscenter",
+      "frontend"
+    ]
+  },
+  {
+    "name": "GOOGLE_ADS_TEST_CUSTOMER_ID",
+    "secret": "GOOGLE_ADS_TEST_CUSTOMER_ID",
+    "description": "Sandbox customer ID for Google Ads API testing.",
+    "required": false,
+    "scopes": [
+      "development",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "adscenter"
+    ]
+  },
+  {
+    "name": "INTERNAL_JWT_SECRET",
+    "secret": "INTERNAL_JWT_SECRET",
+    "description": "HMAC secret for issuing internal JWT tokens.",
+    "required": true,
+    "scopes": [
+      "global",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "frontend",
+      "backend"
+    ]
+  },
+  {
+    "name": "INTERNAL_SERVICE_TOKEN",
+    "secret": "INTERNAL_SERVICE_TOKEN",
+    "description": "Shared bearer token for inter-service authentication.",
+    "required": true,
+    "scopes": [
+      "global",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "billing",
+      "notifications",
+      "adscenter",
+      "siterank"
+    ]
+  },
+  {
+    "name": "NEXTAUTH_SECRET",
+    "secret": "NEXTAUTH_SECRET",
+    "description": "Shared secret used by NextAuth for session encryption.",
+    "required": true,
+    "scopes": [
+      "global",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "frontend"
+    ]
+  },
+  {
+    "name": "NEXTAUTH_URL",
+    "secret": "NEXTAUTH_URL",
+    "description": "Canonical application URL used by NextAuth callbacks.",
+    "required": true,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "frontend"
+    ]
+  },
+  {
+    "name": "NEXT_PUBLIC_API_BASE_URL",
+    "secret": "NEXT_PUBLIC_API_BASE_URL",
+    "description": "API Gateway base URL exposed to the frontend.",
+    "required": true,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "frontend"
+    ]
+  },
+  {
+    "name": "NEXT_PUBLIC_DOMAIN",
+    "secret": "NEXT_PUBLIC_DOMAIN",
+    "description": "Primary domain for static/site configuration (legacy build args).",
+    "required": false,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "scripts",
+      "legacy-docker"
+    ],
+    "notes": "如使用新的 NEXT_PUBLIC_SITE_URL + DOMAIN，可留空。"
+  },
+  {
+    "name": "NEXT_PUBLIC_SITE_URL",
+    "secret": "NEXT_PUBLIC_SITE_URL",
+    "description": "Site base URL exposed to Next.js (differs for preview/production).",
+    "required": true,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "frontend"
+    ],
+    "notes": "在 Cloud Build 中通过 build arg 提供；Secret 名称备用，若未创建请补充。"
+  },
+  {
+    "name": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "secret": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "description": "Public Supabase anon key for client-side operations.",
+    "required": true,
+    "scopes": [
+      "global",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "frontend"
+    ]
+  },
+  {
+    "name": "NEXT_PUBLIC_SUPABASE_URL",
+    "secret": "NEXT_PUBLIC_SUPABASE_URL",
+    "description": "Supabase project URL exposed to the frontend.",
+    "required": true,
+    "scopes": [
+      "global",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "frontend",
+      "backend"
+    ]
+  },
+  {
+    "name": "OAUTH_STATE_SECRET",
+    "secret": "OAUTH_STATE_SECRET",
+    "description": "HMAC secret for AdsCenter OAuth state validation.",
+    "required": true,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "adscenter"
+    ]
+  },
+  {
+    "name": "PROXY_URLS",
+    "secret": "PROXY_URLS",
+    "description": "List of proxy endpoints for scraping tasks.",
+    "required": false,
+    "scopes": [
+      "global",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "browser-exec",
+      "proxy-pool"
+    ]
+  },
+  {
+    "name": "Proxy_URL_US",
+    "secret": "Proxy_URL_US",
+    "description": "Legacy single proxy endpoint for US traffic.",
+    "required": false,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "proxy-pool",
+      "browser-exec"
+    ],
+    "notes": "建议使用 PROXY_URLS；保留用于兼容。"
+  },
+  {
+    "name": "READ_REPLICA_URL",
+    "secret": "READ_REPLICA_URL",
+    "description": "Optional PostgreSQL read replica connection string.",
+    "required": false,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "recommendations"
+    ],
+    "notes": "未启用读写分离时可留空。"
+  },
+  {
+    "name": "REDIS_URL",
+    "secret": "REDIS_URL",
+    "description": "Primary Redis / Memorystore endpoint used for caching and rate limiting.",
+    "required": true,
+    "scopes": [
+      "global",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "billing",
+      "notifications",
+      "siterank",
+      "proxy-pool",
+      "browser-exec",
+      "frontend",
+      "bff"
+    ]
+  },
+  {
+    "name": "REFRESH_TOKEN_ENC_KEY_B64",
+    "secret": "REFRESH_TOKEN_ENC_KEY_B64",
+    "description": "Base64-encoded AES-GCM key for encrypting Google Ads refresh tokens.",
+    "required": true,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "adscenter"
+    ]
+  },
+  {
+    "name": "SIMILARWEB_BASE_URL",
+    "secret": "SIMILARWEB_BASE_URL",
+    "description": "Base URL for Similarweb API requests.",
+    "required": true,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "siterank"
+    ],
+    "notes": "通常为 https://data.similarweb.com/api/v1/data，可根据供应商配置调整。"
+  },
+  {
+    "name": "STRIPE_PUBLISHABLE_KEY",
+    "secret": "STRIPE_PUBLISHABLE_KEY",
+    "description": "Stripe publishable key for checkout flows.",
+    "required": true,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "frontend"
+    ]
+  },
+  {
+    "name": "STRIPE_SECRET_KEY",
+    "secret": "STRIPE_SECRET_KEY",
+    "description": "Stripe secret key used by backend services.",
+    "required": true,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "billing"
+    ]
+  },
+  {
+    "name": "STRIPE_WEBHOOK_SECRET_PREVIEW",
+    "secret": "STRIPE_WEBHOOK_SECRET_PREVIEW",
+    "description": "Stripe webhook signing secret for preview environment.",
+    "required": true,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "billing"
+    ]
+  },
+  {
+    "name": "STRIPE_WEBHOOK_SECRET_PRODUCTION",
+    "secret": "STRIPE_WEBHOOK_SECRET_PRODUCTION",
+    "description": "Stripe webhook signing secret for production environment.",
+    "required": true,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "billing"
+    ]
+  },
+  {
+    "name": "SUPABASE_ACCESS_TOKEN",
+    "secret": "SUPABASE_ACCESS_TOKEN",
+    "description": "Supabase management API access token.",
+    "required": false,
+    "scopes": [
+      "ops",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "automation",
+      "cli"
+    ]
+  },
+  {
+    "name": "SUPABASE_SERVICE_KEY",
+    "secret": "SUPABASE_SERVICE_KEY",
+    "description": "Supabase service role key (bypasses RLS).",
+    "required": true,
+    "scopes": [
+      "global",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "backend services",
+      "migrations"
+    ]
+  },
+  {
+    "name": "SUPER_ADMIN_EMAIL",
+    "secret": "SUPER_ADMIN_EMAIL",
+    "description": "Email address with super admin privileges for console.",
+    "required": false,
+    "scopes": [
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "console"
+    ]
+  },
+  {
+    "name": "VALKEY_URL",
+    "secret": "VALKEY_URL",
+    "description": "Optional Valkey endpoint (drop-in replacement for Redis).",
+    "required": false,
+    "scopes": [
+      "global",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "siterank",
+      "proxy-pool"
+    ],
+    "notes": "When defined, services prefer VALKEY_URL over REDIS_URL."
+  },
+  {
+    "name": "DB_CONNECTION_MODE",
+    "secret": "DB_CONNECTION_MODE",
+    "description": "Database connection mode for services: direct or cloudsql",
+    "required": false,
+    "scopes": [
+      "global",
+      "preview",
+      "production"
+    ],
+    "used_by": [
+      "useractivity",
+      "adscenter",
+      "billing",
+      "offer",
+      "siterank",
+      "console"
+    ],
+    "notes": "Controls database access strategy. Default is 'cloudsql' for Cloud SQL Proxy compliance. Options: direct (direct DB connection), cloudsql (Unix Socket via Cloud SQL Proxy)."
+  }
+]

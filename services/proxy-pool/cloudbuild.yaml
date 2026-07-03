@@ -1,0 +1,23 @@
+timeout: "1800s"
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
+
+substitutions:
+  _ENVIRONMENT: "preview"
+  _SERVICE_NAME: "proxy-pool"
+
+steps:
+  # Build and push Docker image using Kaniko
+  - name: 'gcr.io/kaniko-project/executor:latest'
+    args:
+      - --dockerfile=services/${_SERVICE_NAME}/Dockerfile
+      - --destination=asia-northeast1-docker.pkg.dev/$PROJECT_ID/gm-services/${_SERVICE_NAME}:${_ENVIRONMENT}-latest
+      - --destination=asia-northeast1-docker.pkg.dev/$PROJECT_ID/gm-services/${_SERVICE_NAME}:${_ENVIRONMENT}-$SHORT_SHA
+      - --context=.
+      - --cache=true
+      - --cache-ttl=6h
+
+images:
+  - 'asia-northeast1-docker.pkg.dev/$PROJECT_ID/gm-services/${_SERVICE_NAME}:${_ENVIRONMENT}-latest'
+  - 'asia-northeast1-docker.pkg.dev/$PROJECT_ID/gm-services/${_SERVICE_NAME}:${_ENVIRONMENT}-$SHORT_SHA'

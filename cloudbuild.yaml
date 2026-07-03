@@ -1,0 +1,89 @@
+# Google-Monetize 优化的 Cloud Build 配置
+# 设计目标：统一构建流程，最小化上下文，提升构建速度
+
+steps:
+  # 1. 构建后端服务
+  - name: 'Build Backend Services'
+    id: 'build-backend'
+    args: ['work', 'vendor']
+    env:
+      # 使用干净构建环境，避免缓存干扰
+      CGO_ENABLED: '0'
+      GO111MODULE: 'on'
+      GOWORK: 'off'
+    timeout: '1800s'
+    waitFor:
+      - name: 'Authenticate to Google Cloud'
+
+  # 2. 构建前端服务 (如需要)
+  - name: 'Build Frontend Services'
+    id: 'build-frontend'
+    args: ['work', 'vendor']
+    env:
+      CGO_ENABLED: '0'
+      GO111MODULE: 'on'
+      GOWORK: 'off'
+    timeout: '1200s'
+    waitFor:
+      - name: 'Authenticate to Google Cloud'
+
+  # 3. 创建优化的源tarball
+  # 参考 tarball策略，大幅减少构建上下文
+  - name: 'Create Optimized Tarball'
+    id: 'create-tarball'
+    args:
+      - 'tar'
+      - '-czf'
+      - '/tmp/${PROJECT_ID}_source.tar.gz'
+      - '--exclude=apps'
+      - '--exclude=node_modules'
+      - '--exclude=.git'
+      - '--exclude=makerkit'
+      - '--exclude=docs'
+      - 'go.work'
+      - 'go.sum'
+      - 'go.mod'
+    env:
+      CGO_ENABLED: '0'
+      GO111MODULE: 'on'
+      GOWORK: 'off'
+    timeout: '300s'
+
+# 构建选项
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU'
+  env:
+    # 保持镜像最小化
+    CGO_ENABLED: '0'
+    GO111MODULE: 'on'
+    GOWORK: 'off'
+  dynamicSubstitutions:
+    _PROJECT_ID: '${PROJECT_ID}'
+    _TARBALL_PATH: '/tmp/${PROJECT_ID}_source.tar.gz'
+
+# 并行构建
+# 所有服务使用相同的优化的源tarball，最大化并行效率
+substitutions:
+  - _BACKEND_SERVICE: 'billing'
+  - _FRONTEND_SERVICE: ''
+  - _CONSOLE_SERVICE: 'console'
+
+# 常用Docker缓存
+# 在不影响开发速度的前提下，使用层1缓存减少重复工作
+options:
+  logging: 'CLOUD_LOGGING_ONLY'
+  machineType: 'E2_HIGHCPU'
+  cache: true
+  volumes:
+    - name: 'go-build-cache'
+      path: '/workspace/.cache/go'
+
+# 镜像优化
+# 使用distroless基础镜像，进一步减少构建时间和资源消耗
+images:
+  - 'gcr.io/distroless/base-debian12'
+
+# 构建超时和重试
+timeout: '1800s'
+retryLimit: 1

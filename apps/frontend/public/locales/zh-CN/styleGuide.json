@@ -1,0 +1,105 @@
+{
+  "header": {
+    "badge": "Design System",
+    "title": "Google-Monetize 前端组件手册",
+    "description": "汇总设计令牌、排版体系、核心组件与图标资产，确保团队在交付过程中保持统一体验。"
+  },
+  "colors": {
+    "title": "颜色与视觉基础",
+    "description": "基于 design-tokens.css 定义的色板和语义令牌，涵盖品牌色、状态色与背景色。",
+    "footnote": "Design Token",
+    "ariaLabel": "颜色示例 {{label}}",
+    "items": {
+      "brand600": {
+        "label": "Brand 600"
+      },
+      "success500": {
+        "label": "Success 500"
+      },
+      "warning500": {
+        "label": "Warning 500"
+      },
+      "error500": {
+        "label": "Error 500"
+      },
+      "surfaceDefault": {
+        "label": "Surface · 默认"
+      },
+      "surfaceMuted": {
+        "label": "Surface · Muted"
+      }
+    }
+  },
+  "typography": {
+    "title": "排版示例",
+    "description": "字号、行高、字重均来自设计令牌，可直接在组件中复用。",
+    "blocks": {
+      "heading1": {
+        "title": "Heading 1",
+        "content": "智能化推广驾驶舱"
+      },
+      "heading2": {
+        "title": "Heading 2",
+        "content": "Offer 评估结果概览"
+      },
+      "heading3": {
+        "title": "Heading 3",
+        "content": "AI 建议与优化洞察"
+      },
+      "body": {
+        "title": "正文",
+        "content": "Google-Monetize 为营销团队提供一站式自动化推广解决方案，整合站外流量、创意评估与投放监控，提升投放效率与 ROI。"
+      },
+      "caption": {
+        "title": "辅助说明",
+        "content": "所有排版均基于 design-tokens.css 中定义的字重、字号与行高。"
+      }
+    }
+  },
+  "components": {
+    "title": "组件示例",
+    "description": "展示基础组件的组合方式，便于在业务场景中快速复制模式。",
+    "buttons": {
+      "title": "按钮体系",
+      "primary": "主要操作",
+      "secondary": "次要操作",
+      "tertiary": "文本按钮"
+    },
+    "badges": {
+      "title": "状态徽标",
+      "success": "成功",
+      "warning": "待处理",
+      "error": "失败",
+      "info": "实验中"
+    },
+    "card": {
+      "title": "信息卡片",
+      "heading": "AI 评估完成",
+      "body": "已为 Nike.com 生成最新评估报告，AI 推荐指数 92 分。",
+      "cta": "查看详情"
+    }
+  },
+  "icons": {
+    "title": "图标资产库",
+    "description": "统一由 Icon Registry 管理的语义化图标名称，可在任意组件中快速引用。",
+    "ariaLabel": "系统图标清单",
+    "labels": {
+      "dashboard": "仪表盘",
+      "offers": "Offer",
+      "ads": "广告",
+      "tasks": "任务",
+      "billing": "结算",
+      "team": "团队",
+      "settings": "设置",
+      "profile": "个人资料",
+      "automation": "自动化",
+      "reports": "报表",
+      "notifications": "通知",
+      "support": "支持",
+      "security": "安全",
+      "integrations": "集成",
+      "global": "全球化",
+      "link": "链接"
+    }
+  }
+}

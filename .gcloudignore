@@ -1,0 +1,88 @@
+# Frontend/默认 .gcloudignore
+# 用于: 前端 Next.js 应用构建
+# 策略: 保留前端资源，排除后端Go代码和大型文件
+
+# ============================================
+# 排除后端服务（前端构建不需要）
+# ============================================
+services/*/
+!services/README.md
+# 允许migration目录（数据库迁移需要）
+!services/*/migrations/
+pkg/
+go.work
+go.work.sum
+
+# 顶层旧服务目录
+/adscenter/
+/billing/
+/batchopen/
+/console/
+/recommendations/
+/siterank/
+/server/
+
+# ============================================
+# 排除文档和配置
+# ============================================
+docs/
+/secrets/
+gcloud-config/
+
+# ============================================
+# 排除大型第三方资源
+# ============================================
+makerkit/documentation/
+makerkit/makerkit-emails-starter/
+makerkit/remix-supabase-saas-kit-turbo/
+gm-mirror/
+
+# ============================================
+# 排除构建产物和缓存
+# ============================================
+**/.next/cache/
+**/dist/
+**/build/
+**/.turbo/
+**/.cache/
+**/*.tsbuildinfo
+
+# 保留 node_modules（前端可能需要）
+# 但排除特定大型包
+**/node_modules/@img/
+**/node_modules/.cache/
+
+# ============================================
+# 排除测试文件
+# ============================================
+**/__tests__/
+**/*.test.js
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.js
+**/*.spec.ts
+
+# ============================================
+# 排除临时文件
+# ============================================
+**/.DS_Store
+**/*.log
+**/*.tmp
+**/.env.local
+**/.env.*.local
+.git/
+.github/
+.idx/
+.firebase/*/functions/.next/cache/
+.vscode/
+.idea/
+
+# ============================================
+# 保留前端必需文件
+# ============================================
+!apps/frontend/
+!hosting/
+!packages/
+!turbo.json
+!package.json
+!package-lock.json

@@ -1,0 +1,27 @@
+# Cloud Build配置 - Schema隔离迁移Job
+# 用途：构建并部署一次性Schema迁移Job
+# 使用：gcloud builds submit --config=deployments/cloudbuild/build-schema-migrator.yaml
+
+steps:
+  # 构建镜像
+  - name: gcr.io/kaniko-project/executor:latest
+    args:
+      - --dockerfile=scripts/db/Dockerfile.schema-migration
+      - --context=dir:///workspace
+      - --destination=asia-northeast1-docker.pkg.dev/${PROJECT_ID}/gm-services/schema-migrator:latest
+      - --cache=true
+
+  # 更新Cloud Run Job
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - update
+      - schema-migrator-once
+      - --image=asia-northeast1-docker.pkg.dev/${PROJECT_ID}/gm-services/schema-migrator:latest
+      - --region=asia-northeast1
+
+timeout: 900s
+options:
+  logging: CLOUD_LOGGING_ONLY

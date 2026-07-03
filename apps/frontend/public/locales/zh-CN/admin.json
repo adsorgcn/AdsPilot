@@ -1,0 +1,440 @@
+{
+  "systemAlerts": {
+    "highErrorRate": {
+      "title": "接口错误率过高",
+      "description": "当前错误率为 {{value}}%，已超过 {{threshold}}% 阈值"
+    },
+    "serviceDown": {
+      "title": "服务健康异常",
+      "description": "检测到一个或多个服务无响应"
+    },
+    "databaseSlowQueries": {
+      "title": "数据库性能告警",
+      "description": "检测到 {{count}} 条慢查询（> {{threshold}} 秒）"
+    },
+    "highMemoryUsage": {
+      "title": "内存占用过高",
+      "description": "当前内存占用 {{value}}%，已超过 {{threshold}}% 阈值"
+    },
+    "dismiss": "关闭提醒"
+  },
+  "featureFlags": {
+    "pageTitle": "特性开关管理",
+    "pageDescription": "集中管理应用中的动态特性开关。",
+    "pageCreateButton": "创建开关",
+    "error": {
+      "loadTitle": "特性开关加载失败",
+      "loadDescription": "无法获取特性开关列表，请稍后重试。"
+    },
+    "stats": {
+      "total": "总数量",
+      "enabled": "已启用",
+      "disabled": "已禁用"
+    },
+    "table": {
+      "heading": "全部 Feature Flag",
+      "columns": {
+        "key": "Key",
+        "status": "状态",
+        "description": "描述",
+        "updatedAt": "最近更新",
+        "actions": "操作"
+      },
+      "status": {
+        "enabled": "已启用",
+        "disabled": "已禁用"
+      },
+      "actions": {
+        "edit": "编辑",
+        "history": "历史",
+        "delete": "删除"
+      },
+      "emptyTitle": "暂无 Feature Flags",
+      "emptyDescription": "还没有创建任何特性开关，点击右上角按钮立即创建。",
+      "emptyAction": "创建 Feature Flag"
+    },
+    "modals": {
+      "create": {
+        "title": "创建 Feature Flag",
+        "fields": {
+          "key": "Key",
+          "keyPlaceholder": "feature_key",
+          "enabled": "是否启用",
+          "description": "描述",
+          "reason": "原因",
+          "reasonPlaceholder": "可选，记录审计原因"
+        },
+        "cancel": "取消",
+        "submit": "创建"
+      },
+      "edit": {
+        "title": "编辑 Feature Flag",
+        "fields": {
+          "key": "Key",
+          "enabled": "是否启用",
+          "description": "描述",
+          "reason": "原因",
+          "reasonPlaceholder": "可选，记录审计原因"
+        },
+        "cancel": "取消",
+        "submit": "保存修改"
+      },
+      "history": {
+        "title": "变更历史",
+        "close": "关闭",
+        "errorTitle": "历史记录加载失败",
+        "errorDescription": "无法获取该特性开关的历史记录，请稍后重试。",
+        "emptyTitle": "暂无历史记录",
+        "emptyDescription": "该 Feature Flag 尚未产生任何变更。"
+      },
+      "delete": {
+        "confirm": "确定要删除 Feature Flag \"{{key}}\" 吗？"
+      }
+    },
+    "history": {
+      "status": {
+        "updated": "已更新",
+        "enabled": "已启用",
+        "disabled": "已禁用"
+      },
+      "noReason": "未填写原因",
+      "systemAccount": "系统",
+      "changedBy": "操作人：{{author}}"
+    },
+    "placeholder": "Feature Flags 页面开发中"
+  },
+  "notifications": {
+    "banner": {
+      "title": "通知管理中心",
+      "description": "创建通知模板并向用户发送广播，支持邮件与站内通知，可追踪发送状态和互动指标。"
+    },
+    "toasts": {
+      "createSuccess": "模板创建成功",
+      "createFailure": "模板创建失败",
+      "noTemplate": "请先选择要发送的模板",
+      "broadcastQueued": "广播已排队，预计发送给 {{count}} 位用户",
+      "broadcastFailure": "广播发送失败",
+      "previewFailure": "模板预览失败"
+    },
+    "status": {
+      "pending": "排队中",
+      "sending": "发送中",
+      "completed": "已完成",
+      "failed": "失败"
+    },
+    "errors": {
+      "fetch": {
+        "title": "通知数据加载失败",
+        "description": "无法获取通知模板或广播记录，请稍后重试。"
+      }
+    },
+    "stats": {
+      "totalBroadcasts": "总广播次数",
+      "totalSent": "累计发送",
+      "failed": "失败次数",
+      "successRate": "成功率"
+    },
+    "statsEmpty": {
+      "title": "暂无广播统计数据",
+      "description": "发送首个广播后会展示统计信息。"
+    },
+    "templates": {
+      "heading": "通知模板",
+      "empty": {
+        "title": "暂无模板",
+        "description": "创建模板以投放首次广播。"
+      },
+      "subject": "模板主题",
+      "createdAt": "创建于 {{date}}"
+    },
+    "broadcasts": {
+      "heading": "广播历史",
+      "empty": {
+        "title": "尚无广播记录",
+        "description": "创建模板并发送广播后，将在此处显示历史记录。"
+      },
+      "table": {
+        "template": "模板",
+        "targetGroup": "目标用户",
+        "status": "状态",
+        "sentTotal": "已发 / 总数",
+        "created": "创建时间"
+      },
+      "failedCount": "（失败 {{count}} 条）",
+      "targetGroups": {
+        "all": "全部用户",
+        "vip": "VIP 用户",
+        "subscribed": "订阅用户",
+        "active": "活跃用户（近 30 天）"
+      }
+    },
+    "actions": {
+      "create": "新建模板",
+      "send": "发送",
+      "preview": "预览",
+      "refresh": "刷新",
+      "cancel": "取消",
+      "createTemplate": "创建模板",
+      "sendBroadcast": "发送广播",
+      "close": "关闭"
+    },
+    "modal": {
+      "create": {
+        "title": "创建通知模板",
+        "fields": {
+          "name": "模板名称",
+          "type": "模板类型",
+          "subject": "通知主题",
+          "body": "正文内容"
+        },
+        "placeholders": {
+          "name": "例如：欢迎邮件",
+          "subject": "欢迎 {{user.name}}！",
+          "body": "Hello {{user.name}}, ..."
+        },
+        "type": {
+          "email": "邮件",
+          "inapp": "站内通知"
+        },
+        "helpers": {
+          "title": "模板变量：",
+          "description": "使用 {{placeholder}} 注入动态内容，可用：{{variables}}；条件语法：{{condition}}"
+        }
+      },
+      "broadcast": {
+        "title": "发送广播通知",
+        "fields": {
+          "targetGroup": "目标用户群"
+        },
+        "warning": "⚠️ 该操作会向所选用户群发送广播，请谨慎确认。"
+      },
+      "preview": {
+        "title": "模板预览",
+        "subjectLabel": "主题",
+        "subjectPlaceholder": "预览主题",
+        "bodyLabel": "正文",
+        "bodyPlaceholder": "预览正文"
+      }
+    }
+  },
+  "dashboardTrends": {
+    "error": {
+      "title": "趋势数据加载失败",
+      "description": "无法获取仪表盘趋势数据，请稍后重试。"
+    },
+    "header": "平台趋势概览",
+    "presets": {
+      "7d": "最近 7 天",
+      "30d": "最近 30 天",
+      "90d": "最近 90 天"
+    },
+    "empty": "该时间范围暂无趋势数据。",
+    "charts": {
+      "userGrowth": "用户增长",
+      "revenueGrowth": "收入增长",
+      "tokenConsumption": "Token 消耗",
+      "offersAndTasks": "Offers 与任务",
+      "offersSeries": "新建 Offer 数",
+      "tasksSeries": "任务完成数"
+    }
+  },
+  "tokens": {
+    "management": {
+      "errorTitle": "Token 余额加载失败",
+      "errorDescription": "无法获取 Token 余额列表，请稍后重试。",
+      "searchPlaceholder": "按邮箱或用户 ID 搜索…",
+      "reset": "重置",
+      "search": "搜索",
+      "searching": "搜索中…",
+      "table": {
+        "user": "用户",
+        "email": "邮箱",
+        "balance": "余额",
+        "lastTransaction": "最近交易",
+        "actions": "操作",
+        "balanceValue": "{{amount}} Tokens",
+        "noTransaction": "--"
+      },
+      "emptyTitle": "未找到用户",
+      "emptyDescription": "尝试调整搜索条件或稍后再试。",
+      "emptyRefresh": "刷新列表",
+      "actions": {
+        "topUp": "充值",
+        "deduct": "扣减"
+      }
+    }
+  },
+  "exports": {
+    "errors": {
+      "unsupportedType": "暂不支持该导出类型",
+      "failed": "导出失败，请稍后重试",
+      "loadFailed": "导出记录加载失败",
+      "loadDescription": "暂时无法获取导出历史。"
+    },
+    "success": {
+      "started": "导出任务已启动"
+    },
+    "emptyState": {
+      "stats": {
+        "title": "暂无导出统计",
+        "description": "发送首个导出任务后可查看统计信息。"
+      },
+      "history": {
+        "title": "暂无导出记录",
+        "description": "创建导出任务后会显示在这里。"
+      }
+    }
+  },
+  "performance": {
+    "title": "性能监控",
+    "description": "实时监控Web Vitals核心指标，量化优化效果",
+    "sections": {
+      "trends": "性能趋势",
+      "distribution": "评分分布",
+      "explanation": "指标说明"
+    },
+    "metrics": {
+      "lcp": {
+        "description": "最大内容绘制时间，衡量加载性能"
+      },
+      "fid": {
+        "description": "首次输入延迟，衡量交互响应速度"
+      },
+      "cls": {
+        "description": "累积布局偏移，衡量视觉稳定性"
+      },
+      "inp": {
+        "description": "交互到下一次绘制，衡量整体响应性"
+      },
+      "fcp": {
+        "description": "首次内容绘制，衡量初始渲染速度"
+      },
+      "ttfb": {
+        "description": "首字节时间，衡量服务器响应速度"
+      }
+    },
+    "thresholds": {
+      "good": "优秀",
+      "needsImprovement": "需改进",
+      "poor": "较差"
+    }
+  },
+  "database": {
+    "title": "数据库管理",
+    "description": "统一管理所有服务的数据库连接、迁移和监控",
+    "status": {
+      "title": "数据库状态",
+      "description": "监控各服务数据库连接状态和健康度",
+      "healthScore": "健康分数",
+      "totalServices": "总服务数",
+      "connectedServices": "已连接",
+      "status": "状态",
+      "latency": "延迟",
+      "lastCheck": "最后检查",
+      "error": "错误",
+      "refresh": "刷新"
+    },
+    "operations": {
+      "title": "数据库操作",
+      "description": "执行SQL查询、备份恢复等数据库操作",
+      "queryTab": "查询",
+      "backupTab": "备份",
+      "selectService": "选择服务",
+      "queries": {
+        "sqlEditor": "SQL查询编辑器",
+        "placeholder": "SELECT * FROM table_name LIMIT 10;",
+        "execute": "执行",
+        "explain": "执行计划",
+        "results": "查询结果",
+        "executionTime": "执行时间",
+        "affectedRows": "影响行数",
+        "rowCount": "返回行数",
+        "truncated": "已截断 {{count}} 行数据",
+        "emptyQuery": "请输入SQL查询语句",
+        "executeFailed": "查询执行失败",
+        "explainFailed": "执行计划分析失败"
+      },
+      "backups": {
+        "title": "备份管理",
+        "create": "创建备份",
+        "refresh": "刷新",
+        "id": "备份ID",
+        "createdAt": "创建时间",
+        "size": "大小",
+        "type": "类型",
+        "actions": "操作",
+        "restore": "恢复",
+        "noBackups": "暂无备份记录",
+        "createFailed": "备份创建失败",
+        "loadFailed": "备份列表加载失败",
+        "restoreFailed": "备份恢复失败",
+        "restoreConfirm": "确定要恢复此备份吗？此操作将覆盖当前数据。",
+        "restoreSuccess": "备份恢复成功"
+      }
+    },
+    "migrations": {
+      "title": "迁移管理",
+      "description": "管理数据库schema变更和版本迁移",
+      "version": "版本",
+      "description": "描述",
+      "applied": "已应用",
+      "appliedAt": "应用时间",
+      "checksum": "校验和",
+      "pending": "待应用",
+      "status": "状态",
+      "lastMigration": "最后迁移",
+      "refresh": "刷新",
+      "apply": "应用",
+      "rollback": "回滚",
+      "validate": "验证"
+    },
+    "schema": {
+      "title": "Schema浏览器",
+      "description": "查看数据库表结构、索引和约束",
+      "searchPlaceholder": "搜索表名或类型...",
+      "totalObjects": "总计 {{count}} 个对象",
+      "refresh": "刷新",
+      "clear": "清除选择",
+      "selectTable": "选择表",
+      "selectTableDescription": "从左侧选择表查看详细信息",
+      "columns": "列信息",
+      "columnName": "列名",
+      "columnType": "类型",
+      "nullable": "可为空",
+      "defaultValue": "默认值",
+      "fetchFailed": "Schema加载失败",
+      "fetchTableInfoFailed": "表详情加载失败"
+    },
+    "activity": {
+      "title": "活动监控",
+      "description": "实时监控数据库操作和性能指标",
+      "filterService": "筛选服务",
+      "filterOperation": "操作筛选",
+      "filterStatus": "状态筛选",
+      "filterAll": "全部",
+      "allServices": "全部服务",
+      "allStatuses": "全部状态",
+      "allOperations": "全部操作",
+      "operationPlaceholder": "搜索操作类型...",
+      "limit": "显示数量",
+      "timestamp": "时间戳",
+      "user": "用户",
+      "status": "状态",
+      "duration": "耗时",
+      "success": "成功",
+      "error": "错误",
+      "totalActivities": "总操作数",
+      "successRate": "成功率",
+      "avgDuration": "平均耗时",
+      "showingLatest": "显示最新 {{count}} 条记录",
+      "noActivities": "暂无活动记录",
+      "refresh": "刷新",
+      "fetchFailed": "活动日志加载失败"
+    },
+    "errors": {
+      "fetchStatusFailed": "状态获取失败",
+      "schemaFetchFailed": "Schema加载失败",
+      "migrationLoadFailed": "迁移记录加载失败"
+    }
+  }
+}

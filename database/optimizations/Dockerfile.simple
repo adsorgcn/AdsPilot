@@ -1,0 +1,9 @@
+FROM migrate/migrate:v4.17.0
+
+WORKDIR /migrations
+
+# 只复制性能索引迁移文件
+COPY database/migrations/000005_add_performance_indexes.up.sql /migrations/
+
+# Set entrypoint to run the migration
+ENTRYPOINT ["migrate", "-path=/migrations", "-database"]

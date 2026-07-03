@@ -1,0 +1,162 @@
+{
+  "subscriptionTabSubheading": "管理您的订阅和账单",
+  "checkout": "结账",
+  "manageBillingDescription": "访问您的客户门户以管理订阅和账单。",
+  "manageBilling": "前往客户门户",
+  "notSubscribedToAnyPlan": "您目前未订阅任何计划",
+  "choosePlan": "选择下方计划",
+  "currentPlan": "您的计划",
+  "subscriptionWillEndOn": "订阅将于 {{- endDate }} 结束",
+  "unknownErrorAlertHeading": "抱歉，出错了",
+  "unknownErrorAlert": "处理您的付款时遇到未知错误。请重试或联系客服。",
+  "checkOutCanceledAlertHeading": "结账已取消",
+  "checkOutCanceledAlert": "结账已取消。如有任何问题，请联系我们。",
+  "checkOutCompletedAlertHeading": "结账成功完成",
+  "checkOutCompletedAlert": "太好了，您的付款成功！",
+  "cancelAtPeriodEndDescription": "您的订阅计划于 {{- endDate }} 取消。",
+  "renewAtPeriodEndDescription": "您的订阅计划于 {{- endDate }} 续订",
+  "noPermissionsAlertHeading": "您没有权限更改账单设置",
+  "noPermissionsAlertBody": "请联系您的组织所有者以更改组织的账单设置。",
+  "checkoutSuccessTitle": "完成！一切就绪。",
+  "checkoutSuccessDescription": "感谢您的订阅，我们已成功处理您的订阅！确认邮件将发送至 {{ customerEmail }}。",
+  "checkoutSuccessBackButton": "进入应用",
+  "status": {
+    "free": {
+      "label": "免费计划",
+      "heading": "您目前使用免费计划",
+      "description": "您正在使用免费计划。您可以随时升级到付费计划。"
+    },
+    "active": {
+      "label": "活跃",
+      "heading": "您的订阅处于活跃状态",
+      "description": "您的订阅处于活跃状态。您可以在客户门户中管理订阅和账单。"
+    },
+    "trialing": {
+      "label": "试用",
+      "heading": "您正在试用中",
+      "description": "您的试用将于 {{- trialEndDate }} 结束。"
+    },
+    "past_due": {
+      "label": "逾期",
+      "heading": "您的账单已逾期",
+      "description": "您的账单已逾期。请更新您的付款方式。"
+    },
+    "canceled": {
+      "label": "已取消",
+      "heading": "您的订阅已取消",
+      "description": "您的订阅已取消。计划于 {{- endDate }} 结束。"
+    },
+    "unpaid": {
+      "label": "未付款",
+      "heading": "您的账单未付款",
+      "description": "您的账单未付款。请更新您的付款方式。"
+    },
+    "incomplete": {
+      "label": "未完成",
+      "heading": "我们正在等待您的付款",
+      "description": "我们正在等待您的付款。请耐心等待。"
+    },
+    "incomplete_expired": {
+      "label": "已过期",
+      "heading": "您的付款已过期",
+      "description": "您的付款已过期。请更新您的付款方式。"
+    },
+    "paused": {
+      "label": "已暂停",
+      "heading": "您的订阅已暂停",
+      "description": "您的订阅已暂停。您可以随时恢复。"
+    }
+  },
+  "subscriptionPlannerTitle": "套餐推荐",
+  "subscriptionPlannerDesc": "根据不同场景推荐最适合的套餐。",
+  "subscriptionTokenNeedLine": "预计 Token 需求：{{amount}} / 月",
+  "subscriptionAdSpendLine": "月度广告预算：${{amount}}k",
+  "subscriptionTeamSizeLine": "团队规模：{{count}} 人",
+  "subscriptionRecommendedPlanLine": "推荐套餐：{{plan}}",
+  "subscriptionEstimatedCostLine": "预计月度费用：${{cost}}",
+  "subscriptionScenario": "使用场景",
+  "subscriptionEstimatedCost": "预计月度费用",
+  "subscriptionRecommendedPlan": "推荐套餐",
+  "subscriptionUpgradeCta": "前往订阅页面",
+  "subscriptionTokenNeed": "预计 Token 需求",
+  "subscriptionAdSpend": "月度广告预算",
+  "subscriptionTeamSize": "团队规模",
+  "subscriptionSimulationsTitle": "消耗模拟",
+  "subscriptionSimulationsDesc": "拖动滑块预览不同使用量下的账单变化。",
+  "subscriptionTokenSliderLabel": "预计月度 Token 消耗",
+  "subscriptionTeamSliderLabel": "需要访问的成员数量",
+  "subscriptionSpendSliderLabel": "预计月度广告投放",
+  "subscriptionTokenSliderValue": "{{value}} Token",
+  "subscriptionTeamSliderValue": "{{value}} 人",
+  "subscriptionSpendSliderValue": "${{value}}k",
+  "subscriptionSuggestedPlan": "建议套餐",
+  "subscriptionEstimatedBill": "预计月费",
+  "subscriptionEstimatedBillLine": "预计月费：${{cost}}{{included}}",
+  "subscriptionEstimatedBillIncludedTokens": " · 包含 Token {{tokens}}",
+  "subscriptionEstimatedBillFreeTier": " · 免费额度",
+  "subscriptionAdvancedBadge": "进阶",
+  "catalog": {
+    "starter": {
+      "label": "Starter",
+      "description": "适合个人测试 Offer"
+    },
+    "professional": {
+      "label": "Professional",
+      "description": "适合成长型联盟营销者"
+    },
+    "elite": {
+      "label": "Elite",
+      "description": "适合运营大规模广告活动的团队"
+    }
+  },
+  "subscriptionAvailablePlansTitle": "可选套餐",
+  "subscriptionAvailablePlansDesc": "选择适合您的套餐，随时升级或降级。",
+  "subscriptionRecommendedBadge": "推荐",
+  "subscriptionPlanPrice": "¥{{price}}",
+  "subscriptionPlanPeriod": "/ 月",
+  "subscriptionSelectPlan": "选择套餐",
+  "subscriptionAnnualDiscount": "年付享5折优惠。企业定价请联系我们。",
+  "features": {
+    "100 tokens/month": "100 tokens/月",
+    "Basic evaluation (1 token/offer)": "基础评估（1 token/次）",
+    "✅ Real click simulation": "✅ 真实补点击",
+    "✅ US proxy IP only": "✅ 仅支持美国代理IP",
+    "Email support": "邮件支持",
+    "500 tokens/month": "500 tokens/月",
+    "AI evaluation (3 tokens/offer)": "AI 智能评估（3 tokens/次）",
+    "✅ 10+ global proxy regions": "✅ 10+ 全球代理地区",
+    "Priority support": "优先支持",
+    "Advanced analytics": "高级数据分析",
+    "Unlimited tokens": "无限 tokens",
+    "Unlimited AI evaluation": "无限 AI 智能评估",
+    "✅ 50+ global proxy regions": "✅ 50+ 全球代理地区",
+    "Dedicated account manager": "专属客户经理",
+    "Custom integrations": "定制集成",
+    "SLA guarantee": "SLA 服务保障"
+  },
+  "subscriptionCompareTitle": "套餐对比表",
+  "subscriptionCompareDesc": "快速了解不同套餐包含的能力。",
+  "subscriptionTablePlan": "套餐",
+  "subscriptionTableMonthly": "月费",
+  "subscriptionTableTokens": "包含 Token",
+  "subscriptionTableOverage": "超额单价",
+  "subscriptionTableSeats": "最大席位",
+  "subscriptionTableFit": "适合团队",
+  "subscriptionTablePrice": "${{price}}",
+  "subscriptionTableTokensValue": "{{tokens}}",
+  "subscriptionTableOverageValue": "${{price}}",
+  "subscriptionTableSeatsValue": "{{seats}}",
+  "subscriptionPendingTitle": "待完成订阅",
+  "subscriptionPendingDesc": "检测到正在进行中的结账。请完成支付以激活套餐。",
+  "subscriptionCurrentPlanHeading": "当前套餐",
+  "subscriptionCurrentPlanEmpty": "未订阅",
+  "subscriptionCurrentPlanStatus": "状态：{{status}}",
+  "subscriptionUsageHeading": "近 30 天消耗",
+  "subscriptionUsageTokens": "包含 Token {{tokens}}",
+  "scenarioStarter": "起步团队",
+  "scenarioStarterDesc": "适合评估阶段的初创团队。",
+  "scenarioGrowth": "增长团队",
+  "scenarioGrowthDesc": "面向多渠道投放的成长型团队。",
+  "scenarioEnterprise": "企业团队",
+  "scenarioEnterpriseDesc": "大规模自动化运营的企业团队。"
+}

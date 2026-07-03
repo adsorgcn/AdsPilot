@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Adscenter 执行概览</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, PingFang SC, Noto Sans, sans-serif; margin: 20px; }
+    h2 { margin: 12px 0; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+    .cards { display:grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap:12px; margin: 12px 0; }
+    .card { border:1px solid #e5e7eb; border-radius:8px; padding:12px; }
+    .muted { color:#6b7280; font-size:12px; }
+    .kpi { font-size: 22px; font-weight: 600; }
+    .light { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; }
+    .green { background:#16a34a; }
+    .yellow { background:#f59e0b; }
+    .red { background:#dc2626; }
+    button { padding:6px 10px; font-size: 13px; cursor:pointer; }
+    svg { width:100%; height:160px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; }
+    .legend { display:flex; gap:12px; align-items:center; margin:6px 0; }
+    .box { width:10px; height:10px; display:inline-block; }
+    .okc { background:#2563eb; }
+    .errc { background:#ef4444; }
+    table { width:100%; border-collapse: collapse; margin-top:10px; }
+    th, td { border:1px solid #e5e7eb; padding:6px; font-size: 13px; }
+    th { background:#f3f4f6; text-align:left; }
+  </style>
+  <script>
+    function authHeaders(){ const t = (localStorage.getItem('gm_admin_id_token')||'').trim(); return t? { 'Authorization': 'Bearer '+t } : {}; }
+    async function fetchJSON(u){ const r = await fetch(u, { headers: authHeaders() }); if(!r.ok) throw new Error(r.status+':'+(await r.text().catch(()=>''))); return r.json(); }
+    function lightByRate(rate){ if(rate>=0.98) return 'green'; if(rate>=0.95) return 'yellow'; return 'red'; }
+    function lightByCount(n){ if(n===0) return 'green'; if(n<=10) return 'yellow'; return 'red'; }
+    function fmtPct(v){ return ((v||0)*100).toFixed(2)+'%'; }
+    function drawBars(el, daily){
+      const w = el.clientWidth || 400; const h = 160; const pad = 24; const bw = 20; const gap = 8;
+      const days = (daily||[]).map(d=>({date:d.date, ok: Number(d.ok||0), err:Number(d.error||0)}));
+      const max = Math.max(1, ...days.map(d=>d.ok+d.err));
+      let svg = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">`;
+      const baseY = h - pad;
+      let x = pad;
+      const barTotal = bw*2; // stacked: ok+err vertical
+      const step = Math.max(bw + gap, (w - pad*2) / Math.max(days.length,1));
+      days.forEach((d,i)=>{
+        const sum = d.ok + d.err;
+        const th = sum>0 ? Math.max(1, Math.round((sum/max)*(h-2*pad))) : 0;
+        const okh = sum>0 ? Math.round((d.ok/sum)*th) : 0;
+        const erh = th - okh;
+        const bx = pad + i*step;
+        const byErr = baseY - th; // start of stack
+        // err bar (bottom)
+        svg += `<rect x="${bx}" y="${baseY - erh}" width="${bw}" height="${erh}" fill="#ef4444" opacity="0.8"/>`;
+        // ok bar (top of stack)
+        svg += `<rect x="${bx}" y="${baseY - th}" width="${bw}" height="${okh}" fill="#2563eb" opacity="0.9"/>`;
+        // date labels (every 3rd)
+        if (i%3===0){ svg += `<text x="${bx}" y="${h-6}" font-size="10" fill="#6b7280">${d.date.slice(5)}</text>`; }
+      });
+      // axis
+      svg += `<line x1="${pad}" y1="${baseY}" x2="${w-pad}" y2="${baseY}" stroke="#e5e7eb"/>`;
+      svg += `</svg>`;
+      el.innerHTML = svg;
+    }
+    async function load(){
+      try {
+        const days = Number(new URLSearchParams(location.search).get('days')||'7');
+        const url = `/api/v1/console/adscenter/executions/summary?days=${encodeURIComponent(String(days))}&daily=1`;
+        const j = await fetchJSON(url);
+        const srate = j.successRate || 0;
+        const dlp = Number(j.deadlettersPending||0);
+        const dlf = Number(j.deadlettersFailed||0);
+        // KPI cards
+        document.querySelector('#k_ops').innerHTML = `<span class="light green"></span><span class="kpi">${j.operationsCompleted||0}</span><div class="muted">已完成计划</div>`;
+        document.querySelector('#k_ok').innerHTML = `<span class="light green"></span><span class="kpi">${j.execOk||0}</span><div class="muted">执行成功</div>`;
+        const erL = document.querySelector('#k_err'); erL.innerHTML = `<span class="light ${lightByCount(Number(j.execError||0))}"></span><span class="kpi">${j.execError||0}</span><div class="muted">执行失败</div>`;
+        const srL = document.querySelector('#k_rate'); srL.innerHTML = `<span class="light ${lightByRate(srate)}"></span><span class="kpi">${fmtPct(srate)}</span><div class="muted">成功率</div>`;
+        const dlL = document.querySelector('#k_dl'); dlL.innerHTML = `<span class="light ${lightByCount(dlp+dlf)}"></span><span class="kpi">${dlp + dlf}</span><div class="muted">待处理死信</div>`;
+        // Chart + table
+        drawBars(document.getElementById('chart'), j.daily||[]);
+        const rows = (j.daily||[]).map(d=> `<tr><td>${d.date}</td><td>${d.ok||0}</td><td>${d.error||0}</td></tr>`).join('');
+        document.getElementById('tbl').innerHTML = `<table><thead><tr><th>日期</th><th>成功</th><th>失败</th></tr></thead><tbody>${rows}</tbody></table>`;
+        document.getElementById('updated').textContent = new Date(j.updatedAt||Date.now()).toLocaleString();
+      } catch(e){
+        console.warn(e); document.getElementById('chart').innerHTML = '<div class="muted">加载失败</div>';
+      }
+    }
+    window.addEventListener('DOMContentLoaded', load);
+  </script>
+</head>
+<body>
+  <h2>Adscenter 执行概览</h2>
+  <div class="row">
+    <a href="/console/">返回控制台</a>
+    <a href="/console/admin/adscenter-business.html">业务监控</a>
+    <a href="/console/admin/adscenter-reports.html">近7天报表</a>
+    <button onclick="load()">刷新</button>
+  </div>
+
+  <div class="cards">
+    <div class="card" id="k_ops"></div>
+    <div class="card" id="k_ok"></div>
+    <div class="card" id="k_err"></div>
+    <div class="card" id="k_rate"></div>
+  </div>
+  <div class="cards">
+    <div class="card" id="k_dl"></div>
+  </div>
+
+  <div class="legend">
+    <span class="box okc"></span><span class="muted">成功</span>
+    <span class="box errc"></span><span class="muted">失败</span>
+  </div>
+  <div id="chart">加载中...</div>
+  <div id="tbl" style="margin-top:10px"></div>
+  <div class="muted" style="margin-top:12px;">数据来源：/api/v1/console/adscenter/executions/summary（更新时间：<span id="updated"></span>）</div>
+</body>
+</html>

@@ -1,0 +1,38 @@
+name: Config Audit
+
+on:
+  workflow_dispatch:
+
+jobs:
+  audit:
+    name: Secret Inventory Audit
+    runs-on: ubuntu-latest
+    env:
+      GCP_AUDIT_SERVICE_KEY: ${{ secrets.GCP_AUDIT_SERVICE_KEY }}
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        if: ${{ env.GCP_AUDIT_SERVICE_KEY != '' }}
+
+      - uses: actions/setup-python@v4
+        if: ${{ env.GCP_AUDIT_SERVICE_KEY != '' }}
+        with:
+          python-version: '3.10'
+
+      - uses: google-github-actions/auth@v1
+        if: ${{ env.GCP_AUDIT_SERVICE_KEY != '' }}
+        with:
+          credentials_json: ${{ env.GCP_AUDIT_SERVICE_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v1
+        if: ${{ env.GCP_AUDIT_SERVICE_KEY != '' }}
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID || '${GCP_PROJECT_ID}' }}
+
+      - name: Install dependencies
+        if: ${{ env.GCP_AUDIT_SERVICE_KEY != '' }}
+        run: pip install --upgrade pip
+
+      - name: Audit secrets against inventory
+        if: ${{ env.GCP_AUDIT_SERVICE_KEY != '' }}
+        run: python scripts/env/audit_secrets.py --project ${{ env.GCP_PROJECT_ID || '${GCP_PROJECT_ID}' }} --warn-extra

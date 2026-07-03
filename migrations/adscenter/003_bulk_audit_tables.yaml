@@ -1,0 +1,90 @@
+version: "003"
+service: "adscenter"
+description: "创建批量操作审计表 - 记录和审计批量操作的完整生命周期"
+author: "system-migration"
+created_at: "2025-01-19T12:00:00Z"
+risk_level: "medium"
+dependencies:
+  - "001"
+  - "002"
+
+changes:
+  - type: "CREATE_TABLE"
+    name: "BulkActionOperation"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "BulkActionOperation" (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        plan JSONB,
+        status TEXT,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+      );
+    description: "批量操作主表，存储操作计划和状态"
+
+  - type: "CREATE_TABLE"
+    name: "BulkActionAudit"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "BulkActionAudit" (
+        id BIGSERIAL PRIMARY KEY,
+        op_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        snapshot JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    description: "批量操作审计表，记录操作前后的数据快照"
+
+  - type: "CREATE_INDEX"
+    name: "ix_bulk_audit_op"
+    table: "BulkActionAudit"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_bulk_audit_op ON "BulkActionAudit"(op_id, created_at);
+    description: "优化按操作ID和时间查询审计记录"
+
+  - type: "CREATE_INDEX"
+    name: "ix_bulk_audit_user"
+    table: "BulkActionAudit"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_bulk_audit_user ON "BulkActionAudit"(user_id, created_at DESC);
+    description: "优化按用户查询审计历史"
+
+rollback:
+  - type: "DROP_TABLE"
+    name: "BulkActionOperation"
+    sql: DROP TABLE IF EXISTS "BulkActionOperation";
+    description: "回滚：删除批量操作主表"
+
+  - type: "DROP_TABLE"
+    name: "BulkActionAudit"
+    sql: DROP TABLE IF EXISTS "BulkActionAudit";
+    description: "回滚：删除批量操作审计表"
+
+validation:
+  - type: "table_exists"
+    name: "BulkActionOperation"
+    description: "验证BulkActionOperation表已创建"
+
+  - type: "table_exists"
+    name: "BulkActionAudit"
+    description: "验证BulkActionAudit表已创建"
+
+  - type: "column_exists"
+    name: "BulkActionOperation"
+    column: "plan"
+    description: "验证plan字段存在且为JSONB类型"
+
+  - type: "column_exists"
+    name: "BulkActionAudit"
+    column: "snapshot"
+    description: "验证snapshot字段存在且为JSONB类型"
+
+  - type: "index_exists"
+    name: "ix_bulk_audit_op"
+    table: "BulkActionAudit"
+    description: "验证操作ID索引已创建"
+
+  - type: "index_exists"
+    name: "ix_bulk_audit_user"
+    table: "BulkActionAudit"
+    description: "验证用户ID索引已创建"

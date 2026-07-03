@@ -1,0 +1,46 @@
+{
+  "title": "Referral Program",
+  "description": "Invite friends to register and both parties get trial periods and rewards",
+  "loading": "Loading...",
+  "copied": "Copied {{label}}",
+  "copyFailed": "Failed to copy",
+  "activeTrial": {
+    "title": "You have an active trial period",
+    "description": "Your trial has {{days}} days remaining and expires on {{endDate}}"
+  },
+  "stats": {
+    "total": "Total Referrals",
+    "successful": "Successful",
+    "rewards": "Total Rewards"
+  },
+  "shareLink": {
+    "title": "Share Your Referral Link",
+    "code": "Referral Code",
+    "link": "Referral Link",
+    "qrCode": "QR Code",
+    "qrCodeDescription": "Scan QR code to register quickly"
+  },
+  "list": {
+    "title": "My Referral Records",
+    "empty": "No referral records yet",
+    "emptyDescription": "Share your referral link to start earning rewards",
+    "joined": "Registered",
+    "completed": "Completed",
+    "reward": "Reward",
+    "rewardGranted": "Granted"
+  },
+  "status": {
+    "pending": "Pending",
+    "completed": "Completed",
+    "failed": "Failed"
+  },
+  "program": {
+    "title": "Referral Program Details",
+    "inviteeReward": "Invitee gets 14-day trial",
+    "inviteeRewardDescription": "New users who register through your referral link will receive a 14-day free trial",
+    "inviterReward": "Inviter gets 14-day trial",
+    "inviterRewardDescription": "For each successful referral, you'll receive a 14-day trial period as a reward",
+    "stackable": "Trials are stackable",
+    "stackableDescription": "Multiple trial periods from referrals can be accumulated for extended service access"
+  }
+}

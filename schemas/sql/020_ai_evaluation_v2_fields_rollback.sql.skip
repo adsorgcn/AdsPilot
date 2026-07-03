@@ -1,0 +1,61 @@
+-- 回滚脚本: AI评估v2.1新增字段
+-- 用于紧急回滚数据库迁移
+-- Created: 2025-10-05
+
+-- 1. 删除新增索引
+DROP INDEX IF EXISTS idx_offer_evaluations_search_insights;
+DROP INDEX IF EXISTS idx_offer_evaluations_geo_insights;
+DROP INDEX IF EXISTS idx_offer_evaluations_risk_assessment;
+
+-- 2. 删除新增字段
+ALTER TABLE offer_evaluations
+DROP COLUMN IF EXISTS ai_product_type,
+DROP COLUMN IF EXISTS ai_estimated_aov,
+DROP COLUMN IF EXISTS ai_search_insights,
+DROP COLUMN IF EXISTS ai_geo_insights,
+DROP COLUMN IF EXISTS ai_risk_assessment;
+
+-- 3. 恢复视图到v2.0（不包含新字段）
+CREATE OR REPLACE VIEW offer_evaluations_latest AS
+SELECT DISTINCT ON (offer_id, evaluation_type)
+  e.id,
+  e.user_id,
+  e.offer_id,
+  e.evaluation_type,
+  e.domain,
+  e.brand_name,
+  e.similarweb_data,
+
+  -- AI评估字段（v2.0版本）
+  e.ai_recommendation_score,
+  e.ai_reasons,
+  e.ai_industry,
+  e.ai_traffic_insights,
+  e.ai_ad_insights,
+
+  e.status,
+  e.completed_at,
+  ol.name AS offer_name,
+  COALESCE(ol.original_url_camel, ol.original_url_snake) AS offer_url
+FROM offer_evaluations e
+LEFT JOIN (
+  SELECT
+    id,
+    name,
+    to_jsonb(o) ->> 'originalUrl' AS original_url_camel,
+    to_jsonb(o) ->> 'original_url' AS original_url_snake
+  FROM "Offer" o
+) AS ol ON e.offer_id::text = ol.id
+WHERE e.status = 'success'
+ORDER BY e.offer_id, e.evaluation_type, e.completed_at DESC;
+
+COMMENT ON VIEW offer_evaluations_latest IS 'Offer最新评估结果视图（v2.0版本），回滚v2.1新增字段';
+
+-- 4. 验证回滚
+SELECT
+  column_name,
+  data_type
+FROM information_schema.columns
+WHERE table_name = 'offer_evaluations'
+  AND column_name LIKE 'ai_%'
+ORDER BY column_name;

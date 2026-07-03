@@ -1,0 +1,23 @@
+{
+  "displayName": "Browser-Exec Capacity Exhausted",
+  "userLabels": {"service": "browser-exec"},
+  "conditions": [
+    {
+      "displayName": "Capacity exhausted spikes",
+      "conditionThreshold": {
+        "filter": "metric.type=\"custom.googleapis.com/be_capacity_exhausted_total\" resource.type=\"cloud_run_revision\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0,
+        "duration": "0s",
+        "trigger": {"count": 1},
+        "aggregations": [
+          {"alignmentPeriod": "300s", "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_DELTA"}
+        ]
+      }
+    }
+  ],
+  "combiner": "OR",
+  "enabled": true,
+  "notificationChannels": []
+}
+

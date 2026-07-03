@@ -1,0 +1,39 @@
+# Adscenter DB Migrator
+# Purpose: Run database migrations independently from service deployment
+# Usage: gcloud run jobs execute adscenter-db-migrator --region=asia-northeast1
+
+FROM golang:1.25-alpine as builder
+WORKDIR /workspace
+ENV GO111MODULE=on
+ENV GOWORK=off
+
+# Install git
+RUN apk add --no-cache git
+
+# Copy minimal workspace
+COPY go.work ./go.work
+COPY pkg ./pkg
+COPY services/adscenter ./services/adscenter
+
+WORKDIR /workspace/services/adscenter
+
+# Build migration runner (reuse billing's migrator with updated paths)
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -ldflags="-s -w" \
+    -tags=migration \
+    -o /run-migrations \
+    ./cmd/migrator
+
+# Runtime stage
+FROM alpine:latest
+WORKDIR /app
+
+RUN apk add --no-cache postgresql-client
+
+COPY --from=builder /run-migrations /app/run-migrations
+COPY --from=builder /workspace/services/adscenter/internal/migrations /app/migrations
+
+ENV MIGRATIONS_DIR=/app/migrations
+
+CMD ["/app/run-migrations"]

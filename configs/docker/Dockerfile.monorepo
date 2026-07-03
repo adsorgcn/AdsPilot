@@ -1,0 +1,86 @@
+# Google-Monetize Monorepo Dockerfile
+# 统一构建 Go 后端和 Next.js 前端
+
+# 构建阶段
+FROM node:22-alpine AS builder
+
+# 安装必要的系统依赖
+RUN apk add --no-cache git build-base tzdata
+
+WORKDIR /app
+
+# 复制 package 文件
+COPY package.json package-lock.json ./
+COPY apps/frontend/package.json apps/frontend/package-lock.json ./apps/frontend/
+
+# 安装依赖
+RUN npm ci
+
+# 复制源代码
+COPY . .
+
+# 构建前端
+RUN cd apps/frontend && npm run build
+
+# Go 构建阶段
+FROM golang:1.21-alpine AS go-builder
+
+# 安装必要的系统依赖
+RUN apk add --no-cache git build-base tzdata
+
+WORKDIR /go/src/app
+
+# 复制 Go mod 文件
+COPY gofly_admin_v3/go.mod gofly_admin_v3/go.sum ./
+RUN go mod download
+
+# 复制 Go 源代码
+COPY gofly_admin_v3/ .
+
+# 构建 Go 应用
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main cmd/server/main.go
+
+# 生产运行阶段
+FROM alpine:3.19 AS runner
+
+# 安装必要的运行时依赖
+RUN apk add --no-cache ca-certificates tzdata curl bash
+
+# 创建非root用户
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
+
+WORKDIR /app
+
+# 复制 Go 应用
+COPY --from=go-builder /go/src/app/main ./main
+COPY --from=go-builder /go/src/app/resource ./resource
+
+# 复制 Next.js 构建产物
+COPY --from=builder --chown=appuser:appgroup /app/apps/frontend/.next/standalone ./
+COPY --from=builder --chown=appuser:appgroup /app/apps/frontend/.next/static ./.next/static
+COPY --from=builder --chown=appuser:appgroup /app/apps/frontend/public ./public
+
+# 确保正确的文件权限
+RUN chown -R appuser:appgroup /app && \
+    chmod +x ./main
+
+# 设置环境变量
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+ENV GO_ENV=production
+ENV GO_APP_PORT=8080
+
+# 切换到非root用户
+USER appuser
+
+# 暴露端口
+EXPOSE 8888
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8888/api/health || exit 1
+
+# 启动应用
+CMD ["./main", "-host", "0.0.0.0", "-port", "8888"]

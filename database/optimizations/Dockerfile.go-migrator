@@ -1,0 +1,19 @@
+FROM golang:1.25-alpine as builder
+
+WORKDIR /build
+
+# 复制Go代码和依赖
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY run-indexes.go ./
+
+# 构建二进制
+RUN CGO_ENABLED=0 GOOS=linux go build -o /index-migrator run-indexes.go
+
+# 最小运行时
+FROM gcr.io/distroless/static-debian12
+
+COPY --from=builder /index-migrator /index-migrator
+
+ENTRYPOINT ["/index-migrator"]

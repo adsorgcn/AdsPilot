@@ -1,0 +1,43 @@
+# Cloud Build configuration for DB Migrator images
+# Purpose: Build dedicated migration runner images for services
+# Usage: gcloud builds submit --config=deployments/cloudbuild/build-migrator.yaml \
+#        --substitutions=_SERVICE=billing,_ENV=preview,_COMMIT_SHA=$(git rev-parse --short HEAD)
+
+steps:
+  # Extract tarball (uploaded by GitHub Actions)
+  - name: gcr.io/cloud-builders/gcloud
+    id: extract-source
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        if [[ -f source.tar.gz ]]; then
+          echo "Extracting source.tar.gz..."
+          tar -xzf source.tar.gz
+          rm source.tar.gz
+        else
+          echo "No tarball found, using direct source"
+        fi
+
+  # Build migrator image
+  - name: gcr.io/kaniko-project/executor:latest
+    id: build-migrator
+    args:
+      - --dockerfile=services/${_SERVICE}/Dockerfile.migration
+      - --context=dir:///workspace
+      - --destination=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}-migrator:${_ENV}-latest
+      - --destination=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}-migrator:${_ENV}-${_COMMIT_SHA}
+      - --cache=true
+      - --cache-ttl=24h
+
+timeout: 900s
+options:
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _SERVICE: billing  # billing or adscenter
+  _ENV: preview      # preview or prod
+  _COMMIT_SHA: local
+  _REGION: asia-northeast1
+  _REPO: gm-services

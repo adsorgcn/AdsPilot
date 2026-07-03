@@ -1,0 +1,146 @@
+# Google-Monetize SaaS Production Environment Configuration
+# Domain: ${APP_DOMAIN}
+
+server:
+  port: 8888
+  host: "0.0.0.0"
+  mode: "release"
+  read_timeout: 30s
+  write_timeout: 30s
+  idle_timeout: 60s
+
+# Database configuration
+database:
+  host: "dbprovider.sg-members-1.clawcloudrun.com"
+  port: 30354
+  username: "root"
+  password: "${DATABASE_PASSWORD}"
+  database: "gm_production"
+  charset: "utf8mb4"
+  parse_time: true
+  loc: "Local"
+  max_idle_conns: 20
+  max_open_conns: 100
+  conn_max_lifetime: 3600
+
+# Redis configuration
+redis:
+  host: "dbprovider.sg-members-1.clawcloudrun.com"
+  port: 32284
+  password: "${REDIS_PASSWORD}"
+  database: 0
+  pool_size: 50
+  min_idle_conns: 10
+
+# Authentication configuration
+auth:
+  jwt_secret: "${JWT_SECRET}"
+  jwt_expire: 168h # 7 days
+  google_client_id: "${GOOGLE_CLIENT_ID}"
+  google_client_secret: "${GOOGLE_CLIENT_SECRET}"
+  auth_url: "https://www.${APP_DOMAIN}"
+  callback_url: "https://www.${APP_DOMAIN}/api/auth/callback"
+
+# Domain configuration
+domain:
+  primary: "${APP_DOMAIN}"
+  www: "www.${APP_DOMAIN}"
+  api_base: "https://www.${APP_DOMAIN}/api"
+  frontend_base: "https://www.${APP_DOMAIN}"
+
+# External services
+external_services:
+  similarweb:
+    api_url: "https://data.similarweb.com/api/v1/data"
+    timeout: 30s
+    rate_limit: 1000 # requests per minute
+
+# Rate limiting
+rate_limit:
+  enabled: true
+  default_limit: 100 # requests per minute
+  burst_limit: 200
+  cleanup_interval: 300s
+
+# Logging
+logging:
+  level: "warn"
+  format: "json"
+  output: "stdout"
+  file_rotation:
+    enabled: true
+    max_size: 100
+    max_backups: 30
+    max_age: 30
+    compress: true
+
+# Monitoring
+monitoring:
+  enabled: true
+  metrics_path: "/metrics"
+  health_path: "/health"
+  ready_path: "/ready"
+  live_path: "/live"
+
+# Security
+security:
+  cors:
+    enabled: true
+    allowed_origins:
+      - "https://${APP_DOMAIN}"
+      - "https://www.${APP_DOMAIN}"
+    allowed_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allowed_headers: ["*"]
+    allow_credentials: true
+  
+  csrf:
+    enabled: true
+    secret: "${CSRF_SECRET}"
+  
+  encryption:
+    key: "${ENCRYPTION_KEY}"
+
+# Features
+features:
+  websocket:
+    enabled: true
+    path: "/ws"
+    
+  file_upload:
+    enabled: true
+    max_size: 10485760 # 10MB
+    allowed_types: ["image/jpeg", "image/png", "image/gif"]
+    
+  email:
+    enabled: true
+    smtp_host: "${SMTP_HOST}"
+    smtp_port: "${SMTP_PORT}"
+    smtp_username: "${SMTP_USERNAME}"
+    smtp_password: "${SMTP_PASSWORD}"
+    
+  backup:
+    enabled: true
+    schedule: "0 2 * * *" # Daily at 2 AM
+    retention_days: 30
+
+# Performance
+performance:
+  cache:
+    enabled: true
+    default_ttl: 3600s
+    max_memory: "512MB"
+  
+  compression:
+    enabled: true
+    level: 6
+  
+  static_files:
+    enabled: true
+    path: "/web"
+    cache_control: "public, max-age=31536000"
+
+# Environment specific
+environment:
+  name: "production"
+  debug: false
+  development: false

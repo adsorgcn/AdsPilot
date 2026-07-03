@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gm
+  labels:
+    app: gm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gm
+  template:
+    metadata:
+      labels:
+        app: gm
+    spec:
+      containers:
+        - name: gm
+          image: ghcr.io/ScientificInternet/Google-Monetize:preview-latest
+          imagePullPolicy: Always
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: NEXT_PUBLIC_DEPLOYMENT_ENV
+              value: "preview"
+            - name: NEXT_PUBLIC_DOMAIN
+              value: "urlchecker.dev"
+            - name: PORT
+              value: "8080"
+            - name: NEXTJS_PORT
+              value: "3000"
+          ports:
+            - name: http
+              containerPort: 3000
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -lc
+                  - |
+                    echo "postStart: waiting backend ready...";
+                    for i in $(seq 1 30); do
+                      if curl -fsS http://127.0.0.1:8080/readyz >/dev/null 2>&1; then
+                        echo "postStart: backend ready"; exit 0; fi; sleep 1; done;
+                    echo "postStart: backend not ready within 30s (non-fatal)";
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"

@@ -1,0 +1,463 @@
+version: "002"
+service: "useractivity"
+description: "将核心表字段和索引统一为snake_case, 并补充通知表元数据字段"
+author: "codex"
+created_at: "2025-01-20T10:00:00Z"
+risk_level: "medium"
+dependencies:
+  - "001"
+
+changes:
+  - type: "EXECUTE_SQL"
+    name: "rename_checkins_columns"
+    description: "checkins表字段重命名"
+    sql: |
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'checkins' AND column_name = 'userId'
+        ) THEN
+          EXECUTE 'ALTER TABLE checkins RENAME COLUMN "userId" TO user_id';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'checkins' AND column_name = 'lastCheckinAt'
+        ) THEN
+          EXECUTE 'ALTER TABLE checkins RENAME COLUMN "lastCheckinAt" TO last_checkin_at';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'checkins' AND column_name = 'totalCheckins'
+        ) THEN
+          EXECUTE 'ALTER TABLE checkins RENAME COLUMN "totalCheckins" TO total_checkins';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'checkins' AND column_name = 'currentStreak'
+        ) THEN
+          EXECUTE 'ALTER TABLE checkins RENAME COLUMN "currentStreak" TO current_streak';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'checkins' AND column_name = 'longestStreak'
+        ) THEN
+          EXECUTE 'ALTER TABLE checkins RENAME COLUMN "longestStreak" TO longest_streak';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'checkins' AND column_name = 'tokensEarned'
+        ) THEN
+          EXECUTE 'ALTER TABLE checkins RENAME COLUMN "tokensEarned" TO tokens_earned';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'checkins' AND column_name = 'createdAt'
+        ) THEN
+          EXECUTE 'ALTER TABLE checkins RENAME COLUMN "createdAt" TO created_at';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'checkins' AND column_name = 'updatedAt'
+        ) THEN
+          EXECUTE 'ALTER TABLE checkins RENAME COLUMN "updatedAt" TO updated_at';
+        END IF;
+      END $$;
+
+  - type: "EXECUTE_SQL"
+    name: "rename_checkins_indexes"
+    description: "checkins索引重命名"
+    sql: |
+      ALTER INDEX IF EXISTS "ix_checkins_userId" RENAME TO ix_checkins_user_id;
+
+  - type: "EXECUTE_SQL"
+    name: "rename_user_checkin_stats_columns"
+    description: "user_checkin_stats字段重命名并刷新唯一约束"
+    sql: |
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'user_checkin_stats' AND column_name = 'userId'
+        ) THEN
+          EXECUTE 'ALTER TABLE user_checkin_stats RENAME COLUMN "userId" TO user_id';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'user_checkin_stats' AND column_name = 'checkinDate'
+        ) THEN
+          EXECUTE 'ALTER TABLE user_checkin_stats RENAME COLUMN "checkinDate" TO checkin_date';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'user_checkin_stats' AND column_name = 'tokensEarned'
+        ) THEN
+          EXECUTE 'ALTER TABLE user_checkin_stats RENAME COLUMN "tokensEarned" TO tokens_earned';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'user_checkin_stats' AND column_name = 'streakDay'
+        ) THEN
+          EXECUTE 'ALTER TABLE user_checkin_stats RENAME COLUMN "streakDay" TO streak_day';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'user_checkin_stats' AND column_name = 'createdAt'
+        ) THEN
+          EXECUTE 'ALTER TABLE user_checkin_stats RENAME COLUMN "createdAt" TO created_at';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conrelid = 'user_checkin_stats'::regclass
+            AND conname = 'user_checkin_stats_userId_checkinDate_key'
+        ) THEN
+          EXECUTE 'ALTER TABLE user_checkin_stats DROP CONSTRAINT user_checkin_stats_userId_checkinDate_key';
+          EXECUTE 'ALTER TABLE user_checkin_stats ADD CONSTRAINT user_checkin_stats_user_id_checkin_date_key UNIQUE (user_id, checkin_date)';
+        ELSE
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conrelid = 'user_checkin_stats'::regclass
+              AND conname = 'user_checkin_stats_user_id_checkin_date_key'
+          ) THEN
+            EXECUTE 'ALTER TABLE user_checkin_stats ADD CONSTRAINT user_checkin_stats_user_id_checkin_date_key UNIQUE (user_id, checkin_date)';
+          END IF;
+        END IF;
+      END $$;
+
+  - type: "EXECUTE_SQL"
+    name: "rename_user_checkin_stats_index"
+    description: "user_checkin_stats索引重命名"
+    sql: |
+      ALTER INDEX IF EXISTS "ix_user_checkin_stats_userId" RENAME TO ix_user_checkin_stats_user_id;
+
+  - type: "EXECUTE_SQL"
+    name: "rename_referrals_columns"
+    description: "referrals字段重命名"
+    sql: |
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referrals' AND column_name = 'userId'
+        ) THEN
+          EXECUTE 'ALTER TABLE referrals RENAME COLUMN "userId" TO user_id';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referrals' AND column_name = 'referralCode'
+        ) THEN
+          EXECUTE 'ALTER TABLE referrals RENAME COLUMN "referralCode" TO referral_code';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referrals' AND column_name = 'totalInvites'
+        ) THEN
+          EXECUTE 'ALTER TABLE referrals RENAME COLUMN "totalInvites" TO total_invites';
+        ELSIF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referrals' AND column_name = 'totalReferrals'
+        ) THEN
+          EXECUTE 'ALTER TABLE referrals RENAME COLUMN "totalReferrals" TO total_invites';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referrals' AND column_name = 'successfulInvites'
+        ) THEN
+          EXECUTE 'ALTER TABLE referrals RENAME COLUMN "successfulInvites" TO successful_invites';
+        ELSIF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referrals' AND column_name = 'successfulReferrals'
+        ) THEN
+          EXECUTE 'ALTER TABLE referrals RENAME COLUMN "successfulReferrals" TO successful_invites';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referrals' AND column_name = 'totalRewards'
+        ) THEN
+          EXECUTE 'ALTER TABLE referrals RENAME COLUMN "totalRewards" TO total_rewards';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referrals' AND column_name = 'createdAt'
+        ) THEN
+          EXECUTE 'ALTER TABLE referrals RENAME COLUMN "createdAt" TO created_at';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referrals' AND column_name = 'updatedAt'
+        ) THEN
+          EXECUTE 'ALTER TABLE referrals RENAME COLUMN "updatedAt" TO updated_at';
+        END IF;
+      END $$;
+
+  - type: "EXECUTE_SQL"
+    name: "rename_referrals_indexes"
+    description: "referrals索引重命名"
+    sql: |
+      ALTER INDEX IF EXISTS "ix_referrals_userId" RENAME TO ix_referrals_user_id;
+      ALTER INDEX IF EXISTS "ix_referrals_code" RENAME TO ix_referrals_referral_code;
+
+  - type: "EXECUTE_SQL"
+    name: "rename_referral_records_columns"
+    description: "referral_records字段重命名并刷新唯一约束"
+    sql: |
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referral_records' AND column_name = 'inviterId'
+        ) THEN
+          EXECUTE 'ALTER TABLE referral_records RENAME COLUMN "inviterId" TO referrer_id';
+        ELSIF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referral_records' AND column_name = 'referrerId'
+        ) THEN
+          EXECUTE 'ALTER TABLE referral_records RENAME COLUMN "referrerId" TO referrer_id';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referral_records' AND column_name = 'inviteeId'
+        ) THEN
+          EXECUTE 'ALTER TABLE referral_records RENAME COLUMN "inviteeId" TO referred_user_id';
+        ELSIF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referral_records' AND column_name = 'referredUserId'
+        ) THEN
+          EXECUTE 'ALTER TABLE referral_records RENAME COLUMN "referredUserId" TO referred_user_id';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referral_records' AND column_name = 'referralCode'
+        ) THEN
+          EXECUTE 'ALTER TABLE referral_records RENAME COLUMN "referralCode" TO referral_code';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referral_records' AND column_name = 'rewardTokens'
+        ) THEN
+          EXECUTE 'ALTER TABLE referral_records RENAME COLUMN "rewardTokens" TO reward_tokens';
+        ELSIF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referral_records' AND column_name = 'rewardAmount'
+        ) THEN
+          EXECUTE 'ALTER TABLE referral_records RENAME COLUMN "rewardAmount" TO reward_tokens';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referral_records' AND column_name = 'createdAt'
+        ) THEN
+          EXECUTE 'ALTER TABLE referral_records RENAME COLUMN "createdAt" TO created_at';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'referral_records' AND column_name = 'completedAt'
+        ) THEN
+          EXECUTE 'ALTER TABLE referral_records RENAME COLUMN "completedAt" TO completed_at';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conrelid = 'referral_records'::regclass
+            AND conname = 'referral_records_inviteeId_key'
+        ) THEN
+          EXECUTE 'ALTER TABLE referral_records DROP CONSTRAINT referral_records_inviteeId_key';
+          EXECUTE 'ALTER TABLE referral_records ADD CONSTRAINT referral_records_referred_user_id_key UNIQUE (referred_user_id)';
+        ELSE
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conrelid = 'referral_records'::regclass
+              AND conname = 'referral_records_referred_user_id_key'
+          ) THEN
+            EXECUTE 'ALTER TABLE referral_records ADD CONSTRAINT referral_records_referred_user_id_key UNIQUE (referred_user_id)';
+          END IF;
+        END IF;
+      END $$;
+
+  - type: "EXECUTE_SQL"
+    name: "rename_referral_records_index"
+    description: "referral_records索引重命名"
+    sql: |
+      ALTER INDEX IF EXISTS "ix_referral_records_inviter" RENAME TO ix_referral_records_referrer_id;
+      ALTER INDEX IF EXISTS "ix_referral_records_invitee" RENAME TO ix_referral_records_referred_user_id;
+
+  - type: "EXECUTE_SQL"
+    name: "rename_trial_subscriptions_columns"
+    description: "trial_subscriptions字段重命名"
+    sql: |
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'trial_subscriptions' AND column_name = 'userId'
+        ) THEN
+          EXECUTE 'ALTER TABLE trial_subscriptions RENAME COLUMN "userId" TO user_id';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'trial_subscriptions' AND column_name = 'trialType'
+        ) THEN
+          EXECUTE 'ALTER TABLE trial_subscriptions RENAME COLUMN "trialType" TO trial_type';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'trial_subscriptions' AND column_name = 'startDate'
+        ) THEN
+          EXECUTE 'ALTER TABLE trial_subscriptions RENAME COLUMN "startDate" TO start_date';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'trial_subscriptions' AND column_name = 'endDate'
+        ) THEN
+          EXECUTE 'ALTER TABLE trial_subscriptions RENAME COLUMN "endDate" TO end_date';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'trial_subscriptions' AND column_name = 'daysGranted'
+        ) THEN
+          EXECUTE 'ALTER TABLE trial_subscriptions RENAME COLUMN "daysGranted" TO days_granted';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'trial_subscriptions' AND column_name = 'isActive'
+        ) THEN
+          EXECUTE 'ALTER TABLE trial_subscriptions RENAME COLUMN "isActive" TO is_active';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'trial_subscriptions' AND column_name = 'createdAt'
+        ) THEN
+          EXECUTE 'ALTER TABLE trial_subscriptions RENAME COLUMN "createdAt" TO created_at';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'trial_subscriptions' AND column_name = 'updatedAt'
+        ) THEN
+          EXECUTE 'ALTER TABLE trial_subscriptions RENAME COLUMN "updatedAt" TO updated_at';
+        END IF;
+      END $$;
+
+  - type: "EXECUTE_SQL"
+    name: "rename_trial_subscriptions_indexes"
+    description: "trial_subscriptions索引重命名"
+    sql: |
+      ALTER INDEX IF EXISTS "ix_trial_subscriptions_userId" RENAME TO ix_trial_subscriptions_user_id;
+      ALTER INDEX IF EXISTS "ix_trial_subscriptions_active" RENAME TO ix_trial_subscriptions_active_status;
+
+  - type: "EXECUTE_SQL"
+    name: "user_notifications_add_columns"
+    description: "补充通知表元数据字段并优化索引"
+    sql: |
+      ALTER TABLE user_notifications
+        ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ;
+      DROP INDEX IF EXISTS ix_user_notifications_user_time;
+      CREATE INDEX IF NOT EXISTS ix_user_notifications_user_created_at
+        ON user_notifications(user_id, created_at DESC);
+
+  - type: "EXECUTE_SQL"
+    name: "rename_saga_tables"
+    description: "Saga相关表重命名为snake_case"
+    sql: |
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.tables
+          WHERE table_schema = 'public' AND table_name = 'SagaInstance'
+        ) THEN
+          EXECUTE 'ALTER TABLE "SagaInstance" RENAME TO saga_instance';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.tables
+          WHERE table_schema = 'public' AND table_name = 'SagaStep'
+        ) THEN
+          EXECUTE 'ALTER TABLE "SagaStep" RENAME TO saga_step';
+        END IF;
+      END $$;
+
+  - type: "EXECUTE_SQL"
+    name: "create_saga_tables"
+    description: "确保SagaInstance/SagaStep表存在"
+    sql: |
+      CREATE TABLE IF NOT EXISTS saga_instance (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        task_id TEXT,
+        status TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS saga_step (
+        id BIGSERIAL PRIMARY KEY,
+        saga_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        status TEXT NOT NULL,
+        attempts INT NOT NULL DEFAULT 0,
+        last_error TEXT,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+rollback:
+  - type: "EXECUTE_SQL"
+    name: "rollback_note"
+    description: "如需回滚，请通过单独迁移将字段名改回camelCase（需停机评估）"
+    sql: |
+      RAISE EXCEPTION '002_snake_case_schema迁移不支持自动回滚，请参考变更文档执行手动回滚';
+
+validation:
+  - type: "column_exists"
+    table: "checkins"
+    column: "user_id"
+  - type: "column_exists"
+    table: "user_checkin_stats"
+    column: "checkin_date"
+  - type: "column_exists"
+    table: "referrals"
+    column: "total_referrals"
+  - type: "column_exists"
+    table: "referral_records"
+    column: "invitee_id"
+  - type: "column_exists"
+    table: "trial_subscriptions"
+    column: "trial_type"
+  - type: "column_exists"
+    table: "user_notifications"
+    column: "metadata"
+  - type: "index_exists"
+    table: "user_notifications"
+    index: "ix_user_notifications_user_created_at"
+  - type: "table_exists"
+    table: "saga_instance"
+  - type: "table_exists"
+    table: "saga_step"

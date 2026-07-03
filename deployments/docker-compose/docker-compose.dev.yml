@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # Development application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/admin_system_dev
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=dev-jwt-secret-change-in-production
+      - CSRF_SECRET=dev-csrf-secret
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+      - dev_logs:/app/logs
+      - dev_uploads:/app/uploads
+    networks:
+      - dev_network
+    restart: unless-stopped
+
+  # PostgreSQL Database for Development
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=admin_system_dev
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./scripts/init-dev-db.sql:/docker-entrypoint-initdb.d/init-dev-db.sql:ro
+    networks:
+      - dev_network
+    restart: unless-stopped
+
+  # Redis for Development
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - dev_network
+    restart: unless-stopped
+
+  # Mailhog for Email Testing
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - dev_network
+    restart: unless-stopped
+
+  # Redis Commander for Redis Management
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - dev_network
+    restart: unless-stopped
+
+  # pgAdmin for Database Management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@example.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - dev_network
+    restart: unless-stopped
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+  dev_logs:
+    driver: local
+  dev_uploads:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  dev_network:
+    driver: bridge

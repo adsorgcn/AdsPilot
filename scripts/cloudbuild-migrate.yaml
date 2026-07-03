@@ -1,0 +1,52 @@
+steps:
+  # Build the migration runner image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-f'
+      - 'scripts/Dockerfile.migrate'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/migrate-runner:latest'
+      - '.'
+    timeout: '600s'
+
+  # Push the image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/migrate-runner:latest']
+
+  # Run the migration as a Cloud Run Job
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gcloud run jobs create db-migrate \
+          --image=gcr.io/$PROJECT_ID/migrate-runner:latest \
+          --region=asia-northeast1 \
+          --set-env-vars="DATABASE_URL=$$DATABASE_URL" \
+          --vpc-connector=cr-conn-default-ane1 \
+          --max-retries=0 \
+          --task-timeout=10m \
+          --execute-now \
+          --wait \
+          || gcloud run jobs update db-migrate \
+               --image=gcr.io/$PROJECT_ID/migrate-runner:latest \
+               --region=asia-northeast1 \
+               --set-env-vars="DATABASE_URL=$$DATABASE_URL" \
+               --vpc-connector=cr-conn-default-ane1 \
+          && gcloud run jobs execute db-migrate --region=asia-northeast1 --wait
+    secretEnv: ['DATABASE_URL']
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/DATABASE_URL/versions/latest
+      env: 'DATABASE_URL'
+
+images:
+  - 'gcr.io/$PROJECT_ID/migrate-runner:latest'
+
+options:
+  machineType: 'N1_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: '1200s'

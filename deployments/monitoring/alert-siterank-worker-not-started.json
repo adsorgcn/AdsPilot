@@ -1,0 +1,30 @@
+{
+  "displayName": "Siterank Worker Mode Did Not Start Properly",
+  "documentation": {
+    "content": "## Siterank Worker 模式未启动告警\n\n**触发条件**: siterank-worker-preview 服务启动后 5 分钟内未出现 \"Pub/Sub subscriber started\" 日志\n\n**影响**: Siterank 评分任务无法异步处理，导致 offer API 超时\n\n**可能原因**:\n1. SITERANK_WORKER_MODE 环境变量未正确配置\n2. 部署的镜像不包含 worker 模式代码\n3. Pub/Sub 订阅配置错误\n4. 服务启动时崩溃\n\n**处理步骤**:\n1. 检查环境变量: `gcloud run services describe siterank-worker-preview --format=\"value(spec.template.spec.containers[0].env)\"`\n2. 检查启动日志: `gcloud run services logs read siterank-worker-preview --limit=50`\n3. 验证 Pub/Sub 订阅: `gcloud pubsub subscriptions describe siterank-worker-sub-preview`\n4. 如果镜像问题，重新触发构建\n\n**参考文档**: docs/MarkerkitGo/SiterankWorkerDeploymentPlan.md Section 3.1",
+    "mimeType": "text/markdown"
+  },
+  "conditions": [
+    {
+      "displayName": "Worker Start Log Missing",
+      "conditionAbsent": {
+        "filter": "resource.type = \"cloud_run_revision\" AND resource.labels.service_name = \"siterank-worker-preview\" AND severity >= \"INFO\"",
+        "duration": "300s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_RATE"
+          }
+        ]
+      }
+    }
+  ],
+  "combiner": "OR",
+  "enabled": true,
+  "notificationChannels": [
+    "projects/${GCP_PROJECT_ID}/notificationChannels/11693781893064978969"
+  ],
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}

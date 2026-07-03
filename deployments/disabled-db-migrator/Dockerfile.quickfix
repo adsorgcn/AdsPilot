@@ -1,0 +1,22 @@
+# 快速修复镜像 - 只包含 user schema 修复
+FROM alpine:3.18
+
+# 安装必要工具
+RUN apk add --no-cache \
+    postgresql-client \
+    bash \
+    ca-certificates \
+    && rm -rf /var/cache/apk/*
+
+# 复制修复脚本
+COPY deployments/db-migrator/fix-user-schema.sql /fix-user-schema.sql
+COPY deployments/db-migrator/apply-fix.sh /apply-fix.sh
+
+# 设置执行权限
+RUN chmod +x /apply-fix.sh
+
+# 默认环境变量
+ENV DATABASE_URL=""
+
+# 默认命令
+ENTRYPOINT ["/apply-fix.sh"]

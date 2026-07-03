@@ -1,0 +1,20 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - apps/frontend/Dockerfile
+      - --build-arg
+      - PREVIEW_STUB=${_PREVIEW_STUB}
+      - -t
+      - gcr.io/$PROJECT_ID/frontend:${_TAG}
+      - -t
+      - gcr.io/$PROJECT_ID/frontend:${_ENV}-latest
+      - .
+images:
+  - gcr.io/$PROJECT_ID/frontend:${_TAG}
+  - gcr.io/$PROJECT_ID/frontend:${_ENV}-latest
+substitutions:
+  _TAG: preview-local
+  _ENV: preview
+  _PREVIEW_STUB: "0"

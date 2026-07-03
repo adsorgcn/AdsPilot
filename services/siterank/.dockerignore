@@ -1,0 +1,35 @@
+# VCS / tooling
+.git
+.gocache
+.idx
+.direnv
+.DS_Store
+
+# Logs and temp
+logs/
+*.log
+test-results/
+coverage/
+
+# Local env & secrets
+.env
+.env.*
+secrets/*
+
+# Node / frontend artifacts
+node_modules/
+**/.next/
+dist/
+build/
+out/
+
+# Tests and docs (reduce context size)
+**/*_test.go
+**/*.md
+
+# CI / misc not needed in image
+.github/
+deployments/
+docs/
+scripts/
+

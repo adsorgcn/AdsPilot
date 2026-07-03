@@ -1,0 +1,550 @@
+# NOTE: Canonical OpenAPI specs live under specs/openapi/*.yaml
+#       This file is a local mirror for reference only and may be stale.
+openapi: 3.0.3
+info:
+  title: Console Service
+  version: 0.1.0
+servers:
+  - url: /
+paths:
+  /api/v1/console/slo:
+    get:
+      summary: Get SLO snapshot for services
+      operationId: getSlo
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: query
+          name: force
+          schema: { type: string, enum: ["1"] }
+      responses:
+        '200': { description: OK }
+  /api/v1/console/alerts:
+    get:
+      summary: List recent alerts
+      operationId: getAlerts
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: query
+          name: level
+          schema: { type: string, enum: [warn, error] }
+        - in: query
+          name: sinceHours
+          schema: { type: integer, minimum: 1, maximum: 2160 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 1000 }
+      responses:
+        '200': { description: OK }
+  /api/v1/console/incidents:
+    get:
+      summary: Aggregate incidents by day
+      operationId: getIncidents
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: query
+          name: days
+          schema: { type: integer, minimum: 1, maximum: 90 }
+      responses:
+        '200': { description: OK }
+  /api/v1/console/notifications/rules:
+    get:
+      summary: List notification rules
+      operationId: listRules
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: query
+          name: service
+          schema: { type: string }
+        - in: query
+          name: metric
+          schema: { type: string }
+        - in: query
+          name: scope
+          schema: { type: string }
+        - in: query
+          name: enabled
+          schema: { type: boolean }
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Create a notification rule
+      operationId: createRule
+      security: [ { bearerAuth: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scope: { type: string, enum: [system, user] }
+                userID: { type: string }
+                service: { type: string }
+                metric: { type: string }
+                comparator: { type: string, enum: [gt, ge, lt, le, eq, ne] }
+                threshold: { type: number }
+                windowSec: { type: integer }
+                enabled: { type: boolean }
+                params: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: OK }
+  /api/v1/console/notifications/rules/{id}:
+    get:
+      summary: Get rule by id
+      operationId: getRule
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '404': { description: Not Found }
+    put:
+      summary: Update rule by id
+      operationId: updateRule
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200': { description: OK }
+        '404': { description: Not Found }
+    delete:
+      summary: Delete rule by id
+      operationId: deleteRule
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: No Content }
+        '404': { description: Not Found }
+  /api/v1/console/notifications/rules/evaluate:
+    post:
+      summary: Evaluate rules against current SLO snapshot
+      operationId: evaluateRules
+      security: [ { bearerAuth: [] } ]
+      responses:
+        '200': { description: OK }
+  /api/v1/console/notifications/settings:
+    get:
+      summary: Get global notification/throttling settings (system or user scope)
+      operationId: getNotificationSettings
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: query
+          name: scope
+          schema: { type: string, enum: [system, user], default: user }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationSettings' }
+    put:
+      summary: Update global notification/throttling settings (system or user scope)
+      operationId: updateNotificationSettings
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: query
+          name: scope
+          schema: { type: string, enum: [system, user], default: user }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NotificationSettings' }
+      responses:
+        '200': { description: OK }
+        '400': { description: Bad Request }
+  /api/v1/console/offers/kpi/deadletters:
+    get:
+      summary: List Offer KPI DLQ items
+      operationId: listOfferKpiDLQ
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500 }
+      responses:
+        '200': { description: OK }
+  /api/v1/console/offers/kpi/retry:
+    post:
+      summary: Retry Offer KPI DLQ items
+      operationId: retryOfferKpiDLQ
+      security: [ { bearerAuth: [] } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id: { type: string }
+                max: { type: integer }
+      responses:
+        '200': { description: OK }
+  /api/v1/console/stats:
+    get:
+      summary: Get admin statistics overview
+      operationId: getAdminStats
+      security: [ { bearerAuth: [] } ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      active: { type: integer }
+                  offers:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      active: { type: integer }
+                  revenue:
+                    type: object
+                    properties:
+                      total: { type: number }
+                      thisMonth: { type: number }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /api/v1/console/navigation:
+    get:
+      summary: Get navigation configuration for current user
+      operationId: getNavigationConfig
+      security: [ { bearerAuth: [] } ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscriptionTier: { type: string }
+                  tokenBalance: { type: integer }
+                  monthlyTokenAllocation: { type: integer }
+                  items:
+                    type: array
+                    items: { type: object }
+                  quickActions:
+                    type: array
+                    items: { type: object }
+                  generatedAt: { type: string }
+        '401': { description: Unauthorized }
+  /api/v1/console/users:
+    get:
+      summary: List users (admin only)
+      operationId: getUsers
+      security: [ { bearerAuth: [] } ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/User' }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /api/v1/console/users/{id}:
+    get:
+      summary: Get user by ID (admin only)
+      operationId: getUserById
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not Found }
+  /api/v1/console/users/{id}/subscription:
+    get:
+      summary: Get user subscription (admin only)
+      operationId: getUserSubscription
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Subscription' }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not Found }
+    put:
+      summary: Update user subscription (admin only)
+      operationId: updateUserSubscription
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubscriptionUpdate' }
+      responses:
+        '200': { description: OK }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not Found }
+  /api/v1/console/users/{id}/tokens:
+    post:
+      summary: Adjust user token balance (admin only)
+      operationId: adjustUserTokens
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount: { type: integer }
+                description: { type: string }
+              required: [amount]
+      responses:
+        '200': { description: OK }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not Found }
+  /api/v1/console/tasks:
+    get:
+      summary: List background tasks for current user
+      operationId: listTasks
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [pending, running, completed, failed] }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 500 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Task' }
+        '401': { description: Unauthorized }
+  /api/v1/console/tasks/stream:
+    get:
+      summary: Stream background tasks updates via SSE for current user
+      operationId: streamTasks
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [pending, running, completed, failed] }
+      responses:
+        '200':
+          description: OK - Server-Sent Events stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: SSE stream of task updates
+        '401': { description: Unauthorized }
+  /api/v1/console/tasks/stats:
+    get:
+      summary: Get task statistics for current user
+      operationId: getTaskStats
+      security: [ { bearerAuth: [] } ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pending: { type: integer }
+                  running: { type: integer }
+                  completed: { type: integer }
+                  failed: { type: integer }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /api/v1/console/tasks/{id}/cancel:
+    post:
+      summary: Cancel a task (admin only)
+      operationId: cancelTask
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not Found }
+  /api/v1/console/tasks/{id}/retry:
+    post:
+      summary: Retry a failed task (admin only)
+      operationId: retryTask
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not Found }
+  /api/v1/console/dashboard/stats:
+    get:
+      summary: Get dashboard statistics (admin only)
+      operationId: getConsoleDashboardStats
+      security: [ { bearerAuth: [] } ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalUsers: { type: integer }
+                  activeUsers: { type: integer }
+                  totalOffers: { type: integer }
+                  activeOffers: { type: integer }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /api/v1/console/dashboard/{userId}:
+    get:
+      summary: Get user dashboard (admin only)
+      operationId: getUserDashboard
+      security: [ { bearerAuth: [] } ]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not Found }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Task:
+      type: object
+      properties:
+        id: { type: string }
+        type: { type: string }
+        status: { type: string, enum: [pending, running, completed, failed] }
+        userId: { type: string }
+        payload: { type: object }
+        result: { type: object, nullable: true }
+        error: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time, nullable: true }
+        completedAt: { type: string, format: date-time, nullable: true }
+      required: [id, type, status, userId, createdAt]
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string }
+        subscriptionTier: { type: string }
+        tokenBalance: { type: integer }
+        createdAt: { type: string, format: date-time }
+      required: [id, email]
+    Subscription:
+      type: object
+      properties:
+        tier: { type: string }
+        status: { type: string }
+        expiresAt: { type: string, format: date-time }
+      required: [tier, status]
+    SubscriptionUpdate:
+      type: object
+      properties:
+        tier: { type: string }
+        expiresAt: { type: string, format: date-time }
+      required: [tier]
+    NotificationSettings:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: Master switch for notifications/alerts.
+        minConfidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Minimum confidence to trigger alert delivery.
+        throttlePerMinute:
+          type: integer
+          minimum: 0
+          description: Max number of alerts delivered per minute (0 = unlimited).
+        groupWindowSec:
+          type: integer
+          minimum: 0
+          description: Window to group similar alerts for de-duplication.
+        channels:
+          type: object
+          additionalProperties: false
+          properties:
+            inApp: { type: boolean }
+            email: { type: boolean }
+            webhook: { type: boolean }

@@ -1,0 +1,35 @@
+name: 'OpenAPI Tools Setup'
+description: 'Install and configure OpenAPI tooling (Node.js, Go, oapi-codegen)'
+inputs:
+  node_version:
+    description: 'Node.js version'
+    required: false
+    default: '22'
+  go_version:
+    description: 'Go version'
+    required: false
+    default: '1.22.x'
+  oapi_codegen_version:
+    description: 'oapi-codegen version'
+    required: false
+    default: 'v2.5.0'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node_version }}
+        cache: 'npm'
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go_version }}
+        cache: true
+
+    - name: Install oapi-codegen
+      shell: bash
+      run: |
+        go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@${{ inputs.oapi_codegen_version }}

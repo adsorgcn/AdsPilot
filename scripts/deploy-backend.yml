@@ -1,0 +1,102 @@
+# Google-Monetize 后端服务部署配置
+# 基于Monorepo构建最佳实践实现
+
+# 部署选项
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU
+  env:
+    CGO_ENABLED: '0'
+    GO111MODULE: 'on'
+    GOWORK: 'off'
+  timeout: '1800s'
+  dynamicSubstitutions:
+    _PROJECT_ID: '${PROJECT_ID}'
+    _TARBALL_PATH: '/tmp/${PROJECT_ID}_source.tar.gz'
+
+# 替换变量
+substitutions:
+  _BACKEND_SERVICE: 'billing'  # 默认后端服务
+
+# 构建流程
+steps:
+  # 1. 认证到Google Cloud
+  - name: Authenticate to Google Cloud
+    uses: 'google-github-actions/auth@v4'
+    with:
+      project_id: $_PROJECT_ID
+      credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+      output_file: /tmp/gcp-auth-token.json
+
+  # 2. 下载并解压优化的源tarball
+  - name: Download Optimized Tarball
+    uses: 'google-github-actions/download-artifact@v3'
+    with:
+      name: $_TARBALL_PATH
+      path: /workspace
+
+  # 3. 郘署后端服务
+  - name: Deploy Backend Service
+    uses: 'google-cloud-sdk/deploy-app-engine@v2'
+    with:
+      project_id: $_PROJECT_ID
+      location: 'asia-northeast1'
+      service: $_BACKEND_SERVICE
+      source: /workspace
+      image: 'gcr.io/${PROJECT_ID}/$_BACKEND_SERVICE:latest'
+      env_variables: |
+        NODE_ENV=production
+        PORT=8080
+        DATABASE_URL=${{secrets.DATABASE_URL}}
+
+  # 4. 设置流量路由（可选）
+  # 如果是多服务部署，可以添加Ingress配置
+  # 这里留空，根据实际需求配置
+
+# 构建条件
+when:
+  push:
+    branches: [main]
+    paths:
+      - 'services/$_BACKEND_SERVICE/**'
+      - 'services/**/go.work'
+      - 'services/**/go.sum'
+      - 'services/**/go.mod'
+      - 'services/**/schemas/**'
+      - 'services/**/migrations/**'
+      - 'pkg/**'
+
+  # 示例触发条件
+workflow_dispatch:
+  inputs:
+    backend-service:
+      type: choice
+      description: 选择要部署的后端服务
+      options:
+        - billing
+        - offer
+        - console
+        - user
+        - siterank
+        - adscenter
+        - batchopen
+        - gateway-middleware
+        - proxy-pool
+        - bff
+      required: true
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend Service
+    if: inputs.backend-service == 'billing'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+      - name: Create Optimized Tarball
+        uses: '../actions/create-optimized-tarball@main'
+        with:
+          backend-service: 'billing'
+          dry-run: false

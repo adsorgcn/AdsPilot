@@ -1,0 +1,23 @@
+{
+  "name": "@gm/auth-utils",
+  "version": "0.1.0",
+  "description": "Shared authentication utilities for Firebase Auth",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./firebase": "./src/firebase.ts",
+    "./middleware": "./src/middleware.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "jose": "^5.9.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.4",
+    "typescript": "^5.5.4"
+  }
+}

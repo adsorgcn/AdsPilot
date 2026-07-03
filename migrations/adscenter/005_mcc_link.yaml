@@ -1,0 +1,72 @@
+version: "005"
+service: "adscenter"
+description: "创建MCC链接表 - 管理MCC(My Client Center)客户关系和状态"
+author: "system-migration"
+created_at: "2025-01-19T12:00:00Z"
+risk_level: "medium"
+dependencies:
+  - "001"
+
+changes:
+  - type: "CREATE_TABLE"
+    name: "MccLink"
+    sql: |
+      CREATE TABLE IF NOT EXISTS "MccLink" (
+        user_id      TEXT NOT NULL,
+        customer_id  TEXT NOT NULL,
+        status       TEXT NOT NULL,
+        updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+        created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (user_id, customer_id)
+      );
+    description: "MCC链接表，管理用户与客户的MCC关系状态"
+
+  - type: "CREATE_INDEX"
+    name: "ix_mcc_link_status"
+    table: "MccLink"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_mcc_link_status ON "MccLink"(status);
+    description: "优化按状态查询MCC链接"
+
+  - type: "CREATE_INDEX"
+    name: "ix_mcc_link_user"
+    table: "MccLink"
+    sql: |
+      CREATE INDEX IF NOT EXISTS ix_mcc_link_user ON "MccLink"(user_id);
+    description: "优化按用户查询MCC链接"
+
+rollback:
+  - type: "DROP_TABLE"
+    name: "MccLink"
+    sql: DROP TABLE IF EXISTS "MccLink";
+    description: "回滚：删除MCC链接表"
+
+validation:
+  - type: "table_exists"
+    name: "MccLink"
+    description: "验证MccLink表已创建"
+
+  - type: "primary_key_exists"
+    name: "MccLink"
+    columns: ["user_id", "customer_id"]
+    description: "验证复合主键已创建"
+
+  - type: "column_exists"
+    name: "MccLink"
+    column: "status"
+    description: "验证status字段存在"
+
+  - type: "index_exists"
+    name: "ix_mcc_link_status"
+    table: "MccLink"
+    description: "验证状态索引已创建"
+
+  - type: "index_exists"
+    name: "ix_mcc_link_user"
+    table: "MccLink"
+    description: "验证用户ID索引已创建"
+
+  - type: "constraint_check"
+    name: "MccLink"
+    constraint: "mcc_link_status_check"
+    description: "验证status字段约束(如果存在)"

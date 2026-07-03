@@ -1,0 +1,71 @@
+version: '3.8'
+services:
+  console:
+    build:
+      context: ./services/console
+    ports:
+      - "8080:8080" # Mapped to port 8080 for the admin proxy
+    environment:
+      - DATABASE_URL_SECRET_NAME=${DATABASE_URL_SECRET_NAME}
+    depends_on:
+      - cloudsql-proxy
+  offer:
+    build:
+      context: ./services/offer
+    ports:
+      - "8083:8080"
+    environment:
+      - DATABASE_URL_SECRET_NAME=${DATABASE_URL_SECRET_NAME}
+    depends_on:
+      - cloudsql-proxy
+    volumes:
+      - ./secrets/firebase-adminsdk.json:/app/secrets/firebase-adminsdk.json:ro
+  siterank:
+    build:
+      context: ./services/siterank
+    ports:
+      - "8084:8080"
+    environment:
+      - DATABASE_URL_SECRET_NAME=${DATABASE_URL_SECRET_NAME}
+      - SITERANK_SERVICE_URL=http://siterank:8080
+    depends_on:
+      - cloudsql-proxy
+  adscenter:
+    build:
+      context: ./services/adscenter
+    ports:
+      - "8086:8080"
+    environment:
+      - DATABASE_URL_SECRET_NAME=${DATABASE_URL_SECRET_NAME}
+    depends_on:
+      - cloudsql-proxy
+    volumes:
+      - ./secrets/firebase-adminsdk.json:/app/secrets/firebase-adminsdk.json:ro
+  frontend:
+    build:
+      context: ./apps/frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXTAUTH_URL=http://localhost:3000 # For OAuth callbacks
+      # Firebase Web SDK (从根目录 .env 读取后注入到前端容器)
+      - NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+      - NEXT_PUBLIC_FIRESTORE_DB_ID=${NEXT_PUBLIC_FIRESTORE_DB_ID}
+      - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
+      - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+      - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
+      - NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
+      - NEXT_PUBLIC_FIREBASE_APP_ID=${NEXT_PUBLIC_FIREBASE_APP_ID}
+    depends_on:
+      - console
+      - siterank
+
+  cloudsql-proxy:
+    image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.11.4
+    command: ["--private-ip", "--port", "5432", "${CLOUDSQL_CONNECTION_NAME}"]
+    ports:
+      - "5432:5432"
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/secrets/key.json
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:/secrets/key.json:ro

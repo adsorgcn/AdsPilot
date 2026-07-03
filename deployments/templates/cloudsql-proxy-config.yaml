@@ -1,0 +1,33 @@
+# Cloud SQL Proxy 标准配置模板
+# 用于需要访问Cloud SQL数据库的Cloud Run服务
+
+# Cloud SQL Proxy Annotations（添加到 template.metadata.annotations）
+annotations:
+  # 🔥 Cloud SQL Proxy配置 - 关键！
+  run.googleapis.com/cloudsql-instances: "${GCP_PROJECT_ID}:asia-northeast1:gm"
+  run.googleapis.com/startup-cpu-boost: "true"
+  # 移除VPC Connector相关配置
+  # run.googleapis.com/vpc-access-connector: cr-conn-default-ane1  # ❌ 删除
+  # run.googleapis.com/vpc-access-egress: all-traffic               # ❌ 删除
+
+# 环境变量配置（添加到 containers.env）
+env:
+  # 数据库连接配置
+  - name: DATABASE_URL
+    valueFrom:
+      secretKeyRef:
+        name: DATABASE_URL
+        key: latest
+
+  # 🔥 数据库连接模式 - 关键！
+  - name: DB_CONNECTION_MODE
+    value: "cloudsql"
+
+  # 其他现有环境变量保持不变...
+
+# 使用说明：
+# 1. 复制上述annotations到服务的template.metadata.annotations中
+# 2. 复制DB_CONNECTION_MODE环境变量到containers.env中
+# 3. 删除VPC Connector相关的annotations
+# 4. 确保DATABASE_URL使用Unix Socket格式（已确认）
+# 5. 更新服务后验证数据库连接

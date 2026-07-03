@@ -1,0 +1,9 @@
+# 固定版本的 Database Migrator - 包含清理逻辑
+FROM asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/db-migrator@sha256:2e2174e2796fde54429a8e928b1ad36fb95909dbacdd512a774d3c9b44ebe1ae
+
+# 复制带清理功能的迁移脚本
+COPY deployments/db-migrator/migrate-with-clean.sh /migrate-with-clean.sh
+RUN chmod +x /migrate-with-clean.sh
+
+# 更新入口点
+ENTRYPOINT ["/migrate-with-clean.sh"]

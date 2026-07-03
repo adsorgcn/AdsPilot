@@ -1,0 +1,333 @@
+# Gateway Middleware Alerts
+# Gateway 中间件监控告警规则
+
+groups:
+  - name: gateway_performance_alerts
+    interval: 30s
+    rules:
+      # 1. JWT验证失败率过高 - 高优先级
+      - alert: GatewayJWTValidationFailureHigh
+        expr: |
+          (
+            sum(rate(gateway_jwt_validation_failed_total[5m]))
+            /
+            sum(rate(gateway_jwt_validation_total[5m]))
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: critical
+          service: gateway-middleware
+          component: jwt_validation
+        annotations:
+          summary: "Gateway JWT验证失败率超过10%"
+          description: "过去5分钟JWT验证失败率为 {{ $value | humanizePercentage }}"
+          action: "检查JWT配置（secret、issuer），验证Supabase连接状态"
+          impact: "用户无法通过身份验证，所有API请求失败"
+
+      # 2. JWT验证失败率警告 - 中优先级
+      - alert: GatewayJWTValidationFailureWarning
+        expr: |
+          (
+            sum(rate(gateway_jwt_validation_failed_total[5m]))
+            /
+            sum(rate(gateway_jwt_validation_total[5m]))
+          ) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          service: gateway-middleware
+          component: jwt_validation
+        annotations:
+          summary: "Gateway JWT验证失败率超过5%"
+          description: "过去10分钟JWT验证失败率为 {{ $value | humanizePercentage }}"
+          action: "监控JWT验证趋势，检查偶发错误原因"
+
+      # 3. JWT验证延迟过高 - 中优先级
+      - alert: GatewayJWTValidationLatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum(rate(gateway_jwt_validation_duration_seconds_bucket[5m])) by (le)) > 1
+        for: 10m
+        labels:
+          severity: warning
+          service: gateway-middleware
+          component: jwt_validation
+        annotations:
+          summary: "Gateway JWT验证P95延迟超过1秒"
+          description: "JWT验证P95延迟为 {{ $value }}秒"
+          action: "检查JWKS缓存性能，优化验证逻辑"
+          impact: "API响应时间增加，用户体验下降"
+
+      # 4. 权限检查失败率过高 - 高优先级
+      - alert: GatewayPermissionCheckFailureHigh
+        expr: |
+          (
+            sum(rate(gateway_permission_check_failed_total[5m]))
+            /
+            sum(rate(gateway_permission_check_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: gateway-middleware
+          component: permission_check
+        annotations:
+          summary: "Gateway权限检查失败率超过5%"
+          description: "过去5分钟权限检查失败率为 {{ $value | humanizePercentage }}"
+          action: "检查Billing服务连接，验证用户订阅状态"
+          impact: "用户无法访问授权功能"
+
+      # 5. 权限检查延迟过高 - 中优先级
+      - alert: GatewayPermissionCheckLatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum(rate(gateway_permission_check_duration_seconds_bucket[5m])) by (le)) > 2
+        for: 10m
+        labels:
+          severity: warning
+          service: gateway-middleware
+          component: permission_check
+        annotations:
+          summary: "Gateway权限检查P95延迟超过2秒"
+          description: "权限检查P95延迟为 {{ $value }}秒"
+          action: "优化缓存策略，检查Billing服务响应时间"
+          impact: "API响应时间增加"
+
+      # 6. 订阅查询失败率过高 - 高优先级
+      - alert: GatewaySubscriptionQueryFailureHigh
+        expr: |
+          (
+            sum(rate(gateway_subscription_query_failed_total[5m]))
+            /
+            sum(rate(gateway_subscription_query_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: gateway-middleware
+          component: subscription_query
+        annotations:
+          summary: "Gateway订阅查询失败率超过5%"
+          description: "过去5分钟订阅查询失败率为 {{ $value | humanizePercentage }}"
+          action: "检查Billing服务状态，验证数据库连接"
+          impact: "无法验证用户订阅状态"
+
+      # 7. 订阅查询延迟过高 - 中优先级
+      - alert: GatewaySubscriptionQueryLatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum(rate(gateway_subscription_query_duration_seconds_bucket[5m])) by (le)) > 3
+        for: 10m
+        labels:
+          severity: warning
+          service: gateway-middleware
+          component: subscription_query
+        annotations:
+          summary: "Gateway订阅查询P95延迟超过3秒"
+          description: "订阅查询P95延迟为 {{ $value }}秒"
+          action: "优化Redis缓存，检查Billing服务性能"
+          impact: "用户认证时间增加"
+
+      # 8. Token预留失败率过高 - 高优先级
+      - alert: GatewayTokenReserveFailureHigh
+        expr: |
+          (
+            sum(rate(gateway_token_reserve_failed_total[5m]))
+            /
+            sum(rate(gateway_token_reserve_total[5m]))
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: critical
+          service: gateway-middleware
+          component: token_management
+        annotations:
+          summary: "Gateway Token预留失败率超过10%"
+          description: "过去5分钟Token预留失败率为 {{ $value | humanizePercentage }}"
+          action: "检查用户Token余额，验证Billing服务Token管理"
+          impact: "用户无法开始付费操作"
+
+      # 9. Token预留延迟过高 - 中优先级
+      - alert: GatewayTokenReserveLatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum(rate(gateway_token_reserve_duration_seconds_bucket[5m])) by (le)) > 2
+        for: 10m
+        labels:
+          severity: warning
+          service: gateway-middleware
+          component: token_management
+        annotations:
+          summary: "Gateway Token预留P95延迟超过2秒"
+          description: "Token预留P95延迟为 {{ $value }}秒"
+          action: "优化Token预留逻辑，检查Billing服务响应"
+          impact: "操作启动时间增加"
+
+      # 10. 限流触发率过高 - 中优先级
+      - alert: GatewayRateLimitHigh
+        expr: |
+          sum(rate(gateway_rate_limit_exceeded_total[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: gateway-middleware
+          component: rate_limiting
+        annotations:
+          summary: "Gateway限流触发频率过高"
+          description: "限流触发频率为 {{ $value }}/秒"
+          action: "检查是否存在异常请求流量，考虑调整限流策略"
+          impact: "部分用户请求被拒绝"
+
+      # 11. 缓存命中率低 - 中优先级
+      - alert: GatewayCacheHitRateLow
+        expr: |
+          (
+            sum(rate(gateway_cache_hits_total{hit="true"}[5m]))
+            /
+            sum(rate(gateway_cache_hits_total[5m]))
+          ) < 0.80
+        for: 15m
+        labels:
+          severity: warning
+          service: gateway-middleware
+          component: cache
+        annotations:
+          summary: "Gateway缓存命中率低于80%"
+          description: "过去15分钟缓存命中率为 {{ $value | humanizePercentage }}"
+          action: "检查Redis连接状态，优化缓存TTL配置"
+          impact: "增加后端服务负载，响应时间增加"
+
+      # 12. 代理请求延迟过高 - 中优先级
+      - alert: GatewayProxyLatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum(rate(gateway_proxy_request_duration_seconds_bucket[5m])) by (le, service)) > 10
+        for: 10m
+        labels:
+          severity: warning
+          service: gateway-middleware
+          component: proxy
+        annotations:
+          summary: "Gateway代理请求P95延迟超过10秒"
+          description: "后端服务 {{ $labels.service }} 的P95延迟为 {{ $value }}秒"
+          action: "检查后端服务状态，优化网络连接"
+          impact: "用户请求响应时间过长"
+
+      # 13. Gateway整体错误率过高 - 高优先级
+      - alert: GatewayErrorRateHigh
+        expr: |
+          (
+            sum(rate(gateway_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(gateway_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: gateway-middleware
+          component: overall
+        annotations:
+          summary: "Gateway整体错误率超过5%"
+          description: "过去5分钟Gateway错误率为 {{ $value | humanizePercentage }}"
+          action: "检查Gateway服务日志，定位错误根因"
+          impact: "大量用户请求失败"
+
+      # 14. Gateway整体响应时间过高 - 中优先级
+      - alert: GatewayResponseTimeHigh
+        expr: |
+          histogram_quantile(0.95, sum(rate(gateway_request_duration_seconds_bucket[5m])) by (le)) > 5
+        for: 10m
+        labels:
+          severity: warning
+          service: gateway-middleware
+          component: overall
+        annotations:
+          summary: "Gateway整体P95响应时间超过5秒"
+          description: "Gateway P95响应时间为 {{ $value }}秒"
+          action: "全面检查Gateway性能，优化各中间件组件"
+          impact: "用户体验明显下降"
+
+      # 15. Gateway请求量突增 - 信息级别
+      - alert: GatewayRequestSpike
+        expr: |
+          (
+            sum(rate(gateway_requests_total[5m]))
+            /
+            sum(rate(gateway_requests_total[5m] offset 1h))
+          ) > 3
+        for: 10m
+        labels:
+          severity: info
+          service: gateway-middleware
+          component: overall
+        annotations:
+          summary: "Gateway请求量突增3倍以上"
+          description: "当前请求量为 {{ $value }}x 相比1小时前"
+          action: "监控系统资源，准备自动扩容"
+          impact: "可能需要增加Gateway实例"
+
+  - name: gateway_availability_alerts
+    interval: 30s
+    rules:
+      # 16. Gateway服务不可用 - 高优先级
+      - alert: GatewayDown
+        expr: up{job="gateway-middleware"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: gateway-middleware
+          component: availability
+        annotations:
+          summary: "Gateway服务不可用"
+          description: "Gateway服务已停止响应超过1分钟"
+          action: "立即检查Gateway服务状态，重启服务"
+          impact: "所有API请求无法通过Gateway"
+
+      # 17. Gateway健康检查失败 - 高优先级
+      - alert: GatewayHealthCheckFailing
+        expr: |
+          (
+            sum(rate(gateway_health_check_failed_total[5m]))
+            /
+            sum(rate(gateway_health_check_total[5m]))
+          ) > 0.10
+        for: 3m
+        labels:
+          severity: critical
+          service: gateway-middleware
+          component: availability
+        annotations:
+          summary: "Gateway健康检查失败率超过10%"
+          description: "过去3分钟健康检查失败率为 {{ $value | humanizePercentage }}"
+          action: "检查Gateway依赖服务（Redis、Billing等）状态"
+          impact: "Gateway可能进入不健康状态"
+
+# Gateway特定通知路由配置
+gateway_notification_routes:
+  - name: gateway_critical_alerts
+    matchers:
+      - severity = critical
+      - service = gateway-middleware
+    channels:
+      - slack: "#gateway-critical"
+      - pagerduty: "gateway-service-key"
+      - email: "gateway-team@gm.com"
+    group_wait: 10s
+    group_interval: 3m
+    repeat_interval: 30m
+
+  - name: gateway_warning_alerts
+    matchers:
+      - severity = warning
+      - service = gateway-middleware
+    channels:
+      - slack: "#gateway-warnings"
+      - email: "gateway-team@gm.com"
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 2h
+
+  - name: gateway_info_alerts
+    matchers:
+      - severity = info
+      - service = gateway-middleware
+    channels:
+      - slack: "#gateway-info"
+    group_wait: 1m
+    group_interval: 10m
+    repeat_interval: 6h

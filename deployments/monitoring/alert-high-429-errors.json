@@ -1,0 +1,37 @@
+{
+  "displayName": "High 429 Rate Limit Errors",
+  "documentation": {
+    "content": "## 429 错误率过高告警\n\n**触发条件**: 任一服务的 429 (Too Many Requests) 错误率超过 100 请求/分钟\n\n**可能原因**:\n1. 突发流量超过限流阈值\n2. 客户端重试风暴\n3. DDoS 攻击\n\n**处理步骤**:\n1. 检查服务日志确认流量来源\n2. 评估是否需要调整限流阈值\n3. 检查是否有异常客户端行为\n4. 如果是合法流量，考虑扩展服务实例数\n\n**参考文档**: docs/MarkerkitGo/OptimizationPhase4Summary.md",
+    "mimeType": "text/markdown"
+  },
+  "conditions": [
+    {
+      "displayName": "429 Error Rate > 100/min",
+      "conditionThreshold": {
+        "filter": "resource.type = \"cloud_run_revision\" AND metric.type = \"run.googleapis.com/request_count\" AND metric.labels.response_code_class = \"4xx\" AND metric.labels.response_code = \"429\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 100,
+        "duration": "60s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_RATE",
+            "crossSeriesReducer": "REDUCE_SUM",
+            "groupByFields": [
+              "resource.labels.service_name",
+              "resource.labels.location"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "combiner": "OR",
+  "enabled": true,
+  "notificationChannels": [
+    "projects/${GCP_PROJECT_ID}/notificationChannels/11693781893064978969"
+  ],
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}

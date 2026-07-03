@@ -1,0 +1,28 @@
+{
+  "title": "联系我们",
+  "intro": "无论是产品咨询、商务合作还是技术支持需求，欢迎与我们联系，我们将在 1 个工作日内回复。",
+  "sections": {
+    "sales": {
+      "title": "业务与合作",
+      "description": {
+        "prefix": "商务合作、渠道共建与定制化需求，请发送邮件至",
+        "suffix": "。"
+      }
+    },
+    "product": {
+      "title": "产品咨询",
+      "description": "如需演示或针对团队的评估方案，可预约顾问或添加微信客服：",
+      "items": {
+        "demo": "预约演示",
+        "wechat": "微信客服：搜索「Google-Monetize增长顾问」"
+      }
+    },
+    "support": {
+      "title": "技术支持",
+      "description": {
+        "prefix": "提交工单或邮件至",
+        "suffix": "，并附上组织 ID 与问题描述。"
+      }
+    }
+  }
+}
