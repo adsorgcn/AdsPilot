@@ -25,8 +25,9 @@ use (
 	./pkg/serviceclient
 	./pkg/supabaseauth
 	./pkg/telemetry
-	./services/aicore
 	./services/adscenter
+	./services/affiliate
+	./services/aicore
 	./services/bff
 	./services/console
 	./services/gateway-middleware
@@ -34,7 +35,6 @@ use (
 	./services/recommendations
 	./services/siterank
 	./services/useractivity
-	./services/affiliate
 )
 
 // Full backend deployment trigger: Wed Oct 15 14:40:51 CST 2025

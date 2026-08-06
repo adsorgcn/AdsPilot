@@ -5,7 +5,6 @@ go 1.25.1
 require (
 	cloud.google.com/go/kms v1.22.0
 	cloud.google.com/go/secretmanager v1.15.1
-	github.com/joho/godotenv v1.5.1
 )
 
 require (

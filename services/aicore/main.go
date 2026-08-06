@@ -52,9 +52,14 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-	log.Printf("aicore v0.1.0 listening on :%s", port)
+	addr := ":" + port
+	if middleware.LocalMode() {
+		// Single-user local model: never expose the service beyond this machine.
+		addr = "127.0.0.1:" + port
+	}
+	log.Printf("aicore v0.1.0 listening on %s", addr)
 	srv := &http.Server{
-		Addr:              ":" + port,
+		Addr:              addr,
 		Handler:           r,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
