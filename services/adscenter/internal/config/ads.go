@@ -9,6 +9,7 @@ import (
 	"time"
 
 	pcache "github.com/ScientificInternet/Google-Monetize/pkg/cache"
+	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/localcreds"
 	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/secrets"
 )
 
@@ -44,6 +45,17 @@ func LoadAdsCreds(ctx context.Context) (*AdsCreds, error) {
 	cid, _ := get("GOOGLE_ADS_OAUTH_CLIENT_ID", "GOOGLE_ADS_OAUTH_CLIENT_ID_SECRET_NAME")
 	csec, _ := get("GOOGLE_ADS_OAUTH_CLIENT_SECRET", "GOOGLE_ADS_OAUTH_CLIENT_SECRET_SECRET_NAME")
 	rt, _ := get("GOOGLE_ADS_REFRESH_TOKEN", "GOOGLE_ADS_REFRESH_TOKEN_SECRET_NAME")
+	if rt == "" {
+		// Fall back to the token stored by the local OAuth flow (loopback +
+		// PKCE, see internal/api/oauth_local.go). A token minted by a
+		// different OAuth client is ignored: refreshing it with the current
+		// client would fail with invalid_grant.
+		if cred, err := localcreds.Load(); err == nil {
+			if cred.ClientID == "" || cid == "" || cred.ClientID == cid {
+				rt = strings.TrimSpace(cred.RefreshToken)
+			}
+		}
+	}
 	login, _ := get("GOOGLE_ADS_LOGIN_CUSTOMER_ID", "GOOGLE_ADS_LOGIN_CUSTOMER_ID_SECRET_NAME")
 	test, _ := get("GOOGLE_ADS_TEST_CUSTOMER_ID", "GOOGLE_ADS_TEST_CUSTOMER_ID_SECRET_NAME")
 	out := &AdsCreds{DeveloperToken: dev, OAuthClientID: cid, OAuthClientSecret: csec, RefreshToken: rt, LoginCustomerID: login, TestCustomerID: test}
@@ -84,6 +96,17 @@ func LoadPrecheckFlags() PrecheckFlags {
 		EnableValidateOnly:        toBool("ADS_PRECHECK_ENABLE_VALIDATE_ONLY", false),
 		PerCheckTimeoutMS:         toInt("ADS_PRECHECK_TIMEOUT_MS", 1500),
 		TotalTimeoutMS:            toInt("ADS_PRECHECK_TOTAL_TIMEOUT_MS", 2500),
+	}
+}
+
+// InvalidateAdsCredsCache drops the cached credential bundle so the next
+// LoadAdsCreds call re-resolves env / Secret Manager / localcreds. The local
+// OAuth callback calls this after storing a fresh refresh token; without it,
+// handlers would keep seeing the cached token-less bundle for up to the cache
+// TTL (default 10 minutes).
+func InvalidateAdsCredsCache(ctx context.Context) {
+	if cachedCreds != nil && cachedCreds.cache != nil {
+		cachedCreds.cache.Del(ctx, adsCredsCacheKey)
 	}
 }
 

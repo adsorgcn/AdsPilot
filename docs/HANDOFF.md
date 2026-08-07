@@ -96,6 +96,7 @@ curl -s localhost:8092/api/v1/adscenter/oauth/url
 ### 任务 A:本地 OAuth 授权流 = 代码已全，且已跑通到边界
 
 - loopback + PKCE、本机存 token(`~/.adspilot/credentials.json`,0600)、revoke、路由挂载,全在 `services/adscenter/internal/api/oauth_local.go` + `internal/localcreds/`,本轮已修好路由让它可达并验证。
+- 纠错:上一版说"代码已全"不准确。当时 token 只是存进本机文件,`LoadAdsCreds`(所有 Ads API handler 的凭据入口)从不读它,授权完 API 还是拿不到 token。已修(桌面机这轮):`LoadAdsCreds` 在 env/Secret Manager 都没有 refresh token 时回退读 localcreds(带 client ID 匹配保护),callback/revoke 后同步失效凭据缓存(不然要等 10 分钟 TTL)。测试覆盖:`internal/config/ads_test.go`。现在授权一完成,token 自动生效。
 - 只差最后一段(需要真凭证,任务 D):真 Google 登录 到 授权码 到 换 token 到 存本机 到 调 Ads API。要一个 Desktop 类型 OAuth client + 一次人工 Google 同意。工具:`tools/oauth-bootstrap`(纯 stdlib)。VPS 无界面要 SSH 端口转发。有 client 后一个块:
 
 ```bash

@@ -3,8 +3,12 @@ package config
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
+
+	pcache "github.com/ScientificInternet/Google-Monetize/pkg/cache"
+	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/localcreds"
 )
 
 func TestLoadAdsCreds(t *testing.T) {
@@ -43,6 +47,87 @@ func TestLoadAdsCreds(t *testing.T) {
 	if creds.TestCustomerID != "0987654321" {
 		t.Errorf("TestCustomerID = %s, want 0987654321", creds.TestCustomerID)
 	}
+}
+
+func TestLoadAdsCredsLocalcredsFallback(t *testing.T) {
+	// No refresh token via env or Secret Manager: the token stored by the
+	// local OAuth flow (localcreds) must be picked up.
+	t.Setenv("GOOGLE_ADS_DEVELOPER_TOKEN", "dev-token")
+	t.Setenv("GOOGLE_ADS_OAUTH_CLIENT_ID", "client-a")
+	t.Setenv("GOOGLE_ADS_OAUTH_CLIENT_SECRET", "client-secret")
+	t.Setenv("GOOGLE_ADS_REFRESH_TOKEN", "")
+	t.Setenv("GOOGLE_ADS_REFRESH_TOKEN_SECRET_NAME", "")
+
+	credPath := filepath.Join(t.TempDir(), "credentials.json")
+	t.Setenv("ADSPILOT_CREDENTIALS_PATH", credPath)
+	writeCred := func(clientID string) {
+		t.Helper()
+		if err := localcreds.Save(localcreds.Credential{
+			RefreshToken: "localcreds-refresh-token",
+			ClientID:     clientID,
+			ObtainedAt:   time.Now(),
+		}); err != nil {
+			t.Fatalf("localcreds.Save() error = %v", err)
+		}
+	}
+
+	orig := cachedCreds
+	t.Cleanup(func() { cachedCreds = orig })
+	ctx := context.Background()
+
+	// Token minted by the configured client: used.
+	writeCred("client-a")
+	cachedCreds = &adsCredsCache{cache: nil}
+	creds, err := LoadAdsCreds(ctx)
+	if err != nil {
+		t.Fatalf("LoadAdsCreds() error = %v", err)
+	}
+	if creds.RefreshToken != "localcreds-refresh-token" {
+		t.Errorf("RefreshToken = %q, want localcreds-refresh-token", creds.RefreshToken)
+	}
+
+	// Token minted by a different client: ignored (refresh would fail with
+	// invalid_grant).
+	writeCred("client-b")
+	cachedCreds = &adsCredsCache{cache: nil}
+	creds, err = LoadAdsCreds(ctx)
+	if err != nil {
+		t.Fatalf("LoadAdsCreds() error = %v", err)
+	}
+	if creds.RefreshToken != "" {
+		t.Errorf("RefreshToken = %q, want empty on client mismatch", creds.RefreshToken)
+	}
+
+	// An explicit env token always wins over localcreds.
+	writeCred("client-a")
+	t.Setenv("GOOGLE_ADS_REFRESH_TOKEN", "env-refresh-token")
+	cachedCreds = &adsCredsCache{cache: nil}
+	creds, err = LoadAdsCreds(ctx)
+	if err != nil {
+		t.Fatalf("LoadAdsCreds() error = %v", err)
+	}
+	if creds.RefreshToken != "env-refresh-token" {
+		t.Errorf("RefreshToken = %q, want env-refresh-token", creds.RefreshToken)
+	}
+}
+
+func TestInvalidateAdsCredsCache(t *testing.T) {
+	orig := cachedCreds
+	t.Cleanup(func() { cachedCreds = orig })
+
+	cachedCreds = &adsCredsCache{cache: pcache.NewFromEnv()}
+	cachedCreds.put(&AdsCreds{DeveloperToken: "cached"})
+	if cachedCreds.get() == nil {
+		t.Fatal("expected cached creds before invalidation")
+	}
+	InvalidateAdsCredsCache(context.Background())
+	if got := cachedCreds.get(); got != nil {
+		t.Errorf("cache should be empty after invalidation, got %+v", got)
+	}
+
+	// Must not panic when the cache is nil.
+	cachedCreds = &adsCredsCache{cache: nil}
+	InvalidateAdsCredsCache(context.Background())
 }
 
 func TestAdsCredsCache(t *testing.T) {

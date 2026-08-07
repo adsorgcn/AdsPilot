@@ -194,6 +194,11 @@ func (h *OAuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// The creds bundle was cached without a refresh token before authorization;
+	// drop it so Ads API handlers pick up the new token immediately instead of
+	// after the cache TTL.
+	config.InvalidateAdsCredsCache(r.Context())
+
 	writeCallbackPage(w, http.StatusOK, "Authorization successful. The refresh token has been saved on this machine. You can close this page.")
 }
 
@@ -216,6 +221,8 @@ func (h *OAuthHandler) HandleOAuthRevoke(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "revoked at provider but failed to delete local credential: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// Drop the cached creds bundle so handlers stop using the revoked token.
+	config.InvalidateAdsCredsCache(r.Context())
 	writeJSONStatus(w, http.StatusOK, map[string]bool{"revoked": true})
 }
 
