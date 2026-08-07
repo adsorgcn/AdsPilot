@@ -150,16 +150,6 @@ func (h *OASImpl) RunPreflight(w http.ResponseWriter, r *http.Request) {
 	NewPreflightHandler(h.DB, h.Cache).HandlePreflight(w, r)
 }
 
-// Settings endpoints
-
-func (h *OASImpl) GetLinkRotationSettings(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "not implemented", http.StatusNotImplemented)
-}
-
-func (h *OASImpl) UpdateLinkRotationSettings(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "not implemented", http.StatusNotImplemented)
-}
-
 // Audit endpoints
 
 // ListAuditEvents is implemented in openapi_impl_extended.go

@@ -119,7 +119,7 @@ type ServerInterface interface {
 	// OAuth callback
 	// (GET /api/v1/adscenter/oauth/callback)
 	OauthCallback(w http.ResponseWriter, r *http.Request)
-	// Revoke stored Google Ads refresh token for current user (stub)
+	// Revoke stored Google Ads refresh token for current user
 	// (POST /api/v1/adscenter/oauth/revoke)
 	OauthRevoke(w http.ResponseWriter, r *http.Request)
 	// Get OAuth URL
@@ -128,12 +128,6 @@ type ServerInterface interface {
 	// Run pre-flight diagnostics
 	// (POST /api/v1/adscenter/preflight)
 	RunPreflight(w http.ResponseWriter, r *http.Request)
-	// Get link rotation frequency control settings
-	// (GET /api/v1/adscenter/settings/link-rotation)
-	GetLinkRotationSettings(w http.ResponseWriter, r *http.Request)
-	// Update link rotation frequency control settings
-	// (PUT /api/v1/adscenter/settings/link-rotation)
-	UpdateLinkRotationSettings(w http.ResponseWriter, r *http.Request)
 	// List advertising strategies
 	// (GET /api/v1/adscenter/strategies)
 	ListStrategies(w http.ResponseWriter, r *http.Request)
@@ -353,7 +347,7 @@ func (_ Unimplemented) OauthCallback(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// Revoke stored Google Ads refresh token for current user (stub)
+// Revoke stored Google Ads refresh token for current user
 // (POST /api/v1/adscenter/oauth/revoke)
 func (_ Unimplemented) OauthRevoke(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -368,18 +362,6 @@ func (_ Unimplemented) GetOAuthUrl(w http.ResponseWriter, r *http.Request) {
 // Run pre-flight diagnostics
 // (POST /api/v1/adscenter/preflight)
 func (_ Unimplemented) RunPreflight(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// Get link rotation frequency control settings
-// (GET /api/v1/adscenter/settings/link-rotation)
-func (_ Unimplemented) GetLinkRotationSettings(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// Update link rotation frequency control settings
-// (PUT /api/v1/adscenter/settings/link-rotation)
-func (_ Unimplemented) UpdateLinkRotationSettings(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1363,46 +1345,6 @@ func (siw *ServerInterfaceWrapper) RunPreflight(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r)
 }
 
-// GetLinkRotationSettings operation middleware
-func (siw *ServerInterfaceWrapper) GetLinkRotationSettings(w http.ResponseWriter, r *http.Request) {
-
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	r = r.WithContext(ctx)
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetLinkRotationSettings(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// UpdateLinkRotationSettings operation middleware
-func (siw *ServerInterfaceWrapper) UpdateLinkRotationSettings(w http.ResponseWriter, r *http.Request) {
-
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	r = r.WithContext(ctx)
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.UpdateLinkRotationSettings(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
 // ListStrategies operation middleware
 func (siw *ServerInterfaceWrapper) ListStrategies(w http.ResponseWriter, r *http.Request) {
 
@@ -1649,12 +1591,6 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/api/v1/adscenter/preflight", wrapper.RunPreflight)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/api/v1/adscenter/settings/link-rotation", wrapper.GetLinkRotationSettings)
-	})
-	r.Group(func(r chi.Router) {
-		r.Put(options.BaseURL+"/api/v1/adscenter/settings/link-rotation", wrapper.UpdateLinkRotationSettings)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1/adscenter/strategies", wrapper.ListStrategies)

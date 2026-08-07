@@ -65,7 +65,6 @@ const (
 	ENABLEKEYWORDS         BulkActionPlanActionsType = "ENABLE_KEYWORDS"
 	PAUSEKEYWORDS          BulkActionPlanActionsType = "PAUSE_KEYWORDS"
 	REMOVENEGATIVEKEYWORDS BulkActionPlanActionsType = "REMOVE_NEGATIVE_KEYWORDS"
-	ROTATELINK             BulkActionPlanActionsType = "ROTATE_LINK"
 	SETADSCHEDULES         BulkActionPlanActionsType = "SET_AD_SCHEDULES"
 	SETTARGETCPA           BulkActionPlanActionsType = "SET_TARGET_CPA"
 	SETTARGETROAS          BulkActionPlanActionsType = "SET_TARGET_ROAS"
@@ -319,24 +318,6 @@ type KeywordStatusParams struct {
 	CriterionResourceNames []string `json:"criterionResourceNames"`
 }
 
-// LinkRotationSettings defines model for LinkRotationSettings.
-type LinkRotationSettings struct {
-	// Enabled Master switch for scheduled link rotation.
-	Enabled *bool `json:"enabled,omitempty"`
-
-	// MaxPerDayPerOffer Max rotations per Offer per day (0 = unlimited).
-	MaxPerDayPerOffer *int `json:"maxPerDayPerOffer,omitempty"`
-
-	// MaxPerHourPerAccount Max rotations per account per hour (0 = unlimited).
-	MaxPerHourPerAccount *int `json:"maxPerHourPerAccount,omitempty"`
-
-	// MinIntervalMinutes Minimum interval between rotations for the same entity.
-	MinIntervalMinutes *int `json:"minIntervalMinutes,omitempty"`
-
-	// RollbackOnError Automatically rollback to previous stable suffix on errors.
-	RollbackOnError *bool `json:"rollbackOnError,omitempty"`
-}
-
 // MccLink defines model for MccLink.
 type MccLink struct {
 	CustomerId string        `json:"customerId"`
@@ -394,18 +375,6 @@ type PreflightResult struct {
 
 // PreflightResultSummary defines model for PreflightResult.Summary.
 type PreflightResultSummary string
-
-// RotateLinkParams defines model for RotateLinkParams.
-type RotateLinkParams struct {
-	Country *string `json:"country,omitempty"`
-
-	// Links Optional list of full URLs to rotate; either targetDomain or links must be provided
-	Links      *[]string `json:"links,omitempty"`
-	SeedDomain *string   `json:"seedDomain,omitempty"`
-
-	// TargetDomain Target domain for rotation
-	TargetDomain *string `json:"targetDomain,omitempty"`
-}
 
 // SuggestedAction defines model for SuggestedAction.
 type SuggestedAction struct {
@@ -597,9 +566,6 @@ type MccUnlinkJSONRequestBody MccUnlinkJSONBody
 // RunPreflightJSONRequestBody defines body for RunPreflight for application/json ContentType.
 type RunPreflightJSONRequestBody RunPreflightJSONBody
 
-// UpdateLinkRotationSettingsJSONRequestBody defines body for UpdateLinkRotationSettings for application/json ContentType.
-type UpdateLinkRotationSettingsJSONRequestBody = LinkRotationSettings
-
 // AsAdjustCpcParams returns the union data inside the BulkActionPlan_Actions_Params as a AdjustCpcParams
 func (t BulkActionPlan_Actions_Params) AsAdjustCpcParams() (AdjustCpcParams, error) {
 	var body AdjustCpcParams
@@ -642,32 +608,6 @@ func (t *BulkActionPlan_Actions_Params) FromAdjustBudgetParams(v AdjustBudgetPar
 
 // MergeAdjustBudgetParams performs a merge with any union data inside the BulkActionPlan_Actions_Params, using the provided AdjustBudgetParams
 func (t *BulkActionPlan_Actions_Params) MergeAdjustBudgetParams(v AdjustBudgetParams) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsRotateLinkParams returns the union data inside the BulkActionPlan_Actions_Params as a RotateLinkParams
-func (t BulkActionPlan_Actions_Params) AsRotateLinkParams() (RotateLinkParams, error) {
-	var body RotateLinkParams
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromRotateLinkParams overwrites any union data inside the BulkActionPlan_Actions_Params as the provided RotateLinkParams
-func (t *BulkActionPlan_Actions_Params) FromRotateLinkParams(v RotateLinkParams) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeRotateLinkParams performs a merge with any union data inside the BulkActionPlan_Actions_Params, using the provided RotateLinkParams
-func (t *BulkActionPlan_Actions_Params) MergeRotateLinkParams(v RotateLinkParams) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err

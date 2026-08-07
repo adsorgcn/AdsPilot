@@ -75,15 +75,6 @@ func (r *Registry) registerDefaultServices() {
 		CircuitBreaker: DefaultCircuitBreakerConfig(),
 	})
 
-	// Browser-exec service
-	r.Register(ServiceConfig{
-		Name:           "browser-exec",
-		URL:            getServiceURL("BROWSER_EXEC_SERVICE_URL", "http://browser-exec:8080"),
-		Timeout:        35 * time.Second, // Browser operations are slow
-		MaxRetries:     1,
-		CircuitBreaker: DefaultCircuitBreakerConfig(),
-	})
-
 	// UserActivity service
 	r.Register(ServiceConfig{
 		Name:           "useractivity",

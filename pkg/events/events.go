@@ -129,8 +129,6 @@ const (
 	EventBatchOpsTaskStarted      = "BatchOpsTaskStarted"
 	EventBatchOpsTaskCompleted    = "BatchOpsTaskCompleted"
 	EventBatchOpsTaskFailed       = "BatchOpsTaskFailed"
-	EventBrowserExecRequested     = "BrowserExecRequested"
-	EventBrowserExecCompleted     = "BrowserExecCompleted"
 	EventTokenReserved            = "TokenReserved"
 	EventTokenDebited             = "TokenDebited"
 	EventTokenReverted            = "TokenReverted"

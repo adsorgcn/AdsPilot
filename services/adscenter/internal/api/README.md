@@ -52,7 +52,6 @@ internal/api/
 - 速率限制
 
 **操作类型**:
-- `ROTATE_LINK` - 轮换广告链接
 - `ADJUST_CPC` - 调整 CPC 出价
 - `ADJUST_BUDGET` - 调整预算
 - `PAUSE_CAMPAIGN` - 暂停广告系列

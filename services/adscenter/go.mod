@@ -7,7 +7,6 @@ require (
 	cloud.google.com/go/secretmanager v1.15.1
 	github.com/ScientificInternet/Google-Monetize/pkg/apierrors v0.0.0-00010101000000-000000000000
 	github.com/ScientificInternet/Google-Monetize/pkg/cache v0.0.0-00010101000000-000000000000
-	github.com/ScientificInternet/Google-Monetize/pkg/circuitbreaker v0.0.0-00010101000000-000000000000
 	github.com/ScientificInternet/Google-Monetize/pkg/config v0.0.0-00010101000000-000000000000
 	github.com/ScientificInternet/Google-Monetize/pkg/database v0.0.0-00010101000000-000000000000
 	github.com/ScientificInternet/Google-Monetize/pkg/dbadmin v0.0.0-00010101000000-000000000000
@@ -18,7 +17,6 @@ require (
 	github.com/ScientificInternet/Google-Monetize/pkg/metrics v0.0.0-00010101000000-000000000000
 	github.com/ScientificInternet/Google-Monetize/pkg/middleware v0.0.0-00010101000000-000000000000
 	github.com/ScientificInternet/Google-Monetize/pkg/ratelimitredis v0.0.0-00010101000000-000000000000
-	github.com/ScientificInternet/Google-Monetize/pkg/serviceclient v0.0.0-00010101000000-000000000000
 	github.com/ScientificInternet/Google-Monetize/pkg/telemetry v0.0.0-00010101000000-000000000000
 	github.com/fergusstrange/embedded-postgres v1.34.0
 	github.com/go-chi/chi/v5 v5.2.3
@@ -28,7 +26,6 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/prometheus/client_golang v1.23.2
-	github.com/sony/gobreaker v1.0.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/oauth2 v0.31.0
 )
@@ -70,7 +67,6 @@ require (
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/redis/go-redis/v9 v9.14.0 // indirect
 	github.com/rs/zerolog v1.34.0 // indirect
-	github.com/sony/gobreaker/v2 v2.3.0 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0 // indirect

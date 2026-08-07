@@ -73,9 +73,9 @@ func TestBulkActionsHandler_ValidateOnly(t *testing.T) {
 		plan := map[string]interface{}{
 			"actions": []map[string]interface{}{
 				{
-					"type": "ROTATE_LINK",
+					"type": "ADJUST_CPC",
 					"params": map[string]interface{}{
-						"newUrl": "https://example.com/new",
+						"percent": 10,
 					},
 				},
 			},

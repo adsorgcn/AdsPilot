@@ -114,8 +114,6 @@ func (h *BulkRollbackHandler) HandleRollback(w http.ResponseWriter, r *http.Requ
 	}
 
 	exec := executor.New(executor.Config{
-		BrowserExecURL:    strings.TrimSpace(os.Getenv("BROWSER_EXEC_URL")),
-		InternalToken:     strings.TrimSpace(os.Getenv("BROWSER_INTERNAL_TOKEN")),
 		Timeout:           8 * time.Second,
 		ValidateOnly:      false,
 		LiveMutate:        strings.EqualFold(strings.TrimSpace(os.Getenv("ADS_MUTATE_LIVE")), "true"),
@@ -212,10 +210,6 @@ func (h *BulkRollbackHandler) HandleRollback(w http.ResponseWriter, r *http.Requ
 				amt = int64(v)
 			}
 			action = executor.Action{Type: "ADJUST_BUDGET", Params: map[string]any{"campaignBudgetResourceNames": []any{it.Resource}, "amountMicros": amt}}
-
-		case "ROTATE_LINK":
-			suffix := toString(it.Value)
-			action = executor.Action{Type: "ROTATE_LINK", Params: map[string]any{"adResourceNames": []any{it.Resource}, "finalUrlSuffix": suffix}}
 
 		case "SET_TARGET_CPA":
 			v := int64(0)

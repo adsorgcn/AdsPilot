@@ -520,18 +520,12 @@
         const country = (simCountry.value||'').trim();
         if (!seed) { alert('请先填写种子域名'); return; }
         if (!lastSimilarity || !lastSimilarity.length) { alert('请先计算相似度结果'); return; }
-        // Build a minimal plan: ROTATE_LINK per domain (top 10)
+        // Build a minimal plan: ADJUST_CPC per domain (top 10)
         const n = Math.max(1, Math.min(50, parseInt((simTopN && simTopN.value)||'10', 10) || 10));
         const top = lastSimilarity.slice(0, n);
-        const type = (simPlanType && simPlanType.value) || 'ROTATE_LINK';
         const pct = parseFloat((simCpcPercent && simCpcPercent.value)||'10');
         const normPct = (Number.isNaN(pct) ? 10 : Math.max(-90, Math.min(500, pct)));
-        const mkAction = (it) => {
-          if (type === 'ADJUST_CPC') {
-            return { type: 'ADJUST_CPC', params: { percent: normPct }, filter: { domain: it.domain } };
-          }
-          return { type: 'ROTATE_LINK', params: { targetDomain: it.domain, seed: seed, country: country, source: 'similar' } };
-        };
+        const mkAction = (it) => ({ type: 'ADJUST_CPC', params: { percent: normPct }, filter: { domain: it.domain } });
         const actions = top.map(mkAction);
         const plan = { validateOnly: true, seedDomain: seed, country, actions };
         const h = authHeaders(); h['X-Idempotency-Key'] = `sim-validate-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
@@ -553,15 +547,9 @@
         if (!lastSimilarity || !lastSimilarity.length) { alert('请先计算相似度结果'); return; }
         const n = Math.max(1, Math.min(50, parseInt((simTopN && simTopN.value)||'10', 10) || 10));
         const top = lastSimilarity.slice(0, n);
-        const type = (simPlanType && simPlanType.value) || 'ROTATE_LINK';
         const pct = parseFloat((simCpcPercent && simCpcPercent.value)||'10');
         const normPct = (Number.isNaN(pct) ? 10 : Math.max(-90, Math.min(500, pct)));
-        const mkAction = (it) => {
-          if (type === 'ADJUST_CPC') {
-            return { type: 'ADJUST_CPC', params: { percent: normPct }, filter: { domain: it.domain } };
-          }
-          return { type: 'ROTATE_LINK', params: { targetDomain: it.domain, seed: seed, country: country, source: 'similar' } };
-        };
+        const mkAction = (it) => ({ type: 'ADJUST_CPC', params: { percent: normPct }, filter: { domain: it.domain } });
         const actions = top.map(mkAction);
         const plan = { validateOnly: false, seedDomain: seed, country, actions };
         const h = authHeaders(); h['X-Idempotency-Key'] = `sim-submit-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
@@ -780,10 +768,8 @@
   if (oppsLoadBtn) oppsLoadBtn.onclick = oppsLoad;
 
   function buildActionsFromOpportunity(opp) {
-    const typeSel = document.getElementById('simPlanType');
     const topNSel = document.getElementById('simTopN');
     const cpcSel = document.getElementById('simCpcPercent');
-    const type = (typeSel && typeSel.value) || 'ROTATE_LINK';
     const n = Math.max(1, Math.min(50, parseInt((topNSel && topNSel.value)||'10', 10) || 10));
     const pct = parseFloat((cpcSel && cpcSel.value)||'10');
     const normPct = (Number.isNaN(pct) ? 10 : Math.max(-90, Math.min(500, pct)));
@@ -793,10 +779,7 @@
     const country = opp.country || '';
     const actions = top.map(it => {
       const domain = (it && (it.domain || it.Domain)) || '';
-      if (type === 'ADJUST_CPC') {
-        return { type: 'ADJUST_CPC', params: { percent: normPct }, filter: { domain } };
-      }
-      return { type: 'ROTATE_LINK', params: { targetDomain: domain, seed, country, source: 'opportunity' } };
+      return { type: 'ADJUST_CPC', params: { percent: normPct }, filter: { domain } };
     });
     return { actions, seed, country };
   }

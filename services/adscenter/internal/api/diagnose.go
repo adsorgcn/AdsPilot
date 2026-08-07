@@ -214,13 +214,6 @@ func (h *DiagnoseHandler) HandleDiagnosePlan(w http.ResponseWriter, r *http.Requ
 				plan.Actions = append(plan.Actions, map[string]any{"type": "ADJUST_CPC", "params": p})
 			case "ADJUST_BUDGET":
 				plan.Actions = append(plan.Actions, map[string]any{"type": "ADJUST_BUDGET", "params": p})
-			case "ROTATE_LINK":
-				// accept either targetDomain string or links[] array
-				if _, ok := p["targetDomain"]; ok {
-					plan.Actions = append(plan.Actions, map[string]any{"type": "ROTATE_LINK", "params": p})
-				} else if v, ok := p["links"].([]any); ok && len(v) > 0 {
-					plan.Actions = append(plan.Actions, map[string]any{"type": "ROTATE_LINK", "params": p})
-				}
 			// other suggestion kinds currently not mapped to supported plan actions
 			default:
 				// ignore unsupported suggestion types to keep plan valid

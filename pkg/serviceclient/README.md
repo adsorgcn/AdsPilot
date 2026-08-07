@@ -88,7 +88,6 @@ The registry automatically configures these services:
 | offer | http://offer:8080 | 10s | 2 | ✅ |
 | siterank | http://siterank:8080 | 30s | 1 | ✅ |
 | adscenter | http://adscenter:8080 | 10s | 2 | ✅ |
-| browser-exec | http://browser-exec:8080 | 35s | 1 | ✅ |
 | useractivity | http://useractivity:8080 | 5s | 2 | ✅ |
 
 ## Environment Variables

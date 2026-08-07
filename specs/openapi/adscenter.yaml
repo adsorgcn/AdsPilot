@@ -487,34 +487,34 @@ paths:
                       $ref: '#/components/schemas/BulkActionAuditItem'
         '401': { description: Unauthorized }
         '404': { description: Not Found }
-  /api/v1/adscenter/settings/link-rotation:
+  /api/v1/adscenter/oauth/url:
     get:
-      operationId: getLinkRotationSettings
-      summary: Get link rotation frequency control settings
+      operationId: getOAuthUrl
+      summary: Get OAuth URL
       security:
         - bearerAuth: []
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/LinkRotationSettings' }
+        '200': { description: OK }
         '401': { description: Unauthorized }
-    put:
-      operationId: updateLinkRotationSettings
-      summary: Update link rotation frequency control settings
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/LinkRotationSettings' }
+  /api/v1/adscenter/oauth/callback:
+    get:
+      operationId: oauthCallback
+      summary: OAuth callback
+      security: []
       responses:
         '200': { description: OK }
         '400': { description: Bad Request }
         '401': { description: Unauthorized }
-  
+  /api/v1/adscenter/oauth/revoke:
+    post:
+      operationId: oauthRevoke
+      summary: Revoke stored Google Ads refresh token for current user
+      security:
+        - bearerAuth: []
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+
   /api/v1/adscenter/mcc/link:
     post:
       operationId: mccLink
@@ -903,7 +903,7 @@ components:
             properties:
               type:
                 type: string
-                enum: [ADJUST_CPC, ADJUST_BUDGET, ROTATE_LINK, ADD_NEGATIVE_KEYWORDS, REMOVE_NEGATIVE_KEYWORDS, PAUSE_KEYWORDS, ENABLE_KEYWORDS, SET_AD_SCHEDULES, SET_TARGET_CPA, SET_TARGET_ROAS]
+                enum: [ADJUST_CPC, ADJUST_BUDGET, ADD_NEGATIVE_KEYWORDS, REMOVE_NEGATIVE_KEYWORDS, PAUSE_KEYWORDS, ENABLE_KEYWORDS, SET_AD_SCHEDULES, SET_TARGET_CPA, SET_TARGET_ROAS]
               filter:
                 type: object
                 additionalProperties: true
@@ -911,7 +911,6 @@ components:
                 oneOf:
                   - $ref: '#/components/schemas/AdjustCpcParams'
                   - $ref: '#/components/schemas/AdjustBudgetParams'
-                  - $ref: '#/components/schemas/RotateLinkParams'
                   - $ref: '#/components/schemas/NegativeKeywordsParams'
                   - $ref: '#/components/schemas/KeywordStatusParams'
                   - $ref: '#/components/schemas/AdSchedulesParams'
@@ -936,16 +935,6 @@ components:
         percent:
           type: number
           description: "Percent change; if present, dailyBudget may be omitted"
-    RotateLinkParams:
-      type: object
-      properties:
-        targetDomain: { type: string, description: Target domain for rotation }
-        links:
-          type: array
-          description: Optional list of full URLs to rotate; either targetDomain or links must be provided
-          items: { type: string }
-        seedDomain: { type: string }
-        country: { type: string }
     NegativeKeywordsParams:
       type: object
       description: Parameters for adding/removing negative keywords at ad group level
@@ -1102,27 +1091,6 @@ components:
           type: array
           items: { $ref: '#/components/schemas/SuggestedAction' }
       required: [summary, rules]
-    LinkRotationSettings:
-      type: object
-      properties:
-        enabled:
-          type: boolean
-          description: Master switch for scheduled link rotation.
-        minIntervalMinutes:
-          type: integer
-          minimum: 1
-          description: Minimum interval between rotations for the same entity.
-        maxPerDayPerOffer:
-          type: integer
-          minimum: 0
-          description: Max rotations per Offer per day (0 = unlimited).
-        maxPerHourPerAccount:
-          type: integer
-          minimum: 0
-          description: Max rotations per account per hour (0 = unlimited).
-        rollbackOnError:
-          type: boolean
-          description: Automatically rollback to previous stable suffix on errors.
     MccLink:
       type: object
       properties:

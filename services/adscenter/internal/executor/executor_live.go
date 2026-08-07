@@ -31,8 +31,6 @@ type Result struct {
 }
 
 type Config struct {
-	BrowserExecURL    string
-	InternalToken     string
 	Timeout           time.Duration
 	ValidateOnly      bool
 	LiveMutate        bool
@@ -63,9 +61,6 @@ func (e *Executor) ExecuteOne(ctx context.Context, a Action) (Result, error) {
 		return e.adjustCPC(ctx, a)
 	case "ADJUST_BUDGET":
 		return e.adjustBudget(ctx, a)
-	case "ROTATE_LINK":
-		// reuse stub browser-exec resolve for now
-		return (&Executor{cfg: Config{BrowserExecURL: e.cfg.BrowserExecURL, InternalToken: e.cfg.InternalToken, Timeout: e.cfg.Timeout, ValidateOnly: e.cfg.ValidateOnly}}).rotateLink(ctx, a)
 	case "SET_AD_SCHEDULES":
 		return e.setAdSchedules(ctx, a)
 	case "SET_TARGET_CPA":
@@ -773,93 +768,6 @@ func (e *Executor) adjustBudget(ctx context.Context, a Action) (Result, error) {
 	return res, err
 }
 
-// rotateLink uses stub path (browser-exec) until mutate path implemented.
-func (e *Executor) rotateLink(ctx context.Context, a Action) (Result, error) {
-	// Determine suffix
-	suffix := ""
-	if s, ok := a.Params["finalUrlSuffix"].(string); ok {
-		suffix = strings.TrimSpace(s)
-	}
-	// If suffix not provided, try resolve via browser-exec using links/targetDomain
-	if suffix == "" {
-		var url string
-		if v, ok := a.Params["links"].([]interface{}); ok && len(v) > 0 {
-			if s0, ok2 := v[0].(string); ok2 {
-				url = strings.TrimSpace(s0)
-			}
-		}
-		if url == "" {
-			if s0, ok := a.Params["targetDomain"].(string); ok {
-				url = strings.TrimSpace(s0)
-			}
-		}
-		if url != "" && strings.TrimSpace(e.cfg.BrowserExecURL) != "" {
-			be := strings.TrimRight(e.cfg.BrowserExecURL, "/")
-			body := map[string]interface{}{"url": url, "timeoutMs": int(e.cfg.Timeout / time.Millisecond)}
-			hdr := map[string]string{}
-			if e.cfg.InternalToken != "" {
-				hdr["Authorization"] = "Bearer " + e.cfg.InternalToken
-			}
-			out := map[string]interface{}{}
-			if err := e.http.DoJSON(ctx, http.MethodPost, be+"/api/v1/browser/resolve-offer", body, hdr, 1, &out); err == nil {
-				if v, ok := out["finalUrlSuffix"].(string); ok {
-					suffix = strings.TrimSpace(v)
-				}
-			}
-		}
-		if suffix == "" {
-			suffix = time.Now().UTC().Format("20060102150405")
-		}
-	}
-	// Targets: adGroupAd resource names
-	var targets []string
-	if v, ok := a.Params["adResourceNames"].([]interface{}); ok {
-		for _, it := range v {
-			if s, ok2 := it.(string); ok2 && strings.TrimSpace(s) != "" {
-				targets = append(targets, s)
-			}
-		}
-	}
-	details := map[string]any{"suffix": suffix, "targets": targets}
-	if len(targets) == 0 {
-		return Result{Success: true, Message: "validateOnly mutate skipped: no targets", Details: details}, nil
-	}
-	// Build operations
-	ops := make([]map[string]any, 0, len(targets))
-	// Skip if already equals desired suffix
-	curMap, _ := e.fetchAdFinalSuffix(ctx, targets)
-	for _, rn := range targets {
-		if curMap != nil {
-			if cur, ok := curMap[rn]; ok && strings.TrimSpace(cur) == suffix {
-				continue
-			}
-		}
-		upd := map[string]any{"resourceName": rn, "ad": map[string]any{"finalUrlSuffix": suffix}}
-		ops = append(ops, map[string]any{"adGroupAdOperation": map[string]any{"update": upd, "updateMask": "ad.final_url_suffix"}})
-	}
-	details["applied"] = len(ops)
-	details["skipped"] = len(targets) - len(ops)
-	validateOnly := !e.cfg.LiveMutate || e.cfg.ValidateOnly
-	if !validateOnly {
-		before, _ := e.fetchAdFinalSuffix(ctx, targets)
-		if before != nil {
-			details["before"] = before
-		}
-		res, err := e.mutate(ctx, ops, false)
-		if err != nil {
-			return Result{Success: false, Message: res.Message, Details: details}, err
-		}
-		after, _ := e.fetchAdFinalSuffix(ctx, targets)
-		if after != nil {
-			details["after"] = after
-		}
-		return Result{Success: true, Message: "mutate ok", Details: details}, nil
-	}
-	res, err := e.mutate(ctx, ops, true)
-	res.Details = details
-	return res, err
-}
-
 func (e *Executor) mutate(ctx context.Context, ops []map[string]any, validateOnly bool) (Result, error) {
 	if len(ops) == 0 {
 		return Result{Success: true, Message: "no-op"}, nil
@@ -987,38 +895,6 @@ func (e *Executor) searchStream(ctx context.Context, query string) ([]map[string
 		}
 	}
 	return rows, nil
-}
-
-func (e *Executor) fetchAdFinalSuffix(ctx context.Context, rns []string) (map[string]string, error) {
-	if len(rns) == 0 {
-		return nil, nil
-	}
-	b := strings.Builder{}
-	b.WriteString("SELECT ad_group_ad.resource_name, ad.final_url_suffix FROM ad_group_ad WHERE ad_group_ad.resource_name IN (")
-	for i, rn := range rns {
-		if i > 0 {
-			b.WriteString(", ")
-		}
-		b.WriteString("'" + rn + "'")
-	}
-	b.WriteString(") LIMIT ")
-	b.WriteString(fmt.Sprintf("%d", len(rns)))
-	rows, err := e.searchStream(ctx, b.String())
-	if err != nil {
-		return nil, err
-	}
-	out := map[string]string{}
-	for _, row := range rows {
-		if res, ok := row["adGroupAd"].(map[string]any); ok {
-			rn, _ := res["resourceName"].(string)
-			if ad, ok2 := row["ad"].(map[string]any); ok2 {
-				if s, ok3 := ad["finalUrlSuffix"].(string); ok3 {
-					out[rn] = s
-				}
-			}
-		}
-	}
-	return out, nil
 }
 
 // --- Status helpers (ads/adgroups/campaigns) ---

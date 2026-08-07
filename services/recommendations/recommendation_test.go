@@ -142,22 +142,6 @@ func TestSuggestedActionsGeneration(t *testing.T) {
 			expectedActions: []string{"ADJUST_BUDGET"},
 		},
 		{
-			name:            "Missing tracking parameters",
-			metrics:         map[string]float64{},
-			landingURL:      "https://example.com/landing",
-			expectedActions: []string{"ROTATE_LINK"},
-		},
-		{
-			name: "High clicks but no conversions",
-			metrics: map[string]float64{
-				"impressions": 500,
-				"ctr":         1.2, // >= 0.8
-				"conversions": 0,
-			},
-			landingURL:      "https://example.com/landing",
-			expectedActions: []string{"ROTATE_LINK"},
-		},
-		{
 			name: "All metrics healthy",
 			metrics: map[string]float64{
 				"impressions":  1000,
@@ -404,7 +388,6 @@ func generateSuggestedActions(metrics map[string]float64, landingURL string) []m
 	qs := m("qualityScore", 0)
 	dailyBudget := m("dailyBudget", 0)
 	budgetPacing := m("budgetPacing", 0)
-	conversions := m("conversions", 0)
 
 	out := make([]map[string]any, 0, 6)
 	add := func(action string, params map[string]any, reason string, estimate map[string]any) {
@@ -434,16 +417,6 @@ func generateSuggestedActions(metrics map[string]float64, landingURL string) []m
 
 	if qs > 0 && qs < 5 {
 		add("ADJUST_CPC", map[string]any{"percent": 10}, "质量得分偏低，短期提升排名", map[string]any{"risk": "CPC 上升"})
-	}
-
-	if u := strings.TrimSpace(landingURL); u != "" {
-		if !strings.Contains(u, "utm_") && !strings.Contains(u, "gclid=") {
-			add("ROTATE_LINK", map[string]any{"links": []string{u}}, "缺少常见跟踪参数，建议统一链接管理并追加参数", map[string]any{"suggest": "在链接后追加 utm_* 或启用自动标记"})
-		}
-	}
-
-	if impressions > 300 && ctr >= 0.8 && conversions <= 0 {
-		add("ROTATE_LINK", nil, "有点击无转化，建议检查/优化落地页并分批替换链接做对照", map[string]any{"expectedConvDelta": "+5%~+20%"})
 	}
 
 	return out

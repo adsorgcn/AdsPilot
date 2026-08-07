@@ -41,13 +41,9 @@ generate() {
   fi
 }
 
-generate offer.yaml offer
 generate siterank.yaml siterank
 generate adscenter.yaml adscenter
 generate console.yaml console
-generate batchopen.yaml batchopen
-generate billing.yaml billing
-generate notifications.yaml notifications
-generate browser-exec.yaml browser
+generate useractivity.yaml useractivity
 generate recommendations.yaml recommendations
 echo "[DONE] SDKs written to $OUT_DIR"

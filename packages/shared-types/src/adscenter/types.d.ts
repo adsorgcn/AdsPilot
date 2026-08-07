@@ -347,18 +347,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/adscenter/settings/link-rotation": {
+    "/api/v1/adscenter/oauth/url": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Get link rotation frequency control settings */
-        get: operations["getLinkRotationSettings"];
-        /** Update link rotation frequency control settings */
-        put: operations["updateLinkRotationSettings"];
+        /** Get OAuth URL */
+        get: operations["getOAuthUrl"];
+        put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/adscenter/oauth/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** OAuth callback */
+        get: operations["oauthCallback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/adscenter/oauth/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke stored Google Ads refresh token for current user */
+        post: operations["oauthRevoke"];
         delete?: never;
         options?: never;
         head?: never;
@@ -634,11 +667,11 @@ export interface components {
             validateOnly?: boolean;
             actions: {
                 /** @enum {string} */
-                type?: "ADJUST_CPC" | "ADJUST_BUDGET" | "ROTATE_LINK" | "ADD_NEGATIVE_KEYWORDS" | "REMOVE_NEGATIVE_KEYWORDS" | "PAUSE_KEYWORDS" | "ENABLE_KEYWORDS" | "SET_AD_SCHEDULES" | "SET_TARGET_CPA" | "SET_TARGET_ROAS";
+                type?: "ADJUST_CPC" | "ADJUST_BUDGET" | "ADD_NEGATIVE_KEYWORDS" | "REMOVE_NEGATIVE_KEYWORDS" | "PAUSE_KEYWORDS" | "ENABLE_KEYWORDS" | "SET_AD_SCHEDULES" | "SET_TARGET_CPA" | "SET_TARGET_ROAS";
                 filter?: {
                     [key: string]: unknown;
                 };
-                params?: components["schemas"]["AdjustCpcParams"] | components["schemas"]["AdjustBudgetParams"] | components["schemas"]["RotateLinkParams"] | components["schemas"]["NegativeKeywordsParams"] | components["schemas"]["KeywordStatusParams"] | components["schemas"]["AdSchedulesParams"] | components["schemas"]["BiddingParams"];
+                params?: components["schemas"]["AdjustCpcParams"] | components["schemas"]["AdjustBudgetParams"] | components["schemas"]["NegativeKeywordsParams"] | components["schemas"]["KeywordStatusParams"] | components["schemas"]["AdSchedulesParams"] | components["schemas"]["BiddingParams"];
             }[];
         };
         AdjustCpcParams: {
@@ -657,14 +690,6 @@ export interface components {
             dailyBudget?: number;
             /** @description Percent change; if present, dailyBudget may be omitted */
             percent?: number;
-        };
-        RotateLinkParams: {
-            /** @description Target domain for rotation */
-            targetDomain?: string;
-            /** @description Optional list of full URLs to rotate; either targetDomain or links must be provided */
-            links?: string[];
-            seedDomain?: string;
-            country?: string;
         };
         /** @description Parameters for adding/removing negative keywords at ad group level */
         NegativeKeywordsParams: {
@@ -772,18 +797,6 @@ export interface components {
             summary: "ok" | "warn" | "error";
             rules: components["schemas"]["DiagnoseRule"][];
             suggestedActions?: components["schemas"]["SuggestedAction"][];
-        };
-        LinkRotationSettings: {
-            /** @description Master switch for scheduled link rotation. */
-            enabled?: boolean;
-            /** @description Minimum interval between rotations for the same entity. */
-            minIntervalMinutes?: number;
-            /** @description Max rotations per Offer per day (0 = unlimited). */
-            maxPerDayPerOffer?: number;
-            /** @description Max rotations per account per hour (0 = unlimited). */
-            maxPerHourPerAccount?: number;
-            /** @description Automatically rollback to previous stable suffix on errors. */
-            rollbackOnError?: boolean;
         };
         MccLink: {
             customerId: string;
@@ -1642,7 +1655,7 @@ export interface operations {
             };
         };
     };
-    getLinkRotationSettings: {
+    getOAuthUrl: {
         parameters: {
             query?: never;
             header?: never;
@@ -1656,9 +1669,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["LinkRotationSettings"];
-                };
+                content?: never;
             };
             /** @description Unauthorized */
             401: {
@@ -1669,18 +1680,14 @@ export interface operations {
             };
         };
     };
-    updateLinkRotationSettings: {
+    oauthCallback: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LinkRotationSettings"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
@@ -1691,6 +1698,31 @@ export interface operations {
             };
             /** @description Bad Request */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    oauthRevoke: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -837,17 +837,6 @@ func (h *MiscHandler) HandleStrategies(w http.ResponseWriter, r *http.Request) {
 				},
 			},
 		},
-		{
-			"id":          "rotate_link_opportunity",
-			"title":       "机会域名换链接",
-			"description": "将符合条件的机会域名应用到广告最终链接后缀",
-			"plan": map[string]any{
-				"validateOnly": true,
-				"actions": []map[string]any{
-					{"type": "ROTATE_LINK", "params": map[string]any{"targetDomain": "example-opportunity.com"}},
-				},
-			},
-		},
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"items": strategies, "updatedAt": time.Now().UTC().Format(time.RFC3339)})

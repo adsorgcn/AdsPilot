@@ -17,21 +17,18 @@ SPEC_DIR="$ROOT/specs/openapi"
 
 spec_for() {
   case "$1" in
-    offer) echo "offer.yaml" ;;
     siterank) echo "siterank.yaml" ;;
     adscenter) echo "adscenter.yaml" ;;
-    batchopen) echo "batchopen.yaml" ;;
-    billing) echo "billing.yaml" ;;
-    notifications) echo "notifications.yaml" ;;
     recommendations) echo "recommendations.yaml" ;;
     console) echo "console.yaml" ;;
+    useractivity) echo "useractivity.yaml" ;;
     *) return 1 ;;
   esac
 }
 
 services=("$@")
 if [[ ${#services[@]} -eq 0 ]]; then
-  services=(offer siterank adscenter batchopen billing notifications recommendations console)
+  services=(siterank adscenter recommendations console useractivity)
 fi
 
 gen_one() {

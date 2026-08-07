@@ -177,86 +177,18 @@ func TestExecuteOne_AdjustBudget(t *testing.T) {
 	}
 }
 
-// TestExecuteOne_RotateLink tests link rotation action
-func TestExecuteOne_RotateLink(t *testing.T) {
-	tests := []struct {
-		name        string
-		cfg         Config
-		action      Action
-		wantSuccess bool
-		wantError   bool
-	}{
-		{
-			name: "rotate link with links array",
-			cfg: Config{
-				ValidateOnly: false,
-			},
-			action: Action{
-				Type: "ROTATE_LINK",
-				Params: map[string]interface{}{
-					"links": []interface{}{"https://example.com"},
-				},
-			},
-			wantSuccess: true,
-			wantError:   false,
-		},
-		{
-			name: "rotate link with targetDomain",
-			cfg: Config{
-				ValidateOnly: false,
-			},
-			action: Action{
-				Type: "ROTATE_LINK",
-				Params: map[string]interface{}{
-					"targetDomain": "example.com",
-				},
-			},
-			wantSuccess: true,
-			wantError:   false,
-		},
-		{
-			name: "rotate link in validate mode",
-			cfg: Config{
-				ValidateOnly: true,
-			},
-			action: Action{
-				Type: "ROTATE_LINK",
-				Params: map[string]interface{}{
-					"targetDomain": "example.com",
-				},
-			},
-			wantSuccess: true,
-			wantError:   false,
-		},
-		{
-			name: "rotate link without target",
-			cfg: Config{
-				ValidateOnly: false,
-			},
-			action: Action{
-				Type:   "ROTATE_LINK",
-				Params: map[string]interface{}{},
-			},
-			wantSuccess: false,
-			wantError:   true,
-		},
-	}
+// TestExecuteOne_RotateLinkRemoved ensures the removed ROTATE_LINK action is
+// rejected as unsupported (it depended on the deleted browser-exec service).
+func TestExecuteOne_RotateLinkRemoved(t *testing.T) {
+	exec := New(Config{})
+	result, err := exec.ExecuteOne(context.Background(), Action{
+		Type:   "ROTATE_LINK",
+		Params: map[string]interface{}{"targetDomain": "example.com"},
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			exec := New(tt.cfg)
-			ctx := context.Background()
-
-			result, err := exec.ExecuteOne(ctx, tt.action)
-
-			if tt.wantError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-			assert.Equal(t, tt.wantSuccess, result.Success)
-		})
-	}
+	assert.Error(t, err)
+	assert.False(t, result.Success)
+	assert.Equal(t, "unsupported action", result.Message)
 }
 
 // TestExecuteOne_UnsupportedAction tests unsupported action types
@@ -313,23 +245,22 @@ func TestExecuteOne_ContextCancellation(t *testing.T) {
 	}
 
 	exec := New(Config{
-		BrowserExecURL: "http://localhost:9999", // Non-existent server
-		Timeout:        100 * time.Millisecond,
+		Timeout: 100 * time.Millisecond,
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
 	action := Action{
-		Type: "ROTATE_LINK",
+		Type: "ADJUST_CPC",
 		Params: map[string]interface{}{
-			"targetDomain": "example.com",
+			"percent": 10,
 		},
 	}
 
 	_, err := exec.ExecuteOne(ctx, action)
 
 	// Should handle cancellation gracefully
-	// Note: May not error if it doesn't reach the HTTP call
+	// Note: The stub path does not reach any I/O, so no error is expected.
 	_ = err
 }

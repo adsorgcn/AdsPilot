@@ -484,7 +484,6 @@ func (s *Server) suggestedActionsHandler(w http.ResponseWriter, r *http.Request)
 	qs := m("qualityScore", 0)
 	dailyBudget := m("dailyBudget", 0)
 	budgetPacing := m("budgetPacing", 0)
-	conversions := m("conversions", 0)
 	out := make([]map[string]any, 0, 6)
 	add := func(action string, params map[string]any, reason string, estimate map[string]any) {
 		it := map[string]any{"action": action}
@@ -510,14 +509,6 @@ func (s *Server) suggestedActionsHandler(w http.ResponseWriter, r *http.Request)
 	}
 	if qs > 0 && qs < 5 {
 		add("ADJUST_CPC", map[string]any{"percent": 10}, "质量得分偏低，短期提升排名", map[string]any{"risk": "CPC 上升"})
-	}
-	if u := strings.TrimSpace(body.LandingURL); u != "" {
-		if !strings.Contains(u, "utm_") && !strings.Contains(u, "gclid=") {
-			add("ROTATE_LINK", map[string]any{"links": []string{u}}, "缺少常见跟踪参数，建议统一链接管理并追加参数", map[string]any{"suggest": "在链接后追加 utm_* 或启用自动标记"})
-		}
-	}
-	if impressions > 300 && ctr >= 0.8 && conversions <= 0 {
-		add("ROTATE_LINK", nil, "有点击无转化，建议检查/优化落地页并分批替换链接做对照", map[string]any{"expectedConvDelta": "+5%~+20%"})
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"suggestedActions": out})

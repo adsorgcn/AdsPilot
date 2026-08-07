@@ -248,7 +248,7 @@ func (h *PreflightHandler) HandlePreflight(w http.ResponseWriter, r *http.Reques
 		legacyChecks = append(legacyChecks, PreflightCheck{Name: c.Code, Status: st, Detail: c.Message})
 	}
 
-	// Optional landing reachability via Browser-Exec
+	// Optional landing reachability (direct HTTP probe)
 	if strings.TrimSpace(req.LandingURL) != "" {
 		if c := checkLandingReachability(r.Context(), req.LandingURL); c != nil {
 			outChecks = append(outChecks, map[string]any{"code": c.Name, "severity": c.Status, "message": c.Detail})
@@ -288,34 +288,24 @@ func (h *PreflightHandler) HandlePreflight(w http.ResponseWriter, r *http.Reques
 
 // Helper functions
 
-// checkLandingReachability calls browser-exec /check-availability to verify landing URL
+// checkLandingReachability verifies the landing URL responds with a non-error
+// status via a direct HTTP GET (no headless browser involved).
 func checkLandingReachability(ctx context.Context, url string) *PreflightCheck {
-	be := strings.TrimRight(os.Getenv("BROWSER_EXEC_URL"), "/")
-	if be == "" {
-		return &PreflightCheck{Name: "landing.reachability", Status: "warn", Detail: "browser-exec not configured"}
-	}
-
-	type reqT struct {
-		URL     string `json:"url"`
-		Timeout int    `json:"timeoutMs"`
-	}
-
 	cctx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
 	defer cancel()
 
-	hdr := map[string]string{"Content-Type": "application/json"}
-	if tok := strings.TrimSpace(os.Getenv("BROWSER_INTERNAL_TOKEN")); tok != "" {
-		hdr["Authorization"] = "Bearer " + tok
+	req, err := http.NewRequestWithContext(cctx, http.MethodGet, url, nil)
+	if err != nil {
+		return &PreflightCheck{Name: "landing.reachability", Status: "warn", Detail: "invalid url"}
 	}
 
-	var out struct {
-		Ok     bool `json:"ok"`
-		Status int  `json:"status"`
+	resp, err := httpx.New(1500 * time.Millisecond).DoRaw(req)
+	if err != nil {
+		return &PreflightCheck{Name: "landing.reachability", Status: "warn", Detail: "unreachable"}
 	}
+	defer resp.Body.Close()
 
-	_ = httpx.New(1500*time.Millisecond).DoJSON(cctx, http.MethodPost, be+"/api/v1/browser/check-availability", reqT{URL: url, Timeout: 1200}, hdr, 1, &out)
-
-	if out.Ok || (out.Status >= 200 && out.Status < 400) {
+	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
 		return &PreflightCheck{Name: "landing.reachability", Status: "ok", Detail: "reachable"}
 	}
 
