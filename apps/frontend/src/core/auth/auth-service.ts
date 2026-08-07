@@ -11,7 +11,7 @@ import { AuthLogger, authStorage, parseAuthError, isTokenExpiringSoon } from './
  * 3. 最小化API调用，避免过度工程化
  * 4. 完整错误处理和日志记录
  */
-export class Google-MonetizeAuthService {
+export class GoogleMonetizeAuthService {
   private supabase = getSupabaseBrowserClient();
 
   /**
@@ -242,10 +242,10 @@ export class Google-MonetizeAuthService {
   /**
    * 静默创建初始化服务实例
    */
-  static getInstance(): Google-MonetizeAuthService {
-    return new Google-MonetizeAuthService();
+  static getInstance(): GoogleMonetizeAuthService {
+    return new GoogleMonetizeAuthService();
   }
 }
 
 // 导出单例实例
-export const authService = Google-MonetizeAuthService.getInstance();
+export const authService = GoogleMonetizeAuthService.getInstance();

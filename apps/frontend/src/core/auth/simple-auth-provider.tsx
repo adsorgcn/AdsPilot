@@ -5,7 +5,7 @@ import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import getSupabaseBrowserClient from '../supabase/browser-client';
 
 // 符合Google-Monetize架构的简化认证类型
-interface Google-MonetizeAuthContext {
+interface GoogleMonetizeAuthContext {
   user: User | null;
   session: Session | null;
   loading: boolean;
@@ -17,7 +17,7 @@ interface Google-MonetizeAuthContext {
   refresh: () => Promise<void>;
 }
 
-const AuthContext = createContext<Google-MonetizeAuthContext | undefined>(undefined);
+const AuthContext = createContext<GoogleMonetizeAuthContext | undefined>(undefined);
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -37,7 +37,7 @@ interface AuthProviderProps {
  * - Layer 2: Cloud SQL user.users (业务用户数据)
  * - Layer 3: Cloud SQL billing.accounts (计费数据)
  */
-export function Google-MonetizeAuthProvider({ children }: AuthProviderProps) {
+export function GoogleMonetizeAuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -136,7 +136,7 @@ export function Google-MonetizeAuthProvider({ children }: AuthProviderProps) {
   const isAdmin = user?.app_metadata?.role === 'SuperAdmin';
   const userId = user?.id ?? null;
 
-  const value: Google-MonetizeAuthContext = {
+  const value: GoogleMonetizeAuthContext = {
     user,
     session,
     loading,
@@ -157,10 +157,10 @@ export function Google-MonetizeAuthProvider({ children }: AuthProviderProps) {
 /**
  * 使用Google-Monetize认证上下文的Hook
  */
-export function useGoogle-MonetizeAuth() {
+export function useGoogleMonetizeAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useGoogle-MonetizeAuth must be used within Google-MonetizeAuthProvider');
+    throw new Error('useGoogleMonetizeAuth must be used within GoogleMonetizeAuthProvider');
   }
   return context;
 }
@@ -169,7 +169,7 @@ export function useGoogle-MonetizeAuth() {
  * 简化的认证状态检查Hook
  */
 export function useAuthStatus() {
-  const { user, loading, isAdmin } = useGoogle-MonetizeAuth();
+  const { user, loading, isAdmin } = useGoogleMonetizeAuth();
 
   return {
     isAuthenticated: !!user,
@@ -217,7 +217,7 @@ export function useGoogleSignIn() {
  * 获取用户显示名称
  */
 export function useUserDisplayName() {
-  const { user } = useGoogle-MonetizeAuth();
+  const { user } = useGoogleMonetizeAuth();
 
   if (!user) {
     return null;
