@@ -537,7 +537,7 @@ export function useStructuredData() {
 }
 
 // Google-Monetize特定的结构化数据生成器
-export function useGoogle-MonetizeStructuredData() {
+export function useGoogleMonetizeStructuredData() {
   const { applyStructuredData } = useStructuredData();
 
   // 生成Google-Monetize组织信息
