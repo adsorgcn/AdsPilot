@@ -11,7 +11,8 @@ AdsPilot 用你自己的 Google Ads 账号授权,采用 RFC 8252 本机回环 + 
    类型的 OAuth 客户端。桌面类型不需要预先注册回调地址,回环任意端口 + PKCE 即可通过。
    不要用"Web 应用"类型,它会导致 `redirect_uri_mismatch`。
 
-2. **环境变量**(填进 `.env`):
+2. **环境变量**(填进仓库根目录的 `.env`,模板见 `.env.example`;
+   `dev-local.ps1` / `dev-local.sh` 启动时会自动加载,该文件被 .gitignore 忽略):
 
    | 变量 | 说明 |
    |---|---|
@@ -23,6 +24,25 @@ AdsPilot 用你自己的 Google Ads 账号授权,采用 RFC 8252 本机回环 + 
    | `ADSPILOT_CREDENTIALS_PATH` | 可选,凭证文件路径,默认 `~/.adspilot/credentials.json` |
 
 3. **OAuth 同意屏幕设为 In production**。若停留在 Testing 状态,拿到的 refresh token 7 天后失效。
+
+## 凭证从哪来
+
+四样东西,三个地方:
+
+1. **Desktop OAuth 客户端(ID + Secret)**——Google Cloud 控制台 <https://console.cloud.google.com>:
+   建(或选)一个项目 → 启用 Google Ads API(顶部搜索框搜"Google Ads API"→ Enable)→
+   配置 OAuth 同意屏幕(External,加自己为测试用户,建议发布为 In production)→
+   Credentials → Create Credentials → OAuth client ID → 类型选 **Desktop app**。
+2. **开发者令牌(Developer Token)**——Google Ads **生产经理账号(MCC)** 的
+   工具与设置 → 设置 → API 中心。新令牌即时可用,权限级别是 Test Account
+   (只能打测试账号,开发够用)。要操作真实账号需在同页申请 Basic access。
+   没有经理账号先免费建一个:<https://ads.google.com/home/tools/manager-accounts/>。
+3. **测试账号**——在 <https://developers.google.com/google-ads/api/docs/best-practices/test-accounts>
+   页面登录后一键创建测试经理账号,再在其下建测试客户账号。
+   用测试账号时:`GOOGLE_ADS_LOGIN_CUSTOMER_ID` 填测试经理账号的 CID,
+   浏览器授权用**持有该测试经理账号的 Google 账号**登录。
+4. **refresh token**——不用你去取。走下面的授权流程,自动写入本机
+   `~/.adspilot/credentials.json`,之后所有 Ads API 调用自动使用它。
 
 ## 授权流程
 
