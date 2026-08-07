@@ -4,12 +4,6 @@ go 1.25.1
 
 require (
 	cloud.google.com/go/secretmanager v1.15.1
-	github.com/go-chi/chi/v5 v5.2.3
-	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.7.6
-	github.com/lib/pq v1.10.9
-	github.com/oapi-codegen/runtime v1.1.2
-	github.com/stretchr/testify v1.11.1
 	github.com/ScientificInternet/Google-Monetize/pkg/apierrors v0.0.0-00010101000000-000000000000
 	github.com/ScientificInternet/Google-Monetize/pkg/cache v0.0.0-00010101000000-000000000000
 	github.com/ScientificInternet/Google-Monetize/pkg/database v0.0.0-00010101000000-000000000000
@@ -20,6 +14,12 @@ require (
 	github.com/ScientificInternet/Google-Monetize/pkg/pagination v0.0.0-00010101000000-000000000000
 	github.com/ScientificInternet/Google-Monetize/pkg/serviceclient v0.0.0-00010101000000-000000000000
 	github.com/ScientificInternet/Google-Monetize/pkg/telemetry v0.0.0-00010101000000-000000000000
+	github.com/go-chi/chi/v5 v5.2.3
+	github.com/google/uuid v1.6.0
+	github.com/jackc/pgx/v5 v5.7.6
+	github.com/lib/pq v1.10.9
+	github.com/oapi-codegen/runtime v1.1.2
+	github.com/stretchr/testify v1.11.1
 )
 
 require (
@@ -28,6 +28,10 @@ require (
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/iam v1.5.2 // indirect
+	github.com/ScientificInternet/Google-Monetize/pkg/httpclient v0.0.0-00010101000000-000000000000 // indirect
+	github.com/ScientificInternet/Google-Monetize/pkg/idempotency v0.0.0-00010101000000-000000000000 // indirect
+	github.com/ScientificInternet/Google-Monetize/pkg/logger v0.0.0-00010101000000-000000000000 // indirect
+	github.com/ScientificInternet/Google-Monetize/pkg/supabaseauth v0.0.0-00010101000000-000000000000 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
@@ -57,10 +61,6 @@ require (
 	github.com/redis/go-redis/v9 v9.14.0 // indirect
 	github.com/rs/zerolog v1.34.0 // indirect
 	github.com/sony/gobreaker v1.0.0 // indirect
-	github.com/ScientificInternet/Google-Monetize/pkg/httpclient v0.0.0-00010101000000-000000000000 // indirect
-	github.com/ScientificInternet/Google-Monetize/pkg/idempotency v0.0.0-00010101000000-000000000000 // indirect
-	github.com/ScientificInternet/Google-Monetize/pkg/logger v0.0.0-00010101000000-000000000000 // indirect
-	github.com/ScientificInternet/Google-Monetize/pkg/supabaseauth v0.0.0-00010101000000-000000000000 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0 // indirect
@@ -99,7 +99,6 @@ replace github.com/ScientificInternet/Google-Monetize/pkg/middleware => ../../pk
 replace github.com/ScientificInternet/Google-Monetize/pkg/telemetry => ../../pkg/telemetry
 
 replace github.com/ScientificInternet/Google-Monetize/pkg/http => ../../pkg/http
-
 
 replace github.com/ScientificInternet/Google-Monetize/pkg/logger => ../../pkg/logger
 
