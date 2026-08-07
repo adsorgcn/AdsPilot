@@ -1,4 +1,0 @@
-steps:
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build','-f','services/console/Dockerfile','-t','asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/console:latest','.']
-images: ['asia-northeast1-docker.pkg.dev/${GCP_PROJECT_ID}/gm-services/console:latest']
