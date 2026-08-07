@@ -234,7 +234,12 @@ func (s *Server) mountOpenAPIHandlers(r chi.Router) {
 
 	// Mount OpenAPI handler with middleware
 	oapiHandler := api.HandlerWithOptions(oas, api.ChiServerOptions{
-		BaseURL: "/",
+		// BaseURL must be empty: the generated routes already start with
+		// "/api/v1/adscenter/...". A "/" here would register them at "//api/..."
+		// (double slash), so they never match real requests and every
+		// OpenAPI-only route (the local OAuth endpoints, limits, executions, ...)
+		// 404s while auth-gated paths appear to work via RegisterRoutes.
+		BaseURL: "",
 		Middlewares: []api.MiddlewareFunc{
 			func(next http.Handler) http.Handler { return middleware.IdempotencyMiddleware(next) },
 			func(next http.Handler) http.Handler { return authExceptLocalOAuth(next) },
@@ -243,7 +248,14 @@ func (s *Server) mountOpenAPIHandlers(r chi.Router) {
 			apperr.Write(w, r, http.StatusBadRequest, "INVALID_ARGUMENT", err.Error(), nil)
 		},
 	})
-	r.Mount("/", oapiHandler)
+	// Serve the OpenAPI handler as the fallback rather than mounting it at "/".
+	// RegisterRoutes registers explicit /api/v1/adscenter/* routes on the parent
+	// router, which branches that subtree in chi's radix tree and would shadow a
+	// mount at "/", making OpenAPI-only routes (the local OAuth endpoints, limits,
+	// executions, link-rotation settings, ...) unreachable (404). Using NotFound
+	// lets any path not claimed by an explicit route fall through to the generated
+	// OpenAPI router, while explicit routes keep their precedence.
+	r.NotFound(oapiHandler.ServeHTTP)
 }
 
 // authExceptLocalOAuth applies the standard bearer AuthMiddleware to every route
