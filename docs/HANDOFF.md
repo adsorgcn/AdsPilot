@@ -1,11 +1,11 @@
 # AdsPilot / Google-Monetize 工程书进度表(接手版)
 
-> 给桌面版接手用。看完不靠猜就能接手。
-> 对应分支:`cursor/setup-dev-environment-abdb`(PR #1,未合并)。仓库状态:**11 个服务全部编译通过(verify-build 全绿),adscenter 能真启动,本地 Google Ads OAuth 流已跑通到"差真 Google 登录"这一步。**
+> 看完不靠猜就能接手。所有工作已合入 `main`。
+> 仓库状态:**11 个服务全部编译通过(verify-build 全绿),本地模式(ADSPILOT_LOCAL=1 + 内嵌 PostgreSQL)可一键启动,本地 Google Ads OAuth 流已跑通到"差真 Google 登录"这一步,全仓已做过一轮大清理(见第 10 节)。**
 
 ## 0. 一句话现状
 
-Go monorepo(Google Ads 自动投放工具)。上一轮把地基从"adscenter 编译失败、前端整个跑不起来"清到"全绿 + 前端能跑 + adscenter 能起 + 本地 OAuth 链路可达并验证过"。下一步是拿真 Google 凭证把最后一段(真 refresh token 换取 到 调 Ads API)跑通。
+Go monorepo(Google Ads 自动投放工具)。地基已清干净:全绿 + 本地模式一键起 + OAuth 链路可达 + 云时代遗留全部清除。下一步是拿真 Google 凭证把最后一段(真 refresh token 换取 到 调 Ads API)跑通。
 
 ## 1. 项目身份与环境
 
@@ -20,8 +20,8 @@ Go monorepo(Google Ads 自动投放工具)。上一轮把地基从"adscenter 编
 - 一键验证:`bash scripts/verify-build.sh`,输出 `# ===全部服务编译通过===` 即全绿(当前 `通过 11 失败 0`)。
 - 关键坑(沿用且已证实):
   1. `GOWORK=off` 独立构建时 replace 指令不传递,每个 go.mod 要自带全部 `pkg/*` 的 replace。
-  2. `go.sum` 不入库,由 `go mod tidy` 每次现生成。所以 `git clean -fd` 后 pull 再 verify 是对的。
-  3. `.gitignore` 有 `secrets/` 规则,会静默吞掉任何叫 secrets 的目录。碰这类目录用 `git add -f`。
+  2. 各模块 `go.mod`/`go.sum` 已按独立构建对齐入库;改依赖后记得在该模块下 `GOWORK=off go mod tidy`。
+  3. `.gitignore` 的 `secrets/` 陷阱已修(锚定为 `/secrets/`,只匹配仓库根)。历史教训:未锚定时吞过两次 `internal/secrets` 代码,别再改回去。
 - 前端要跑 `next dev`:根目录 `npm install`,然后 `cd apps/frontend && npm run dev`(:3000)。公开营销页不需要真凭证;登录相关页要真 Supabase key。
 
 ## 3. 产品范式(最核心,已按最新口径更新)
@@ -70,23 +70,20 @@ go.work 里 9 个服务 + proxy-pool(脚本单独构建),verify-build 找到 11 
 
 ## 7. adscenter 怎么真跑起来(可复现)
 
-在 VM 里临时装 Postgres 跑通的。复现(一个块):
+本地模式一键起(Windows;Linux/macOS 用 `./scripts/dev-local.sh`):
 
-```bash
-sudo apt-get install -y postgresql && sudo pg_ctlcluster 16 main start
-sudo -u postgres psql -c "CREATE ROLE adspilot LOGIN PASSWORD 'adspilot';"
-sudo -u postgres psql -c "CREATE DATABASE adscenter OWNER adspilot;"
-cd services/adscenter && GOWORK=off go build -o /tmp/adscenter . && \
-DATABASE_URL='postgresql://adspilot:adspilot@127.0.0.1:5432/adscenter?sslmode=disable' \
-ADSCENTER_SKIP_MIGRATIONS=1 PORT=8092 \
-GOOGLE_ADS_OAUTH_CLIENT_ID='dummy.apps.googleusercontent.com' \
-GOOGLE_ADS_OAUTH_CLIENT_SECRET='dummy' /tmp/adscenter
+```powershell
+# 凭证填仓库根 .env(模板 .env.example),脚本启动时自动加载
+.\scripts\dev-local.ps1
 ```
+
+`ADSPILOT_LOCAL=1` 下服务绑 127.0.0.1:8080,`DATABASE_URL` 未设置时自动拉起内嵌
+PostgreSQL(数据在 `~/.adspilot/pg`,迁移在 `services/adscenter/internal/migrations/local`)。
 
 验证 OAuth 链路(另开一个终端):
 
-```bash
-curl -s localhost:8092/api/v1/adscenter/oauth/url
+```powershell
+curl.exe -s http://127.0.0.1:8080/api/v1/adscenter/oauth/url
 ```
 
 返回 200 和 Google 同意链接(`access_type=offline`、`prompt=consent`、PKCE `S256`、`scope=adwords`、loopback `redirect_uri`、`state`)。callback 传 `error=` 或未知 `state` 都返回 400,证明回调 + PKCE state 校验在跑。
@@ -117,12 +114,28 @@ cd tools/oauth-bootstrap && GOOGLE_ADS_OAUTH_CLIENT_ID='你的' GOOGLE_ADS_OAUTH
 
 ## 9. 已知未完成 / 已知问题(接受或待清)
 
-- go vet 失败(预存):`pkg/cache/integration_examples.go` 和 `pkg/database/cloud_sql_url_converter.go` 有坏的 `fmt.Sprintf`。这俩在 `go test` 下暴露,`verify-build.sh` 不跑 vet 所以不受影响。要不要清由 Max 定。
-- ROTATE_LINK 待砍(沿用):改的是 `final_url_suffix`(追踪后缀,不是落地页,做不了 cloak),靠已删的 browser-exec,现在坏的但无害。做 OpenClaw skill 那步顺手清,现在别动。
-- migrations 是 no-op 占位,schema 用 psql 单独应用(adscenter 用 `ADSCENTER_SKIP_MIGRATIONS=1` 跳过)。
+- ~~go vet 失败~~ 已清:两个死文件(`pkg/cache/integration_examples.go`、`pkg/database/cloud_sql_url_converter.go`)整体删除,vet 干净。
+- ~~ROTATE_LINK 待砍~~ 已砍干净(见第 10 节)。
+- adscenter 本地迁移在 `internal/migrations/local`,内嵌 PostgreSQL 启动时自动应用;云时代的根 `migrations/`、`database/`、`schemas/` 之外的迁移残留已删(`schemas/sql` 保留作 schema 参考)。
 - 前端登录/dashboard 等要真 Supabase key;公开页不需要。
+- siterank 内部还有 browserexec 客户端代码(env-gated,默认关闭,不影响编译运行)。这是有意留下的边界:siterank 不在 Ads 主线上,动它收益为零。哪天真做 siterank 再决定去留。
 
-## 10. Max 铁律(跨项目)
+## 10. 大清理轮(本轮完成)
+
+按"单用户本地模式、AI+人协作、Google Ads 跑通"为标准做了一轮全仓清理,主题:
+
+1. **云时代整目录删除**:`deployments/`(Cloud Run/compose/scaling 全套)、`monitoring/`、`infrastructure/`、`configs/`、`hosting/`(独立 Next.js 壳)、`pattern-craft/`(无关 Next.js 项目)、`claudedocs/`、根 `frontend/`(孤儿组件)、根 `test/`(游离 Go 文件)、`database/`、`migrations/`、`archived_migrations/`、已提交的 `.turbo/` 构建缓存。
+2. **根目录垃圾**:4 个 docker-compose、4 个 cloudbuild、firebase/firestore/nginx/sonar/flake 配置、约 20 个一次性 fix-*/test-* 脚本、5 个过时 .env 模板、pnpm 残留(npm 是唯一包管理器)。
+3. **scripts/ 瘦身**:约 150 个文件删到 8 个(dev-local.*、verify-build.sh、check-go-mod-tidy.sh、openapi/ 生成工具、security/ 钩子)。
+4. **ROTATE_LINK 全链路移除**:OpenAPI 规范源 + 重新生成的 Go/TS 代码、executor(stub 和 ads_live 两个变体)、diagnose/bulk_rollback/misc、console 静态页、recommendations 的死建议、LinkRotationSettings 端点。顺带修复:规范源漏了三个 OAuth 端点(生成代码有但 spec 没有),已补回,`specs/openapi/adscenter.yaml` 现在是真正的单一事实源。
+5. **browser-exec 残余**:pkg/serviceclient 注册表条目、pkg/events 常量、adscenter `internal/clients` 死包(billing+browser-exec 客户端,只有自己的测试引用)。preflight 的落地页检查从"调 browser-exec"改为进程内直接 HTTP 探测。
+6. **孤儿模块删除**:`pkg/redislock`、`pkg/testutil`(零引用);`pkg/metrics`、`pkg/dbadmin`、`pkg/ratelimitredis` 有真实引用,保留。
+7. **元文件纠偏**:CLAUDE.md 重写为当前范式;package.json 清掉 docker:*/deploy:* 死脚本和 puppeteer 遗留依赖;go.work 删营销注释;.gitignore 锚定 `/secrets/`;shared-types 删死服务类型并修复本就坏掉的 index.ts;adscenter README 重写。
+8. **一次性文档**:18 个 *-COMPLETE/DEPLOYMENT/STATUS 报告删除。
+
+恢复任何被删内容:`git log --diff-filter=D --summary | rg <名字>` 找到 commit 后 `git show`。
+
+## 11. Max 铁律(跨项目)
 
 - GENE-001:"可以"=立即动手;"先讨论"=只讨论;"你看看"=自己找问题;贴报错=直接给修复;"不急"=真不急。
 - 只输出一个版本的代码,别给多选项。改任何文件前先完整读。

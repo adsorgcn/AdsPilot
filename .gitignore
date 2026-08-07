@@ -139,8 +139,11 @@ scripts/db/backups/
 *.pem
 *.p12
 *.pfx
-secrets/
-credentials/
+# Anchored to repo root on purpose. An unanchored "secrets/" matches ANY
+# directory named secrets at ANY depth and has silently swallowed Go source
+# (services/adscenter/internal/secrets) twice. Do not un-anchor these.
+/secrets/
+/credentials/
 **/config/secrets.json
 **/.aws/credentials
 **/.kube/config

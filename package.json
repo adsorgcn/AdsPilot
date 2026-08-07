@@ -1,7 +1,7 @@
 {
-  "name": "google-monetize",
+  "name": "adspilot",
   "version": "3.0.0",
-  "description": "Google-Monetize SaaS Platform - Go Backend + Next.js Frontend",
+  "description": "AdsPilot - local-first AI-driven Google Ads automation (Go backend + Next.js frontend)",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -19,31 +19,19 @@
     "test": "npm run test:frontend",
     "test:frontend": "cd apps/frontend && npm test",
     "test:backend": "cd services && go test ./...",
-    "docker:build": "docker build -f configs/docker/Dockerfile.monorepo -t gm:latest .",
-    "docker:dev": "docker-compose up -d",
-    "docker:prod": "docker-compose -f deployments/docker-compose/docker-compose.prod.yml up -d",
-    "deploy:preview": "./deployments/scripts/deploy.sh preview",
-    "deploy:production": "./deployments/scripts/deploy.sh production",
-    "health:check": "./deployments/scripts/health-check.sh",
-    "test:firebase:admin": "node scripts/tests/admin-sdk-smoke.mjs",
+    "verify:backend": "bash scripts/verify-build.sh",
     "clean": "rm -rf apps/frontend/.next apps/frontend/node_modules",
     "setup": "npm install",
-    "prepare": "bash scripts/security/enable-hooks.sh || true",
+    "prepare": "git config core.hooksPath .githooks",
     "security:scan": "bash scripts/security/scan-secrets.sh scan-tree"
   },
   "devDependencies": {
-    "chrome-devtools-mcp": "^0.4.0",
     "concurrently": "8.2.2",
     "cross-env": "^7.0.3",
     "playwright": "^1.55.1",
-    "puppeteer": "^22.13.1",
     "turbo": "^2.0.9"
   },
   "overrides": {
-    "chrome-devtools-mcp": {
-      "debug": "4.3.4",
-      "puppeteer-core": "24.3.0"
-    },
     "debug": "4.3.4"
   },
   "engines": {
@@ -52,16 +40,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ScientificInternet/Google-Monetize.git"
+    "url": "https://github.com/adsorgcn/AdsPilot.git"
   },
   "keywords": [
-    "saas",
+    "google-ads",
     "go",
     "nextjs",
-    "docker",
-    "gm"
+    "local-first"
   ],
-  "author": "Google-Monetize Team",
+  "author": "AdsPilot",
   "license": "MIT",
   "packageManager": "npm@10.8.2",
   "dependencies": {

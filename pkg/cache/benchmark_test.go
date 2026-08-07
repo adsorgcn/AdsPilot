@@ -423,7 +423,9 @@ func setupTestCache(tb testing.TB) CacheService {
 
 	cache, err := NewCacheService(config, logger)
 	if err != nil {
-		tb.Fatalf("Failed to create test cache: %v", err)
+		// These are integration tests against a real local Redis; skip when
+		// none is running instead of failing the whole package.
+		tb.Skipf("skipping: local Redis not available: %v", err)
 	}
 
 	// Clean up cache before test
