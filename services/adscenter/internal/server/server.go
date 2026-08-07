@@ -234,7 +234,9 @@ func (s *Server) mountOpenAPIHandlers(r chi.Router) {
 
 	// Mount OpenAPI handler with middleware
 	oapiHandler := api.HandlerWithOptions(oas, api.ChiServerOptions{
-		BaseURL: "/",
+		// Generated routes are options.BaseURL + "/api/v1/..."; a BaseURL of
+		// "/" yields "//api/v1/..." patterns that never match.
+		BaseURL: "",
 		Middlewares: []api.MiddlewareFunc{
 			func(next http.Handler) http.Handler { return middleware.IdempotencyMiddleware(next) },
 			func(next http.Handler) http.Handler { return authExceptLocalOAuth(next) },
@@ -243,7 +245,17 @@ func (s *Server) mountOpenAPIHandlers(r chi.Router) {
 			apperr.Write(w, r, http.StatusBadRequest, "INVALID_ARGUMENT", err.Error(), nil)
 		},
 	})
-	r.Mount("/", oapiHandler)
+	// Register as the NotFound fallback rather than Mount("/"): the explicit
+	// routes from RegisterRoutes live under the same /api/v1/adscenter/ static
+	// prefix, and once chi commits to that static branch it never falls back to
+	// a root-level catch-all — which made every OpenAPI-only route (including
+	// the local OAuth endpoints) unreachable 404s.
+	r.NotFound(func(w http.ResponseWriter, req *http.Request) {
+		// The parent mux's RouteContext is exhausted at this point; give the
+		// OpenAPI chi router a fresh one so it re-matches the full URL path.
+		ctx := context.WithValue(req.Context(), chi.RouteCtxKey, chi.NewRouteContext())
+		oapiHandler.ServeHTTP(w, req.WithContext(ctx))
+	})
 }
 
 // authExceptLocalOAuth applies the standard bearer AuthMiddleware to every route
@@ -283,6 +295,10 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 
 	addr := ":" + port
+	if middleware.LocalMode() {
+		// Single-user local model: never expose the service beyond this machine.
+		addr = "127.0.0.1:" + port
+	}
 	s.server = &http.Server{
 		Addr:         addr,
 		Handler:      s.router,

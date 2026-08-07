@@ -20,6 +20,10 @@ func GatewayAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Read user ID from Gateway-injected header
 		userID := strings.TrimSpace(r.Header.Get("X-User-ID"))
+		if userID == "" && LocalMode() && isLoopbackRequest(r) {
+			// Single-user local model: loopback requests are the machine owner.
+			userID = LocalModeUserID
+		}
 		if userID == "" {
 			// Missing X-User-ID means request did not come through Gateway
 			http.Error(w, `{"error":"Unauthorized: Missing user authentication. Requests must go through API Gateway.","code":"UNAUTHORIZED"}`, http.StatusUnauthorized)

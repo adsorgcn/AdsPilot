@@ -14,7 +14,6 @@ replace github.com/ScientificInternet/Google-Monetize/pkg/errors => ../../pkg/er
 
 replace github.com/ScientificInternet/Google-Monetize/pkg/pagination => ../../pkg/pagination
 
-
 replace github.com/ScientificInternet/Google-Monetize/pkg/logger => ../../pkg/logger
 
 replace github.com/ScientificInternet/Google-Monetize/pkg/events => ../../pkg/events
@@ -39,18 +38,8 @@ replace github.com/ScientificInternet/Google-Monetize/pkg/supabaseauth => ../../
 
 require (
 	cloud.google.com/go/pubsub v1.50.1
-	cloud.google.com/go/secretmanager v1.15.1
 	cloud.google.com/go/vertexai v0.15.0
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/alicebob/miniredis/v2 v2.35.0
-	github.com/go-chi/chi/v5 v5.2.3
-	github.com/google/uuid v1.6.0
-	github.com/lib/pq v1.10.9
-	github.com/oapi-codegen/runtime v1.1.2
-	github.com/prometheus/client_golang v1.23.2
-	github.com/redis/go-redis/v9 v9.14.0
-	github.com/stretchr/testify v1.11.1
-	github.com/ScientificInternet/Google-Monetize/pkg/cache v0.0.0-00010101000000-000000000000
 	github.com/ScientificInternet/Google-Monetize/pkg/database v0.0.0-00010101000000-000000000000
 	github.com/ScientificInternet/Google-Monetize/pkg/dbadmin v0.0.0-00010101000000-000000000000
 	github.com/ScientificInternet/Google-Monetize/pkg/dburl v0.0.0-00010101000000-000000000000
@@ -59,6 +48,14 @@ require (
 	github.com/ScientificInternet/Google-Monetize/pkg/serviceclient v0.0.0-00010101000000-000000000000
 	github.com/ScientificInternet/Google-Monetize/pkg/supabaseauth v0.0.0-00010101000000-000000000000
 	github.com/ScientificInternet/Google-Monetize/pkg/telemetry v0.0.0-00010101000000-000000000000
+	github.com/alicebob/miniredis/v2 v2.35.0
+	github.com/go-chi/chi/v5 v5.2.3
+	github.com/google/uuid v1.6.0
+	github.com/lib/pq v1.10.9
+	github.com/oapi-codegen/runtime v1.1.2
+	github.com/prometheus/client_golang v1.23.2
+	github.com/redis/go-redis/v9 v9.14.0
+	github.com/stretchr/testify v1.11.1
 	golang.org/x/time v0.13.0
 )
 
@@ -71,6 +68,11 @@ require (
 	cloud.google.com/go/iam v1.5.2 // indirect
 	cloud.google.com/go/longrunning v0.6.7 // indirect
 	cloud.google.com/go/pubsub/v2 v2.0.0 // indirect
+	github.com/ScientificInternet/Google-Monetize/pkg/cache v0.0.0-00010101000000-000000000000 // indirect
+	github.com/ScientificInternet/Google-Monetize/pkg/errors v0.0.0-00010101000000-000000000000 // indirect
+	github.com/ScientificInternet/Google-Monetize/pkg/http v0.0.0-00010101000000-000000000000 // indirect
+	github.com/ScientificInternet/Google-Monetize/pkg/httpclient v0.0.0-00010101000000-000000000000 // indirect
+	github.com/ScientificInternet/Google-Monetize/pkg/idempotency v0.0.0-00010101000000-000000000000 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
@@ -99,10 +101,6 @@ require (
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/rs/zerolog v1.34.0 // indirect
 	github.com/sony/gobreaker v1.0.0 // indirect
-	github.com/ScientificInternet/Google-Monetize/pkg/errors v0.0.0-00010101000000-000000000000 // indirect
-	github.com/ScientificInternet/Google-Monetize/pkg/http v0.0.0-00010101000000-000000000000 // indirect
-	github.com/ScientificInternet/Google-Monetize/pkg/httpclient v0.0.0-00010101000000-000000000000 // indirect
-	github.com/ScientificInternet/Google-Monetize/pkg/idempotency v0.0.0-00010101000000-000000000000 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect

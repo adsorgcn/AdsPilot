@@ -127,6 +127,14 @@ go work sync
 go build ./...
 ```
 
+本地把服务跑起来(单用户模式,自带内嵌数据库,不需要 Docker):
+
+```bash
+./scripts/dev-local.sh        # Windows 用 .\scripts\dev-local.ps1
+```
+
+详见 [本地运行指南](docs/local-run.md)。
+
 格式检查和分模块测试在 CI 里跑,见 `.github/workflows/ci.yml`。
 
 ## License

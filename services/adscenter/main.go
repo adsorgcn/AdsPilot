@@ -8,8 +8,10 @@ import (
 	"syscall"
 
 	"github.com/ScientificInternet/Google-Monetize/pkg/database"
+	"github.com/ScientificInternet/Google-Monetize/pkg/middleware"
 	"github.com/ScientificInternet/Google-Monetize/pkg/telemetry"
 	adsconfig "github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/config"
+	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/localpg"
 	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/migrations"
 	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/server"
 )
@@ -25,17 +27,44 @@ func main() {
 	// Register default metrics
 	server.RegisterDefaultMetrics()
 
+	// Single-user local model: when no database is configured, boot an
+	// embedded PostgreSQL so the service is self-contained on the user's
+	// machine (no Docker, no external DB setup).
+	//
+	// die replaces log.Fatalf on paths after the embedded DB starts:
+	// log.Fatalf skips deferred calls, which would orphan the postgres child
+	// process.
+	stopPG := func() {}
+	die := func(format string, args ...interface{}) {
+		log.Printf(format, args...)
+		stopPG()
+		os.Exit(1)
+	}
+	if middleware.LocalMode() && os.Getenv("DATABASE_URL") == "" && os.Getenv("DATABASE_URL_SECRET_NAME") == "" {
+		dsn, stop, err := localpg.StartIfNeeded()
+		if err != nil {
+			log.Fatalf("Failed to start embedded PostgreSQL: %v", err)
+		}
+		stopPG = stop
+		defer stopPG()
+		os.Setenv("DATABASE_URL", dsn)
+	}
+
 	// Load configuration
 	cfg, err := adsconfig.Load(ctx)
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		die("Failed to load config: %v", err)
 	}
 
 	// Run database migrations (unless skipped)
 	if !server.SkipMigrations() {
 		log.Println("Running database migrations...")
-		if err := migrations.Run(cfg.DatabaseURL); err != nil {
-			log.Fatalf("Failed to run migrations: %v", err)
+		if middleware.LocalMode() {
+			if err := migrations.RunLocal(cfg.DatabaseURL); err != nil {
+				die("Failed to run local migrations: %v", err)
+			}
+		} else if err := migrations.Run(cfg.DatabaseURL); err != nil {
+			die("Failed to run migrations: %v", err)
 		}
 	} else {
 		log.Println("Skipping database migrations (ADSCENTER_SKIP_MIGRATIONS=1)")
@@ -44,14 +73,14 @@ func main() {
 	// Initialize FinalAdapter for unified Cloud SQL access
 	adapter, err := database.GetFinalAdapterForService("adscenter")
 	if err != nil {
-		log.Fatalf("Failed to initialize database adapter: %v", err)
+		die("Failed to initialize database adapter: %v", err)
 	}
 	defer adapter.Close()
 
 	// Create server instance
 	srv, err := server.NewServer(ctx, cfg, adapter)
 	if err != nil {
-		log.Fatalf("Failed to create server: %v", err)
+		die("Failed to create server: %v", err)
 	}
 
 	// Setup graceful shutdown
