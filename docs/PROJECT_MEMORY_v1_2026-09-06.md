@@ -104,3 +104,14 @@ Resume from the local checkout above. Before changing code, read `CLAUDE.md`, th
   local-cache guard received API retests and both builds. No Go manifest drift.
 - All local development/test sessions ended; no application/background server
   was started. Review branch publication and remote CI are separate milestones.
+
+## GitHub delivery
+
+- Review branch published: `codex/agent-native-p0-p1-2026-09-06`.
+- Implementation commit: `1ef0f22ea1b5e9896ddc50b528336d27ef612e7a`.
+- Draft PR: https://github.com/adsorgcn/AdsPilot/pull/2 — not merged.
+- GitHub tree matches the verified local index exactly:
+  `14c49b2d0ef6196115602605a8923f280661f6fd`.
+- Remote verification run `34031924587` was in progress at first observation;
+  this is not a green-CI claim. Recheck the PR checks or its Actions run before
+  merge. CI continuation is hosted by GitHub, not a local background task.

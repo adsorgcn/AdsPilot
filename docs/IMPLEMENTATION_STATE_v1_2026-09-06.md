@@ -66,7 +66,10 @@ background server or advertising process is running from this work.
 
 ## Remaining acceptance
 
-- Publish the review branch/PR and observe GitHub CI separately from local tests.
+- Review branch published as draft PR https://github.com/adsorgcn/AdsPilot/pull/2
+  at implementation commit `1ef0f22ea1b5e9896ddc50b528336d27ef612e7a`.
+  Observe remote CI separately from local tests (initial run `34031924587`
+  in progress). Main is unchanged; no merge performed.
 - Bind actual Google Ads/CJ host connectors and authorized account scope.
 - Prove real reads, one bounded paused campaign, and affiliate reconciliation.
 - Retained legacy non-local deployment requires a separate security/ownership
