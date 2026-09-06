@@ -70,7 +70,7 @@ func Run(ctx context.Context, in EnvInputs, liveEnabled bool, client LiveClient)
 		add(Check{Code: "env.oauth_client_secret", Severity: SevOK, Message: "present"})
 	}
 	if in.LoginCustomerID == "" {
-		add(Check{Code: "env.login_customer_id", Severity: SevError, Message: "missing GOOGLE_ADS_LOGIN_CUSTOMER_ID (MCC)"})
+		add(Check{Code: "env.login_customer_id", Severity: SevOK, Message: "manager header not configured; not required for direct account access"})
 	} else {
 		if ok, _ := regexp.MatchString(`^[0-9]{10}$`, in.LoginCustomerID); !ok {
 			add(Check{Code: "env.login_customer_id", Severity: SevWarn, Message: "format not 10-digit numeric"})
@@ -175,7 +175,7 @@ func Run(ctx context.Context, in EnvInputs, liveEnabled bool, client LiveClient)
 		if ok, err := client.HasSufficientBudget(ctx4, in.AccountID); err != nil {
 			add(Check{Code: "balance.budget", Severity: SevWarn, Message: "failed to query budget", Details: map[string]interface{}{"error": err.Error()}})
 		} else {
-			add(Check{Code: "balance.budget", Severity: ternary(ok, SevOK, SevWarn), Message: ternary(ok, "sufficient", "insufficient or zero")})
+			add(Check{Code: "balance.budget", Severity: ternary(ok, SevOK, SevWarn), Message: ternary(ok, "positive budget configured; spend sufficiency not assessed", "no positive budget observed")})
 		}
 		cancel4()
 

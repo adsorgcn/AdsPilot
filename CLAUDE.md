@@ -10,7 +10,7 @@ Develop from official API contracts, conditional intake and multi-scenario
 agent evaluations. Do not gate product work on the author's personal account
 or call one successful integration proof of correctness for all users.
 
-Read `AGENTS.md`, `docs/AGENT_ONBOARDING_v3_2026-09-06.md`, and
+Read `AGENTS.md`, `docs/P0_P1_ACCEPTANCE_v4_2026-09-07.md`, and
 `docs/PROJECT_MEMORY_v1_2026-09-06.md` before work.
 
 ## Layout and status

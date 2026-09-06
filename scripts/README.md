@@ -6,6 +6,23 @@ prerequisites for the user or agent host.
 
 ## Primary package checks
 
+One command with Node 22+ and Python 3.12+ checks the package, all five domain
+contracts, complete module inventory, discovered Node tests and strict pinned
+I-Lang validators plus Python regressions:
+
+```sh
+node scripts/verify-release.mjs
+node scripts/verify-release.mjs --adapters
+```
+
+The second command also checks active Go adapters. `--python PATH`, `--go PATH`
+and `--ilang-cache PATH` support portable developer runtimes/offline spec caches.
+No installation, package overwrite, tidy/sync or dependency-manifest rewrite is
+part of this command. Spawn failure, timeout, signal and test failure exit
+nonzero, with remaining checks explicitly skipped. CI uses the same entrypoint.
+
+For narrower checks:
+
 Node 22+ is sufficient; `npm install` is not needed:
 
 ```sh
@@ -25,15 +42,23 @@ fixtures. Its offline regression checks are
 ZIP under `dist/`. CI runs both and retains the packaged skill as an artifact.
 These Python commands are contributor tools, not agent installation steps.
 
-The v0.2 data-only onboarding/recovery contracts have an offline developer
-reference evaluator and regression scenarios. These verify covered policy
-decisions, not a universal AI behavior claim or live provider connectivity.
+The v0.3 data-only intake/recovery/host/Google/affiliate contracts have offline
+developer evaluators and regression scenarios. Google fixtures verify concrete
+money, page coverage, plan/approval/claim and resource readback. Affiliate
+fixtures verify delta accounting, checkpoint recovery, attribution eligibility,
+route-specific conversion receipts and optimization proposals. These verify
+covered policy decisions, not universal AI behavior or live provider connectivity.
+`node scripts/run-acceptance-scenarios.mjs` prints a compact end-to-end synthetic
+Google/CJ rehearsal with exact amounts and clearly labelled simulated receipts.
 Independent agent simulations and optional provider integration checks are
 separate evidence layers; neither requires the repository owner's account.
 
 `npm test` runs skill validation and verifier tests when npm is available.
 CI runs those checks on Windows and Linux for every PR and push to `main`.
 The frozen frontend is not a product gate and has no automated test runner.
+Root `dev`/`lint`/`setup` validate the primary Skill; `build` packages it. Historical
+workflows remain explicitly named `dev:legacy`, `build:legacy`, `lint:legacy`
+and `setup:legacy`; do not use them as installation instructions for users.
 
 ## Optional legacy Go adapters
 

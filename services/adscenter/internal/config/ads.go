@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -31,33 +32,55 @@ func LoadAdsCreds(ctx context.Context) (*AdsCreds, error) {
 }
 
 func resolveAdsCreds(ctx context.Context) (*AdsCreds, error) {
+	return resolveAdsCredsWithSecretGetter(ctx, secrets.Get)
+}
+
+func resolveAdsCredsWithSecretGetter(ctx context.Context, getSecret func(context.Context, string) (string, error)) (*AdsCreds, error) {
 	get := func(key, secretNameKey string) (string, error) {
 		if v := strings.TrimSpace(os.Getenv(key)); v != "" {
 			return v, nil
 		}
 		if sn := strings.TrimSpace(os.Getenv(secretNameKey)); sn != "" {
-			return secrets.Get(ctx, sn)
+			value, err := getSecret(ctx, sn)
+			if err != nil || strings.TrimSpace(value) == "" {
+				// A configured provider is authoritative: never silently use a
+				// different local identity after its lookup fails. Provider errors
+				// can echo secret values, so expose only the configuration field.
+				return "", fmt.Errorf("failed to resolve configured %s secret", key)
+			}
+			return strings.TrimSpace(value), nil
 		}
 		return "", nil
 	}
-	dev, _ := get("GOOGLE_ADS_DEVELOPER_TOKEN", "GOOGLE_ADS_DEVELOPER_TOKEN_SECRET_NAME")
-	cid, _ := get("GOOGLE_ADS_OAUTH_CLIENT_ID", "GOOGLE_ADS_OAUTH_CLIENT_ID_SECRET_NAME")
-	csec, _ := get("GOOGLE_ADS_OAUTH_CLIENT_SECRET", "GOOGLE_ADS_OAUTH_CLIENT_SECRET_SECRET_NAME")
-	rt, _ := get("GOOGLE_ADS_REFRESH_TOKEN", "GOOGLE_ADS_REFRESH_TOKEN_SECRET_NAME")
-	if rt == "" {
+	out := &AdsCreds{}
+	for _, field := range []struct {
+		key string
+		dst *string
+	}{
+		{"GOOGLE_ADS_DEVELOPER_TOKEN", &out.DeveloperToken},
+		{"GOOGLE_ADS_OAUTH_CLIENT_ID", &out.OAuthClientID},
+		{"GOOGLE_ADS_OAUTH_CLIENT_SECRET", &out.OAuthClientSecret},
+		{"GOOGLE_ADS_REFRESH_TOKEN", &out.RefreshToken},
+		{"GOOGLE_ADS_LOGIN_CUSTOMER_ID", &out.LoginCustomerID},
+		{"GOOGLE_ADS_TEST_CUSTOMER_ID", &out.TestCustomerID},
+	} {
+		value, err := get(field.key, field.key+"_SECRET_NAME")
+		if err != nil {
+			return nil, err
+		}
+		*field.dst = value
+	}
+	if out.RefreshToken == "" {
 		// Fall back to the token stored by the local OAuth flow (loopback +
 		// PKCE, see internal/api/oauth_local.go). A token minted by a
 		// different OAuth client is ignored: refreshing it with the current
 		// client would fail with invalid_grant.
 		if cred, err := localcreds.Load(); err == nil {
-			if cred.ClientID == "" || cid == "" || cred.ClientID == cid {
-				rt = strings.TrimSpace(cred.RefreshToken)
+			if cred.ClientID != "" && cred.ClientID == out.OAuthClientID {
+				out.RefreshToken = strings.TrimSpace(cred.RefreshToken)
 			}
 		}
 	}
-	login, _ := get("GOOGLE_ADS_LOGIN_CUSTOMER_ID", "GOOGLE_ADS_LOGIN_CUSTOMER_ID_SECRET_NAME")
-	test, _ := get("GOOGLE_ADS_TEST_CUSTOMER_ID", "GOOGLE_ADS_TEST_CUSTOMER_ID_SECRET_NAME")
-	out := &AdsCreds{DeveloperToken: dev, OAuthClientID: cid, OAuthClientSecret: csec, RefreshToken: rt, LoginCustomerID: login, TestCustomerID: test}
 	return out, nil
 }
 

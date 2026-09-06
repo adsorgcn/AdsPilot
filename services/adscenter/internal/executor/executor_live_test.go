@@ -50,7 +50,7 @@ func TestMutateValidationUsesV25AndNeverClaimsExecution(t *testing.T) {
 }
 
 func TestMutationErrorsCannotBecomeSuccess(t *testing.T) {
-	for _, body := range []string{"not-json", "null", `{"partialFailureError":{"code":3}}`} {
+	for _, body := range []string{"not-json", "null", `{"partialFailureError":{"code":3}}`, `{"error":{"status":"PERMISSION_DENIED"}}`, `{} {}`} {
 		ex := New(Config{CustomerID: "2222222222"})
 		ex.ts = oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-only"})
 		ex.http = rawDoerFunc(func(r *http.Request) (*http.Response, error) {
@@ -65,5 +65,32 @@ func TestMutationErrorsCannotBecomeSuccess(t *testing.T) {
 	res, err := ex.mutate(context.Background(), nil, true)
 	if err == nil || res.Success {
 		t.Fatalf("empty validation falsely passed: %+v", res)
+	}
+}
+
+func TestValidationErrorsExposeNoRawProviderData(t *testing.T) {
+	ex := New(Config{CustomerID: "2222222222"})
+	ex.ts = oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "test-only"})
+	ex.http = rawDoerFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 400, Body: io.NopCloser(strings.NewReader(`{"error":{"message":"private-refresh-token","details":[{"errors":[{"errorCode":{"fieldError":"REQUIRED"},"trigger":{"stringValue":"private-client-secret"}}]}]}}`))}, nil
+	})
+	res, err := ex.mutate(context.Background(), []map[string]any{{"campaignOperation": map[string]any{}}}, true)
+	data, _ := json.Marshal(res)
+	if err == nil || res.Success || strings.Contains(string(data), "private-") {
+		t.Fatal("validation exposed raw provider error or claimed success")
+	}
+	if res.Details["googleValidated"] != false || res.Details["executed"] != false {
+		t.Fatal("failed validation lost execution truth")
+	}
+}
+
+func TestValidationRejectsMalformedCustomerBeforeRequest(t *testing.T) {
+	ex := New(Config{CustomerID: "2222222222#fragment"})
+	ex.http = rawDoerFunc(func(*http.Request) (*http.Response, error) { t.Fatal("malformed customer sent"); return nil, nil })
+	if _, err := ex.mutate(context.Background(), []map[string]any{{"campaignOperation": map[string]any{}}}, true); err == nil {
+		t.Fatal("malformed target accepted")
+	}
+	if _, err := ex.searchStream(context.Background(), "SELECT campaign.id FROM campaign"); err == nil {
+		t.Fatal("malformed read target accepted")
 	}
 }

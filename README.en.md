@@ -21,8 +21,8 @@ certification across every agent platform.
 > verify the account and data sources, then prepare keywords and a paused
 > campaign plan for this product.
 
-The package contains only Markdown instructions/references and a JSON
-manifest. No install scripts, background processes, or bundled SDKs.
+The package contains only Markdown instructions/references, JSON domain
+contracts and a manifest. No install scripts, background processes, or bundled SDKs.
 Missing tools trigger host capability discovery, conditional intake, a setup
 packet and useful research/drafts; they do not trigger invented execution or
 instructions to deploy an AdsPilot server.
@@ -48,16 +48,19 @@ that arbitrary users will have no bugs.
 
 ## Honest release status
 
-Version 0.2.0 adds conditional intake and agent-led onboarding/recovery to
-capability discovery, account and keyword workflows,
-validated/approved campaign plans, execution evidence, affiliate research,
-commission reconciliation, and conversion-upload instructions.
+Version 0.3.0 supplies 15 stable logical operations, two host-binding shapes,
+conditional intake/recovery, exact Google report and paused Search plan
+contracts, CJ delta reconciliation and checkpointing, and current Data Manager
+versus eligible legacy conversion routes. Developer reference transformations
+and synthetic scenarios exercise actual values and decisions, not prose matches.
 
 These are defined agent workflows, **not verified live provider integrations**.
 Host connectors, durable operation claims, scoped grants, and provider readback
 are required for real writes. Unknown create outcomes must be reconciled, not
 blindly retried. CJ connectivity and the complete advertising-to-commission
-loop still need real-host acceptance testing.
+loop still need separately authorized real-host acceptance testing. Use the
+[unified P0/P1 acceptance checklist](docs/P0_P1_ACCEPTANCE_v4_2026-09-07.md)
+and the self-contained [user-agent acceptance](skills/adspilot/references/acceptance.md).
 
 The optional Go AdsCenter adapter now fails explicitly for unsupported
 execution instead of returning synthetic success. HTTP 501 is a mitigation,
@@ -83,11 +86,7 @@ Development tools below are not installation requirements. No `npm install`
 is needed for the primary checks.
 
 ```sh
-node scripts/verify-agent-package.mjs
-node scripts/verify-agent-contracts.mjs
-node --test tests/agent-package/*.test.mjs scripts/verify-go.test.mjs
-node scripts/verify-go.mjs --inventory-only
-python scripts/verify-ilang.py
+node scripts/verify-release.mjs
 python scripts/package-agent.py
 ```
 
@@ -98,8 +97,7 @@ services. See [developer verification](scripts/README.md).
 
 The main product is `skills/adspilot/`. Legacy services, frontend, and local
 OAuth/deployment scripts are retained assets, not runtime dependencies.
-The [v3 documentation-driven acceptance plan](docs/AGENT_ONBOARDING_v3_2026-09-06.md)
-is current; [v2](docs/AGENT_NATIVE_ROADMAP_v2_2026-09-06.md) retains the urgent
-legacy-containment history.
+The [v4 unified acceptance plan](docs/P0_P1_ACCEPTANCE_v4_2026-09-07.md)
+is current; earlier v1/v2/v3 reports retain historical audit/design evidence.
 
 [MIT License](LICENSE)

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -272,5 +273,42 @@ func TestLoadPrecheckFlags(t *testing.T) {
 	flags = LoadPrecheckFlags()
 	if !flags.EnableLive || !flags.EnableAccessibleCustomers || !flags.EnableValidateOnly || flags.PerCheckTimeoutMS != 2000 || flags.TotalTimeoutMS != 5000 {
 		t.Fatal("custom precheck flags were not loaded")
+	}
+}
+
+func TestConfiguredSecretFailureNeverFallsBackOrLeaksProviderError(t *testing.T) {
+	for _, field := range []string{"GOOGLE_ADS_DEVELOPER_TOKEN", "GOOGLE_ADS_OAUTH_CLIENT_ID", "GOOGLE_ADS_OAUTH_CLIENT_SECRET", "GOOGLE_ADS_REFRESH_TOKEN", "GOOGLE_ADS_LOGIN_CUSTOMER_ID", "GOOGLE_ADS_TEST_CUSTOMER_ID"} {
+		t.Run(field, func(t *testing.T) {
+			isolateCredentials(t)
+			t.Setenv("GOOGLE_ADS_OAUTH_CLIENT_ID", "client-a")
+			t.Setenv(field, "")
+			t.Setenv(field+"_SECRET_NAME", "configured-secret-reference")
+			if err := localcreds.Save(localcreds.Credential{ClientID: "client-a", RefreshToken: "different-local-identity"}); err != nil {
+				t.Fatal(err)
+			}
+			for _, empty := range []bool{false, true} {
+				creds, err := resolveAdsCredsWithSecretGetter(context.Background(), func(context.Context, string) (string, error) {
+					if empty {
+						return " ", nil
+					}
+					return "", errors.New("sensitive-provider-error-do-not-echo")
+				})
+				if creds != nil || err == nil || strings.Contains(err.Error(), "sensitive-provider-error") || !strings.Contains(err.Error(), field) {
+					t.Fatal("configured secret failure did not fail closed safely")
+				}
+			}
+		})
+	}
+}
+
+func TestUnboundLocalCredentialIsNotReusedByAnotherOAuthApp(t *testing.T) {
+	isolateCredentials(t)
+	t.Setenv("GOOGLE_ADS_OAUTH_CLIENT_ID", "client-a")
+	if err := localcreds.Save(localcreds.Credential{RefreshToken: "unbound-local-token"}); err != nil {
+		t.Fatal(err)
+	}
+	creds, err := LoadAdsCreds(context.Background())
+	if err != nil || creds.RefreshToken != "" {
+		t.Fatal("credential without OAuth app binding was reused")
 	}
 }

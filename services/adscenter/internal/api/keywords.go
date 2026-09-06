@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/ScientificInternet/Google-Monetize/pkg/apierrors"
@@ -36,6 +37,10 @@ func (h *KeywordsHandler) HandleExpand(w http.ResponseWriter, r *http.Request) {
 		apiErr.WriteJSON(w, r)
 		return
 	}
+	// This retained route is a local drafting helper, not Google Keyword Ideas.
+	// Explicit provenance prevents heuristic scores becoming provider metrics.
+	w.Header().Set("X-AdsPilot-Data-Source", "local_rule_based_draft")
+	w.Header().Set("X-AdsPilot-Google-Verified", "false")
 
 	var req struct {
 		SeedKeywords []string `json:"seedKeywords"`
@@ -188,7 +193,7 @@ func (h *KeywordsHandler) HandleExpand(w http.ResponseWriter, r *http.Request) {
 		for j := i + 1; j < len(scored); j++ {
 			si := scored[i]["score"].(int)
 			sj := scored[j]["score"].(int)
-			if sj > si {
+			if sj > si || (sj == si && scored[j]["keyword"].(string) < scored[i]["keyword"].(string)) {
 				scored[i], scored[j] = scored[j], scored[i]
 			}
 		}
@@ -306,5 +311,6 @@ func keys(m map[string]struct{}) []string {
 	for k := range m {
 		out = append(out, k)
 	}
+	sort.Strings(out)
 	return out
 }

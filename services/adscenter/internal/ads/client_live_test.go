@@ -58,7 +58,7 @@ func TestKeywordIdeasUseTargetCustomerAndSingleSeed(t *testing.T) {
 		return jsonResponse(`{"results":[{"text":"electric cars","keywordIdeaMetrics":{"avgMonthlySearches":"12345","competition":"HIGH"}}]}`), nil
 	})
 	ideas, err := client.KeywordIdeas(context.Background(), "https://example.com", []string{" cars ", ""})
-	if err != nil || len(ideas) != 1 || ideas[0].AvgMonthlySearches != 12345 {
+	if err != nil || len(ideas) != 1 || ideas[0].AvgMonthlySearches == nil || *ideas[0].AvgMonthlySearches != 12345 {
 		t.Fatalf("bad Google int64 metrics: %+v %v", ideas, err)
 	}
 }

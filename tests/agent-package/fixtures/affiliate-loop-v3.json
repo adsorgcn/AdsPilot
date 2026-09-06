@@ -1,0 +1,43 @@
+{
+  "synthetic": true,
+  "description": "Invented CJ Publisher Commission response-shaped exports using documented field names, with normalized host observations. These are NOT network captures or live Google receipts.",
+  "source_schema": "https://docs.cj.com/docs/parameter-details",
+  "now": "2026-09-07T12:00:00Z",
+  "binding": { "schema_verified": true, "schema_ref": "https://docs.cj.com/docs/parameter-details", "publisher_id": "900001", "amount_semantics": "delta" },
+  "request": { "country": "US", "brand_bidding": false, "direct_linking": true },
+  "offer": {
+    "offer_id": "synthetic-offer-1", "publisher_id": "900001", "property_id": "910001", "advertiser_id": "920001",
+    "destination": "https://merchant.example/product", "relationship": "joined",
+    "terms": { "paid_search": true, "brand_bidding": false, "direct_linking": true, "countries": ["US"], "evidence_ref": "synthetic-terms-1", "valid_until": "2026-10-01T00:00:00Z" }
+  },
+  "link": {
+    "network_issued": true, "evidence_ref": "synthetic-network-link-response", "url": "https://tracking.example/click?sid=opaque_event_0001",
+    "destination": "https://merchant.example/product", "publisher_id": "900001", "property_id": "910001", "advertiser_id": "920001",
+    "tracking_token": "opaque_event_0001", "sub_id_format_verified": true
+  },
+  "mappings": [
+    { "network": "CJ", "publisher_id": "900001", "property_id": "910001", "advertiser_id": "920001", "tracking_token": "opaque_event_0001", "mapping_ref": "synthetic-mapping-1", "durable": true, "customer_id": "1111111111", "conversion_customer_id": "2222222222", "campaign_id": "333", "source_ref": "synthetic-permitted-source", "click_ref": "host-reference-not-a-real-gclid-1", "click_type": "gclid", "click_at": "2026-09-01T12:00:00Z", "consent_ref": "synthetic-consent-1", "consent_status": "GRANTED", "upload_allowed": true, "event_source": "WEB" },
+    { "network": "CJ", "publisher_id": "900001", "property_id": "910001", "advertiser_id": "920001", "tracking_token": "opaque_event_0002", "mapping_ref": "synthetic-mapping-2", "durable": true, "customer_id": "1111111111", "conversion_customer_id": "2222222222", "campaign_id": "333", "source_ref": "synthetic-permitted-source", "click_ref": "host-reference-not-a-real-gclid-2", "click_type": "gclid", "click_at": "2026-09-01T13:00:00Z", "consent_ref": "synthetic-consent-2", "consent_status": "GRANTED", "upload_allowed": true, "event_source": "WEB" }
+  ],
+  "pages": [
+    {
+      "source_ref": "synthetic-cj-page-1", "observed_at": "2026-09-07T10:00:00Z", "cursor": null,
+      "window": { "from": "2026-09-01T00:00:00Z", "to": "2026-09-07T00:00:00Z" },
+      "data": { "publisherCommissions": { "count": 2, "payloadComplete": false, "maxCommissionId": "1002", "records": [
+        { "commissionId": "1001", "orderId": "synthetic-order-1", "originalActionId": "5001", "original": true, "publisherId": "900001", "websiteId": "910001", "advertiserId": "920001", "actionTrackerId": "930001", "actionType": "sim_sale", "eventDate": "2026-09-02T12:00:00Z", "postingDate": "2026-09-02T12:01:00Z", "shopperId": "opaque_event_0001", "actionStatus": "locked", "validationStatus": "ACCEPTED", "pubCommissionAmountUsd": "10.125", "saleAmountUsd": "100.10" },
+        { "commissionId": "1002", "orderId": "synthetic-order-2", "originalActionId": "5002", "original": true, "publisherId": "900001", "websiteId": "910001", "advertiserId": "920001", "actionTrackerId": "930001", "actionType": "sim_sale", "eventDate": "2026-09-02T13:00:00Z", "postingDate": "2026-09-02T13:01:00Z", "shopperId": "opaque_event_0002", "actionStatus": "locked", "validationStatus": "ACCEPTED", "pubCommissionAmountUsd": "2.3333", "saleAmountUsd": "20.00" }
+      ] } }
+    },
+    {
+      "source_ref": "synthetic-cj-page-2", "observed_at": "2026-09-07T10:01:00Z", "cursor": "1002",
+      "window": { "from": "2026-09-01T00:00:00Z", "to": "2026-09-07T00:00:00Z" },
+      "data": { "publisherCommissions": { "count": 1, "payloadComplete": true, "maxCommissionId": "1003", "records": [
+        { "commissionId": "1003", "orderId": "synthetic-order-1", "originalActionId": "5001", "original": false, "publisherId": "900001", "websiteId": "910001", "advertiserId": "920001", "actionTrackerId": "930001", "actionType": "sim_sale", "eventDate": "2026-09-02T12:00:00Z", "postingDate": "2026-09-06T12:01:00Z", "shopperId": "opaque_event_0001", "actionStatus": "locked", "validationStatus": "ACCEPTED", "pubCommissionAmountUsd": "-1.125", "saleAmountUsd": "-10.10" }
+      ] } }
+    }
+  ],
+  "action": { "id": "444", "owner_customer_id": "2222222222", "serving_customer_ids": ["1111111111"], "status": "ENABLED", "type": "UPLOAD_CLICKS", "value_semantics": "affiliate_commission", "evidence_ref": "synthetic-google-action-read" },
+  "policy": { "route": "data_manager", "route_evidence_ref": "synthetic-host-schema", "value_semantics": "affiliate_commission", "eligible_action_types": ["sim_sale", "item_sale"], "approved_ref": "synthetic-owner-value-choice", "authoritative_values": true, "source_evidence_ref": "synthetic-commission-basis", "upload_window_days": 90, "window_evidence_ref": "synthetic-current-method-limit", "adjustment_window_days": 55, "adjustment_supported": true, "adjustment_evidence_ref": "synthetic-google-adjustment-binding" },
+  "simulated_response": { "mode": "synthetic", "bind_current_synthetic_batch": true, "route": "data_manager", "response_received": true, "request_id": "synthetic-ingestion-1", "evidence_ref": "synthetic-ingestion-acceptance" },
+  "optimization": { "currency": "USD", "spend": "12.00", "spend_evidence_ref": "synthetic-same-customer-campaign-window-spend", "spend_scope": { "cohort_verified": true, "customer_id": "1111111111", "campaign_ids": ["333"], "from": "2026-09-01T00:00:00Z", "to": "2026-09-07T00:00:00Z" }, "window_complete": true, "min_confirmed_orders": 2 }
+}

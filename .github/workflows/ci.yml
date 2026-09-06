@@ -36,18 +36,8 @@ jobs:
           python-version: '3.12'
       # Developer validation only. Installing/using the skill requires no Node,
       # npm install, Go, database, daemon, or user-managed server.
-      - name: Validate the instruction-only agent package
-        run: node scripts/verify-agent-package.mjs
-      - name: Validate conditional intake and recovery contracts
-        run: node scripts/verify-agent-contracts.mjs
-      - name: Check complete legacy Go inventory
-        run: node scripts/verify-go.mjs --inventory-only
-      - name: Test verifier failure handling
-        run: node --test tests/agent-package/*.test.mjs scripts/verify-go.test.mjs
-      - name: Validate I-Lang with pinned upstream validators
-        run: python scripts/verify-ilang.py
-      - name: Test I-Lang pin and fixture failure handling
-        run: python -B -m unittest discover -s tests/agent-package -p "test_*.py"
+      - name: Verify complete agent release contracts, scenarios and pinned I-Lang
+        run: node scripts/verify-release.mjs
       - name: Package the instruction-only skill
         run: python scripts/package-agent.py
       - uses: actions/upload-artifact@v4

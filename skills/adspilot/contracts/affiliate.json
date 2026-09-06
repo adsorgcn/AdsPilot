@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "version": "0.3.0",
+  "kind": "affiliate-feedback-contract",
+  "reviewed_at": "2026-09-07",
+  "execution": "instruction_only_host_capabilities",
+  "provider_schema": false,
+  "intake": {
+    "discover_first": true,
+    "secret_collection": "host_secret_store_only",
+    "owner_fields": {
+      "business_goal": "你希望推广什么产品，面向哪里的人？只补当前任务还不知道的部分。",
+      "publisher_property_choice": "发现多个 CJ 推广网站，请选本次使用的那个。",
+      "value_semantics": "转化价值要记实际销售额，还是你赚到的佣金？我会分别展示，不把两者混在一起。",
+      "missing_terms": "当前资料没有明确允许这种付费搜索方式；请确认允许的条款或申请广告主确认。",
+      "upload_scope": "这些转化将写入这个账户的这个转化目标，金额和币种如下；请确认尚未授权的范围。"
+    },
+    "host_fields": ["publisher_identity", "property_identity", "schema_binding", "network_link_tool", "durable_mapping_store", "consented_attribution_source", "conversion_connector", "durable_operation_ledger"],
+    "never_request_in_chat": ["password", "personal_access_token", "oauth_token", "raw_click_identifiers", "customer_personal_data"]
+  },
+  "cj_publisher_commission_binding": {
+    "source": "https://docs.cj.com/docs/parameter-details",
+    "query": "publisherCommissions",
+    "endpoint": "https://commissions.api.cj.com/query",
+    "envelope": "data.publisherCommissions",
+    "fields": {
+      "commission_id": "commissionId",
+      "order_id": "orderId",
+      "original_action_id": "originalActionId",
+      "original": "original",
+      "publisher_id": "publisherId",
+      "property_id": "websiteId",
+      "advertiser_id": "advertiserId",
+      "action_id": "actionTrackerId",
+      "action_type": "actionType",
+      "event_at": "eventDate",
+      "posted_at": "postingDate",
+      "tracking_token": "shopperId",
+      "status": "actionStatus",
+      "validation_status": "validationStatus",
+      "commission": "pubCommissionAmountUsd",
+      "sale": "saleAmountUsd"
+    },
+    "currency": "USD",
+    "currency_semantics": "explicit_usd_fields_not_inferred_publisher_currency",
+    "deprecated_tracking_alias": "sid",
+    "snapshot_revision": "content_digest_plus_host_observed_at_not_invented_provider_modified_field"
+  },
+  "imports": {
+    "record_identity": ["network", "publisher_id", "commission_id"],
+    "order_identity": ["network", "publisher_id", "advertiser_id", "action_id", "original_action_id"],
+    "correction_model": "add_distinct_commission_delta_records",
+    "same_id_financial_change": "quarantine_until_authoritative_revision_semantics_verified",
+    "decimal_model": "arbitrary_precision_decimal_strings_no_implicit_rounding_or_fx",
+    "query_max_days": 31,
+    "page_complete": "payloadComplete",
+    "next_cursor": "maxCommissionId",
+    "cursor_argument": "sinceCommissionId",
+    "window": "sincePostingDate_inclusive_beforePostingDate_exclusive",
+    "resume": "durable_page_ledger_before_cursor_watermark_only_after_all_pages",
+    "overlap": "host_policy_defined_lookback_plus_periodic_full_historical_reconciliation"
+  },
+  "offer_eligibility": ["joined_relationship", "current_terms_evidence", "paid_search_allowed", "brand_bidding_if_requested", "direct_linking_if_requested", "country_allowed", "network_issued_link", "property_and_advertiser_match"],
+  "tracking": {
+    "token": "opaque_host_generated_network_supported_sub_id",
+    "mapping_key": ["network", "publisher_id", "property_id", "advertiser_id", "tracking_token"],
+    "required": ["durable", "mapping_ref", "customer_id", "conversion_customer_id", "campaign_id", "source_ref", "click_ref", "click_type", "click_at", "consent_ref", "upload_allowed"],
+    "no_mapping": "untracked_link_draft_and_attribution_unavailable",
+    "network_sid_is_not_google_click_id": true
+  },
+  "conversion_routes": {
+    "data_manager": {
+      "preferred_for_new_integrations": true,
+      "developer_token_required": false,
+      "method": "events.ingest",
+      "owner_field": "destinations[].operatingAccount.accountId",
+      "action_field": "destinations[].productDestinationId",
+      "value_field": "events[].conversionValue",
+      "currency_field": "events[].currency",
+      "time_field": "events[].eventTimestamp",
+      "order_field": "events[].transactionId",
+      "identifier_field": "events[].adIdentifiers",
+      "validation": "validateOnly",
+      "failure_model": "request_fast_fail_then_asynchronous_destination_diagnostics",
+      "accepted_state": "accepted_pending_diagnostics_not_attributed"
+    },
+    "google_ads_legacy": {
+      "eligibility": "host_evidence_token_previously_uploaded_before_2026_06_15_or_current_provider_allowance",
+      "method": "ConversionUploadService.UploadClickConversions",
+      "action_field": "conversion_action",
+      "value_field": "conversion_value",
+      "currency_field": "currency_code",
+      "time_field": "conversion_date_time",
+      "order_field": "order_id",
+      "validation": "validate_only",
+      "failure_model": "partial_failure_per_item"
+    },
+    "adjustment": {
+      "method": "ConversionAdjustmentUploadService.UploadConversionAdjustments",
+      "prerequisite": "confirmed_original_with_same_conversion_owner_action_order_and_supported_identifier",
+      "restatement": "new_absolute_total_not_delta",
+      "retraction": "confirmed_cancellation_not_every_negative_commission",
+      "wbraid_supported": false,
+      "partial_failure": true
+    }
+  },
+  "conversion_gates": ["complete_reconciliation", "unique_durable_attribution", "same_conversion_owner", "enabled_upload_clicks_action", "approved_value_semantics", "authoritative_money", "explicit_timezone", "click_precedes_event", "current_upload_and_adjustment_windows", "permitted_source_and_consent", "existing_receipt_reconciliation", "exact_plan_validation_and_scoped_authority", "owned_durable_claim"],
+  "receipt_states": ["draft", "validated", "submitted_unknown", "accepted_pending_diagnostics", "confirmed", "rejected_unapplied", "quarantined"],
+  "sources": [
+    "https://docs.cj.com/docs/commission-detail-api-1",
+    "https://docs.cj.com/docs/parameter-details",
+    "https://docs.cj.com/docs/link-search",
+    "https://docs.cj.com/docs/schema-reference",
+    "https://developers.google.com/google-ads/api/docs/conversions/upload-offline",
+    "https://developers.google.com/google-ads/api/docs/conversions/upload-adjustments",
+    "https://developers.google.com/data-manager/api/devguides/events/send-events",
+    "https://developers.google.com/data-manager/api/devguides/events/google-ads/offline/upgrade",
+    "https://developers.google.com/data-manager/api/devguides/concepts/understand-errors"
+  ]
+}

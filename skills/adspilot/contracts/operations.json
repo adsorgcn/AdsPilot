@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "version": "0.3.0",
+  "kind": "logical-host-operation-contract",
+  "callable_tools": false,
+  "enforcement": "host-owned; this registry neither grants authority nor implements a connector",
+  "binding_evidence": ["session_ref", "binding_ref", "observed_at", "provenance", "schema_ref", "status", "scope"],
+  "states": ["instruction_ready", "capability_ready", "needs_owner", "needs_host", "pending_provider", "unsupported", "not_checked"],
+  "write_guards": ["host.records", "host.authorization", "host.input_isolation"],
+  "capabilities": ["google_ads.identity", "google_ads.query", "google_ads.keyword_ideas", "google_ads.validate", "google_ads.mutate", "google_ads.conversions", "host.records", "host.authorization", "host.input_isolation", "host.secrets", "host.schedule", "affiliate.read", "affiliate.links"],
+  "operations": [
+    {"id": "auth.status", "mode": "read", "provider": "google_ads", "target_required": false, "requires": ["google_ads.identity"], "inputs": [], "outputs": ["connection_state", "identity_evidence", "capability_statuses"], "reference": "references/onboarding.md"},
+    {"id": "accounts.list", "mode": "read", "provider": "google_ads", "target_required": false, "requires": ["google_ads.identity"], "inputs": [], "outputs": ["direct_customers", "hierarchy_completeness", "evidence"], "reference": "references/google-ads.md"},
+    {"id": "campaigns.summary", "mode": "read", "provider": "google_ads", "target_required": true, "requires": ["google_ads.identity", "google_ads.query"], "inputs": ["customer_id", "date_range"], "outputs": ["currency", "timezone", "rows", "coverage", "evidence"], "reference": "references/google-ads.md"},
+    {"id": "keywords.ideas", "mode": "read", "provider": "google_ads", "target_required": true, "requires": ["google_ads.identity", "google_ads.keyword_ideas"], "inputs": ["customer_id", "seed", "language", "geographies", "network"], "outputs": ["ideas", "metrics_provenance", "coverage", "evidence"], "reference": "references/google-ads.md"},
+    {"id": "plans.draft", "mode": "instruction", "provider": "google_ads", "target_required": false, "requires": [], "inputs": ["objective"], "outputs": ["plan", "unresolved_fields", "provider_validation"], "reference": "references/google-ads.md"},
+    {"id": "plans.validate", "mode": "validate", "provider": "google_ads", "target_required": true, "requires": ["google_ads.identity", "google_ads.validate"], "inputs": ["customer_id", "plan", "revision", "request_fingerprint"], "outputs": ["validation_ref", "operation_errors", "applied_operation_count"], "reference": "references/records.md"},
+    {"id": "plans.execute", "mode": "write", "provider": "google_ads", "target_required": true, "requires": ["google_ads.identity", "google_ads.validate", "google_ads.mutate", "google_ads.query", "host.records", "host.authorization", "host.input_isolation"], "inputs": ["customer_id", "plan", "revision", "validation_ref", "approval_ref", "operation_claim_ref"], "outputs": ["execution_state", "resource_names", "per_operation_results", "evidence"], "reference": "references/records.md"},
+    {"id": "execution.status", "mode": "read", "provider": "google_ads", "target_required": true, "requires": ["google_ads.query", "host.records"], "inputs": ["customer_id", "plan_id", "revision"], "outputs": ["execution_state", "unresolved_operations", "evidence", "resume_check"], "reference": "references/records.md"},
+    {"id": "offers.search", "mode": "read", "provider": "cj", "target_required": false, "requires": ["affiliate.read"], "inputs": ["publisher_scope", "offer_criteria"], "outputs": ["offers", "relationship_status", "paid_search_terms", "coverage", "evidence"], "reference": "references/affiliate.md"},
+    {"id": "links.resolve", "mode": "read", "provider": "cj", "target_required": false, "requires": ["affiliate.links"], "inputs": ["publisher_scope", "offer", "destination"], "outputs": ["network_link", "terms_evidence", "tracking_availability"], "reference": "references/affiliate.md"},
+    {"id": "commissions.analyze", "mode": "instruction", "provider": "cj", "target_required": false, "requires": [], "inputs": ["commission_records", "source_evidence"], "outputs": ["currency_totals", "unmatched", "duplicates", "corrections", "coverage"], "reference": "references/affiliate.md"},
+    {"id": "commissions.reconcile", "mode": "read", "provider": "cj", "target_required": false, "requires": ["affiliate.read", "host.records"], "inputs": ["publisher_scope", "time_window", "checkpoint"], "outputs": ["normalized_records", "mappings", "quarantine", "next_checkpoint"], "reference": "references/affiliate.md"},
+    {"id": "conversions.plan", "mode": "instruction", "provider": "google_ads", "target_required": false, "requires": [], "inputs": ["reconciliation", "value_policy"], "outputs": ["eligible_items", "blocked_items", "route", "draft"], "reference": "references/affiliate.md"},
+    {"id": "conversions.upload", "mode": "write", "provider": "google_ads", "target_required": true, "requires": ["google_ads.conversions", "host.records", "host.authorization", "host.input_isolation"], "inputs": ["customer_id", "conversion_customer_id", "action", "plan", "approval_ref", "operation_claim_ref"], "outputs": ["per_item_receipts", "pending_diagnostics", "unknown_outcomes", "evidence"], "reference": "references/affiliate.md"},
+    {"id": "optimization.plan", "mode": "instruction", "provider": "google_ads", "target_required": false, "requires": [], "inputs": ["performance_evidence", "reconciled_value", "policy"], "outputs": ["recommendation", "uncertainty", "proposed_plan", "missing_evidence"], "reference": "references/google-ads.md"}
+  ]
+}

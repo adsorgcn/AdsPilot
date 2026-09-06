@@ -145,7 +145,10 @@ func (h *PreflightHandler) HandlePreflight(w http.ResponseWriter, r *http.Reques
 	}()
 
 	// Cross-instance cache (Redis if available)
-	if h.RC != nil && h.RC.Ready() {
+	// The local identity is fixed across OAuth changes and workstations. Its
+	// authorization/configuration evidence must be fresh and stay process-local.
+	allowCache := !middleware.LocalMode()
+	if allowCache && h.RC != nil && h.RC.Ready() {
 		if txt, ok := h.RC.Get(ctx, "ac:preflight:"+cacheKey); ok {
 			var legacy PreflightResponse
 			if err := json.Unmarshal([]byte(txt), &legacy); err == nil {
@@ -156,7 +159,7 @@ func (h *PreflightHandler) HandlePreflight(w http.ResponseWriter, r *http.Reques
 	}
 
 	h.pcMu.RLock()
-	if ent, ok := h.pc[cacheKey]; ok && time.Now().Before(ent.exp) {
+	if ent, ok := h.pc[cacheKey]; allowCache && ok && time.Now().Before(ent.exp) {
 		h.pcMu.RUnlock()
 		writeJSON(w, http.StatusOK, ent.val)
 		return
@@ -250,6 +253,9 @@ func (h *PreflightHandler) HandlePreflight(w http.ResponseWriter, r *http.Reques
 	legacy := PreflightResponse{Summary: sm, Checks: legacyChecks, Mode: mode, GoogleValidated: false}
 
 	writeJSON(w, http.StatusOK, resp)
+	if !allowCache {
+		return
+	}
 
 	// Best-effort Firestore UI cache
 	_ = writePreflightUI(r.Context(), uid, req.AccountID, legacy)

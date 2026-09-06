@@ -73,11 +73,6 @@ func (c *StubClient) HasSufficientBudget(ctx context.Context, accountID string) 
 	return false, ErrLiveUnavailable
 }
 
-type KeywordIdea struct {
-	Text               string
-	AvgMonthlySearches int
-	Competition        string
-}
 type AdGroupMetrics struct {
 	Impressions int64
 	Clicks      int64

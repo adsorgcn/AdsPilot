@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "name": "adspilot",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "kind": "instruction-only-agent-skill",
   "entrypoint": "SKILL.md",
   "protocol": {
@@ -28,8 +28,12 @@
     "references/affiliate.md",
     "references/onboarding.md",
     "references/troubleshooting.md",
+    "references/acceptance.md",
     "contracts/intake.json",
-    "contracts/recovery-catalog.json"
+    "contracts/recovery-catalog.json",
+    "contracts/operations.json",
+    "contracts/google-ads.json",
+    "contracts/affiliate.json"
   ],
   "capabilities": [
     {"id": "onboarding.plan", "mode": "instruction", "requires": []},
@@ -40,7 +44,11 @@
     {"id": "campaigns.validate", "mode": "validate", "requires": ["google_ads.validate"]},
     {"id": "campaigns.mutate", "mode": "write", "requires": ["google_ads.validate", "google_ads.mutate", "google_ads.query", "host.records", "host.authorization", "host.input_isolation"]},
     {"id": "affiliate.research", "mode": "read", "requires": ["affiliate.read"]},
+    {"id": "affiliate.links", "mode": "read", "requires": ["affiliate.links"]},
+    {"id": "commissions.analyze", "mode": "instruction", "requires": []},
     {"id": "commissions.reconcile", "mode": "read", "requires": ["affiliate.read", "host.records"]},
+    {"id": "conversions.plan", "mode": "instruction", "requires": []},
+    {"id": "optimization.plan", "mode": "instruction", "requires": []},
     {"id": "conversions.upload", "mode": "write", "requires": ["google_ads.conversions", "host.records", "host.authorization", "host.input_isolation"]}
   ]
 }

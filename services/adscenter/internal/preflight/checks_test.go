@@ -85,6 +85,13 @@ func TestRun_BasicEnvChecks(t *testing.T) {
 			wantSeverity: SevOK,
 		},
 		{
+			name:         "direct account requires no MCC",
+			inputs:       EnvInputs{DeveloperToken: "test-token", OAuthClientID: "test-client-id", OAuthClientSecret: "test-secret", RefreshToken: "test-refresh"},
+			wantSummary:  "degraded",
+			checkCode:    "env.login_customer_id",
+			wantSeverity: SevOK,
+		},
+		{
 			name: "invalid login customer ID format",
 			inputs: EnvInputs{
 				DeveloperToken:    "test-token",

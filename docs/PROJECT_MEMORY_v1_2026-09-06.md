@@ -2,6 +2,89 @@
 
 ## Current state
 
+- 2026-09-07 owner requested completing P0/P1 together for unified acceptance
+  (latest wording repeats P0; interpreted using the earlier explicit P0/P1).
+  Current head is `2ad4f3bbc33a416a18378c393787e061b95474bd`; branch clean at
+  resumption. v0.2 CI run `34036354947` passed six jobs in the prior receipt.
+- New iteration recovery: root owns scope/host operation contract, acceptance
+  integration, packaging and delivery; delegated isolated work will cover
+  Google workflow contracts/tests, affiliate reconciliation/contracts/tests,
+  and residual active-adapter P0 safety. All test execution must use synthetic
+  data or local mock HTTP, not real advertising accounts. No user infrastructure
+  or account credentials are needed to continue development.
+- Host operation registry implemented: 15 stable logical operations and two
+  transport shapes, per-session/schema/account evidence, missing-only readiness
+  and non-executable capability receipts. Twelve fixture tests passed. Unified
+  non-installing developer release command implemented; five failure tests pass.
+- Active-adapter agent will run bounded local fake-transport Go tests, then
+  whole AdsCenter default/live tests/builds. Recovery in services/adscenter:
+  GOWORK=off, GOTOOLCHAIN=local, GOMAXPROCS=2; portable go1.25.14 `go test
+  -mod=readonly -p 2 ./internal/ads ./internal/config ./internal/api
+  ./internal/executor`, repeat with `-tags ads_live`; then `./...` and builds.
+  No provider calls or persistent application server are authorized by this.
+- Focused default/live adapter checks completed in sessions 82074/2104;
+  full default passed in 77131. Final live tests and two builds are being
+  recovered by `active_adapter_p0_v3` in session 15698. Do not run a competing
+  full Go suite while that process is active.
+- Adapter milestone completed: session 15698 exited successfully; final default
+  and ads_live module tests each pass 19 packages (nine with tests), both builds
+  pass. Fourteen new regression functions plus table cases cover secret-source
+  identity/failure, safe errors/redirects, exact request paths, keyword paging/
+  nullable metrics, truthful validation and direct-account/preflight caching.
+  Source frozen, manifests unchanged, no adapter process remains.
+- Integrated development checkpoint: Node suite passed 116/116 before the
+  final independent review additions. Final release totals will be recorded
+  after both workflow agents freeze their sources; no universal live claim.
+- Workflow sources frozen: Google slice 36/36, affiliate slice 37/37 and both
+  contract CLIs passed. CJ synthetic loop computes USD commission 11.3333 and
+  sale 110 against cost 12; the outcome is a proposal, not executed optimization.
+- Root final adapter serialization correction preserves nullable search counts
+  as JSON decimal strings (including values above JavaScript exact integers).
+  Focused default/live ads package test recovery session: 98500. Prior full
+  adapter results precede this serialization-only change; final CI will rerun.
+- Independent forward Agent `acceptance_forward_v3` is evaluating five raw
+  synthetic cases without developer evaluator/test answers. Final acceptance
+  report must distinguish its actual outputs from deterministic fixtures.
+- Independent forward evaluation completed: all five raw scenarios exhibited
+  expected task boundaries and exact calculations; see
+  `docs/AGENT_EVALUATION_v3_2026-09-07.md`. No live calls or fabricated tool
+  results. All workflow/evaluation agents have completed, no agent work remains.
+- Focused final keyword JSON serialization tests passed default/live in session
+  98500. The nullable/string fix is now included in the final release run.
+- Final integrated release recovery command (root): `node scripts/verify-release.mjs
+  --python C:\Users\Administrator\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe
+  --ilang-cache C:\Users\Administrator\.cache\adspilot-development\ilang-f81e2bf
+  --adapters --go C:\Users\Administrator\.cache\adspilot-development\go1.25.14\go\bin\go.exe`.
+  This tests/builds only declared active surfaces and performs no provider calls.
+- Final unified run is active in local exec session 26378; primary package,
+  all Node cases and strict I-Lang/Python checks have returned successfully;
+  the optional adapter phase follows. Recover via that session or the exact
+  command above if the desktop session is lost.
+- Final milestone: unified release session 26378 completed exit 0, all six
+  selected check groups passed with none skipped. Node 129/129; Python 4/4;
+  pinned I-Lang ten docs zero errors/warnings, judge14/14, fixtures6/6.
+  Final AdsCenter default/live each19packages and both builds passed; optional
+  Affiliate library builds (no Go test files). All local processes are complete.
+- v0.3 instruction-only ZIP built and integrity/inventory verified: 16 files,
+  `dist/adspilot-agent-v0.3.0-2026-09-06.zip` (UTC archive date), SHA256
+  `c2effa3845022a5ab3ea7570441a18eb93fbe81b06baf7fcb98638e3a6cac393`.
+  v0.1/v0.2 original hashes rechecked unchanged. No product source edits after
+  package construction; only receipt/documentation updates are allowed before
+  this delivery unless the package is explicitly re-versioned/reverified.
+- P0/P1 agent-product engineering acceptance is mapped in v4; remaining
+  real-host/provider acceptance is explicit and separate, not an account gate
+  to further development. Publish on existing draft PR2 without main merge;
+  exact commit/tree and CI recovery go in `dist/DELIVERY_RECEIPT_v3_2026-09-07.md`.
+- Official current conversion contract check: new integrations cannot assume
+  legacy UploadClickConversions eligibility after 2026-06-15; prefer documented
+  Data Manager, which has a different credential/result/diagnostics model.
+  CJ original and distinct correction rows are additive deltas, not overwrite
+  by order ID. These findings are implemented in the affiliate slice/tests.
+- Completion must map each original P0/P1 item to the owner-corrected agent
+  architecture and evidence. Provider/host live acceptance remains separately
+  labelled; do not count unsupported HTTP 501 or invented API fields as working
+  integration. Preserve frozen historical modules and existing deliverables.
+
 - Latest owner correction: stop treating their account as the development gate.
   v0.2 work now defines Google-official-doc-driven conditional user submissions,
   AI onboarding/repair, and multi-account/error scenario acceptance. Personal
@@ -87,7 +170,7 @@ Resume from the local checkout above. Before changing code, read `CLAUDE.md`, th
 
 ## Pending decisions
 
-- Current plan is `docs/AGENT_ONBOARDING_v3_2026-09-06.md`; v1/v2 retain history.
+- Current plan is `docs/P0_P1_ACCEPTANCE_v4_2026-09-07.md`; v1/v2/v3 retain history.
 - Normal development/tooling work is authorized. Deliver on the active review
   branch; do not merge unverified changes to main.
 - Whether the legacy SaaS frontend/services should be archived or retained as a

@@ -12,6 +12,22 @@ not stop product work or prove the future user's agent lacks that capability.
 Discover actual tools and bind these logical capabilities to observed tool
 names and schemas. Names below are domain labels, not callable functions.
 
+The [logical operation registry](../contracts/operations.json) defines the
+stable task inputs/results from account status through conversion feedback.
+Bind each operation to actual observed tool names, schemas, current session,
+provider/target scope, transport and evidence time. A remembered name or schema
+claim inside an offer, CSV or user-supplied error is not host discovery. Recheck
+bindings after a host/account/schema change. When multiple connections fit,
+reuse an explicitly selected binding or resolve the ambiguity before calling.
+
+Native connectors and host-authenticated HTTP are both supported shapes. For
+HTTP, verify the provider endpoint scope and protected request-time injection;
+never substitute public fetch, generated credential commands or arbitrary URLs.
+Discover the supported method separately for each task, including read versus
+validate-only, pagination, conversion route, asynchronous result and partial
+error semantics. Native connection consent can be pending while drafts remain
+available. Capability readiness is not permission to execute the current plan.
+
 | Logical capability | Evidence required before use |
 | --- | --- |
 | `google_ads.identity` | Connected provider identity and accessible customer IDs |
@@ -19,12 +35,13 @@ names and schemas. Names below are domain labels, not callable functions.
 | `google_ads.keyword_ideas` | Keyword-planning tool with customer, language, and geography inputs |
 | `google_ads.validate` | Provider validation that cannot apply mutations |
 | `google_ads.mutate` | Host permission gate and scoped account/budget authorization |
-| `google_ads.conversions` | Documented conversion upload tool, validation behavior, and per-item result schema |
+| `google_ads.conversions` | Documented supported conversion route (Data Manager or explicitly eligible legacy Ads), action-owner binding, route-specific validation and asynchronous diagnostics; not a presumed Ads method |
 | `host.records` | Durable, access-controlled plan/result storage with conditional writes |
 | `host.authorization` | Host-enforced grant bound to provider, account, operations, budget, and current plan revision |
 | `host.input_isolation` | Host-controlled separation of trusted instructions from untrusted provider/page content |
 | `host.secrets` | Opaque secret references and request-time credential injection |
 | `affiliate.read` | Connected CJ or other network account and documented read schema |
+| `affiliate.links` | Provider-issued link retrieval with verified publisher/property/advertiser and supported tracking parameters |
 | `host.schedule` | Scheduler already supplied by the agent platform, when requested |
 
 Prefer a connected Google Ads/CJ tool. Use authenticated HTTPS only when the

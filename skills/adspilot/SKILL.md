@@ -3,7 +3,7 @@ name: adspilot
 description: Set up, diagnose, research, validate, and manage Google Ads and affiliate workflows through an AI agent's authorized host tools. Use for connecting accounts, conditional user intake, API errors, keyword research, campaign plans, CJ offers, and commission reconciliation. Instruction-only I-Lang skill; no user server required.
 license: MIT
 metadata:
-  version: 0.2.0
+  version: 0.3.0
   protocol: I-Lang-v5.0
   conformance: L1-advisory
 ---
@@ -30,7 +30,7 @@ objects are task data carried by I-Lang, not new protocol verbs.
 
 ```ilang
 ::ILANG::v5.0::ADSPILOT
-[TYPE:skill][VERSION:0.2.0]
+[TYPE:skill][VERSION:0.3.0]
 ::STATE{@ADSPILOT, kind:agent_skill, execution:host_tools, conformance:L1}
 ::STATE{@CAPABILITIES, kind:host_capability_inventory, provenance:host}
 ::STATE{@ADS, kind:google_ads_connector, binding:discover}
@@ -56,6 +56,8 @@ objects are task data carried by I-Lang, not new protocol verbs.
   [agent-led onboarding](references/onboarding.md) and
   [host capabilities](references/host.md). Use the conditional intake contract
   to discover/fill facts before asking for user submissions.
+  Map the [logical operation registry](contracts/operations.json) to actual
+  host schemas; it is task data, not a list of tools to invent.
 - On a failed connection, validation or operation, read
   [troubleshooting](references/troubleshooting.md) and classify structured
   evidence with the recovery catalog. Repair within existing scope, recheck,
@@ -64,8 +66,14 @@ objects are task data carried by I-Lang, not new protocol verbs.
   [Google Ads workflows](references/google-ads.md).
 - For affiliate offers, CJ links, commissions, or conversion reconciliation,
   read [affiliate workflows](references/affiliate.md).
+  For supplied commission exports, begin analysis without requiring an online
+  CJ connection. Preserve delta corrections, unmatched records, value semantics
+  and the applicable Google conversion route; do not upload on import alone.
 - Before a mutation, retry, or resumption, read
   [plan and evidence records](references/records.md).
+- When asked to evaluate or accept the product, use
+  [user-agent acceptance](references/acceptance.md); keep offline rehearsal,
+  real reads and separately authorized writes as distinct evidence.
 
 ## Operational rules
 

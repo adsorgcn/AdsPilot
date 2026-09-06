@@ -8,12 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	httpx "github.com/ScientificInternet/Google-Monetize/pkg/http"
 	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/ads"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -51,11 +51,18 @@ type Executor struct {
 	ts oauth2.TokenSource
 }
 
+type rawHTTPClient struct{ *http.Client }
+
+func (c rawHTTPClient) DoRaw(r *http.Request) (*http.Response, error) { return c.Do(r) }
+
 func New(cfg Config) *Executor {
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = 6 * time.Second
 	}
-	return &Executor{cfg: cfg, http: httpx.New(cfg.Timeout)}
+	return &Executor{cfg: cfg, http: rawHTTPClient{&http.Client{
+		Timeout:       cfg.Timeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}}}
 }
 
 func (e *Executor) ExecuteOne(ctx context.Context, a Action) (Result, error) {
@@ -569,9 +576,15 @@ func (e *Executor) tokenSource(ctx context.Context) oauth2.TokenSource {
 }
 
 func (e *Executor) authHeaders(ctx context.Context) (http.Header, error) {
+	if e.cfg.LoginCustomerID != "" && !ads.ValidCustomerID(e.cfg.LoginCustomerID) {
+		return nil, errors.New("invalid Google Ads login customer ID")
+	}
 	tok, err := e.tokenSource(ctx).Token()
 	if err != nil {
-		return nil, err
+		return nil, errors.New("Google Ads OAuth token refresh failed")
+	}
+	if tok == nil || strings.TrimSpace(tok.AccessToken) == "" {
+		return nil, errors.New("Google Ads OAuth returned no access token")
 	}
 	h := http.Header{}
 	h.Set("Authorization", "Bearer "+tok.AccessToken)
@@ -812,8 +825,17 @@ func (e *Executor) mutate(ctx context.Context, ops []map[string]any, validateOnl
 	}
 	url := fmt.Sprintf(ads.APIBaseURL+"/customers/%s/googleAds:mutate", e.cfg.CustomerID)
 	body := map[string]any{"validateOnly": validateOnly, "partialFailure": false, "mutateOperations": ops}
-	b, _ := json.Marshal(body)
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(b))
+	if err := ads.ValidateRequestBoundary(http.MethodPost, url, body); err != nil {
+		return Result{Success: false, Message: err.Error()}, err
+	}
+	b, err := json.Marshal(body)
+	if err != nil {
+		return Result{Success: false, Message: "invalid validation request"}, errors.New("encode Google Ads validation failed")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(b))
+	if err != nil {
+		return Result{Success: false, Message: "invalid validation request"}, errors.New("construct Google Ads validation failed")
+	}
 	hdr, err := e.authHeaders(ctx)
 	if err != nil {
 		return Result{Success: false, Message: err.Error()}, err
@@ -821,23 +843,26 @@ func (e *Executor) mutate(ctx context.Context, ops []map[string]any, validateOnl
 	req.Header = hdr
 	resp, err := e.http.DoRaw(req)
 	if err != nil {
-		return Result{Success: false, Message: err.Error()}, err
+		return Result{Success: false, Message: "Google Ads transport failed"}, errors.New("Google Ads transport failed")
 	}
 	defer resp.Body.Close()
+	data, err := io.ReadAll(io.LimitReader(resp.Body, (16<<20)+1))
+	if err != nil || len(data) > 16<<20 {
+		return Result{Success: false, Message: "invalid Google Ads response"}, errors.New("Google Ads response read failed or exceeded size limit")
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		providerErr := ads.NewProviderError(resp.StatusCode, resp.Header, data)
+		return Result{Success: false, Message: providerErr.Error(), Details: map[string]any{"executed": false, "googleValidated": false, "providerError": providerErr}}, providerErr
+	}
 	var out map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return Result{Success: false, Message: "invalid Google Ads mutate response"}, err
+	if json.Unmarshal(data, &out) != nil || out == nil {
+		return Result{Success: false, Message: "invalid Google Ads mutate response"}, errors.New("invalid Google Ads mutate response")
 	}
-	if resp.StatusCode >= 400 {
-		return Result{Success: false, Message: fmt.Sprintf("mutate http %d", resp.StatusCode), Details: out}, errors.New("mutate failed")
+	if out["partialFailureError"] != nil || out["error"] != nil {
+		providerErr := ads.NewProviderError(resp.StatusCode, resp.Header, data)
+		return Result{Success: false, Message: "Google Ads validation failed", Details: map[string]any{"executed": false, "googleValidated": false, "providerError": providerErr}}, providerErr
 	}
-	if out == nil || out["partialFailureError"] != nil {
-		return Result{Success: false, Message: "Google Ads validation failed", Details: out}, errors.New("Google Ads returned empty or partial-failure response")
-	}
-	out["executed"] = false
-	out["googleValidated"] = true
-	out["validateOnly"] = true
-	return Result{Success: true, Message: "Google Ads validate-only passed; no changes executed", Details: out}, nil
+	return Result{Success: true, Message: "Google Ads validate-only passed; no changes executed", Details: map[string]any{"executed": false, "googleValidated": true, "validateOnly": true}}, nil
 }
 
 func (e *Executor) fetchCriterionCPC(ctx context.Context, rns []string) (map[string]int64, error) {
@@ -910,6 +935,9 @@ func (e *Executor) fetchBudgetAmounts(ctx context.Context, rns []string) (map[st
 func (e *Executor) searchStream(ctx context.Context, query string) ([]map[string]any, error) {
 	url := fmt.Sprintf(ads.APIBaseURL+"/customers/%s/googleAds:searchStream", e.cfg.CustomerID)
 	body := map[string]any{"query": query}
+	if err := ads.ValidateRequestBoundary(http.MethodPost, url, body); err != nil {
+		return nil, err
+	}
 	b, _ := json.Marshal(body)
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(b))
 	hdr, err := e.authHeaders(ctx)
@@ -919,16 +947,16 @@ func (e *Executor) searchStream(ctx context.Context, query string) ([]map[string
 	req.Header = hdr
 	resp, err := e.http.DoRaw(req)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("Google Ads transport failed")
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("searchStream http %d", resp.StatusCode)
 	}
 	// searchStream returns JSON array of chunks
 	var arr []map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&arr); err != nil {
-		return nil, err
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 16<<20)).Decode(&arr); err != nil || arr == nil {
+		return nil, errors.New("invalid Google Ads search stream response")
 	}
 	rows := make([]map[string]any, 0, len(arr))
 	for _, chunk := range arr {

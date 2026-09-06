@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "reviewed_at": "2026-09-06",
   "policy_origin": "AdsPilot L1 instructions; execution and enforcement belong to the host",
   "prohibited_auto_actions": ["elevate_permissions", "switch_account", "replace_identity", "raise_budget", "disable_safeguards", "collect_raw_secrets", "bypass_policy", "repeat_unknown_mutation", "retry_entire_partial_batch"],

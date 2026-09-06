@@ -4,6 +4,9 @@ import { readFile, readdir, lstat, realpath } from 'node:fs/promises';
 import { resolve, relative, dirname, extname, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateContracts } from './verify-agent-contracts.mjs';
+import { validateHostContract } from './verify-host-contract.mjs';
+import { validateGoogleContract } from './verify-google-workflows.mjs';
+import { validateAffiliateContract } from './verify-affiliate-workflows.mjs';
 
 export const defaultRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../skills/adspilot');
 const validatorPinPath = resolve(dirname(fileURLToPath(import.meta.url)), '../config/ilang-validator-pin.json');
@@ -26,6 +29,11 @@ export async function verifyAgentPackage(root = defaultRoot) {
   errors.push(...contracts.errors);
   require(intake.version === manifest.version && recovery.version === manifest.version,
     'Intake/recovery contracts must match the shipped package version');
+  for (const [name, validate] of [['operations', validateHostContract], ['google-ads', validateGoogleContract], ['affiliate', validateAffiliateContract]]) {
+    const contract = JSON.parse(await readFile(resolve(root, `contracts/${name}.json`), 'utf8'));
+    errors.push(...validate(contract).errors);
+    require(contract.version === manifest.version, `${name} contract version must match the package`);
+  }
   const validatorPin = JSON.parse(await readFile(validatorPinPath, 'utf8'));
   require(validatorPin.schema_version === 1 && /^[a-f0-9]{40}$/.test(validatorPin.revision ?? ''),
     'Approved I-Lang validator pin is malformed');

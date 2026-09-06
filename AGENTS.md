@@ -22,11 +22,11 @@ in the development session do not justify stopping this work.
 Before changing code, read these files in order:
 
 1. `CLAUDE.md`
-2. `docs/AGENT_ONBOARDING_v3_2026-09-06.md`
+2. `docs/P0_P1_ACCEPTANCE_v4_2026-09-07.md`
 3. `docs/PROJECT_MEMORY_v1_2026-09-06.md`
 4. The README and module-specific README for the area being changed
 
-Treat the v3 plan as the current engineering baseline. When a claim in
+Treat the v4 acceptance plan as the current engineering baseline. When a claim in
 older documentation conflicts with executable code or a current test, prefer
 the verified code/test result and update the stale documentation in the same
 change.

@@ -41,6 +41,9 @@ func NewClient(ctx context.Context, cfg LiveConfig) (*LiveClient, error) {
 	if strings.TrimSpace(cfg.DeveloperToken) == "" || strings.TrimSpace(cfg.OAuthClientID) == "" || strings.TrimSpace(cfg.RefreshToken) == "" {
 		return nil, fmt.Errorf("Google Ads developer token, OAuth client ID and refresh token are required")
 	}
+	if (cfg.LoginCustomerID != "" && !ValidCustomerID(cfg.LoginCustomerID)) || (cfg.CustomerID != "" && !ValidCustomerID(cfg.CustomerID)) {
+		return nil, fmt.Errorf("Google Ads customer IDs must be ten digits")
+	}
 	conf := &oauth2.Config{
 		ClientID:     cfg.OAuthClientID,
 		ClientSecret: cfg.OAuthClientSecret,
@@ -56,7 +59,11 @@ func (c *LiveClient) Close() error { return nil }
 func (c *LiveClient) authHeaders(ctx context.Context) (http.Header, error) {
 	tok, err := c.ts.Token()
 	if err != nil {
-		return nil, err
+		// oauth2.RetrieveError includes the raw provider body and description.
+		return nil, fmt.Errorf("Google Ads OAuth token refresh failed")
+	}
+	if tok == nil || strings.TrimSpace(tok.AccessToken) == "" {
+		return nil, fmt.Errorf("Google Ads OAuth returned no access token")
 	}
 	h := http.Header{}
 	h.Set("Authorization", "Bearer "+tok.AccessToken)
@@ -69,11 +76,11 @@ func (c *LiveClient) authHeaders(ctx context.Context) (http.Header, error) {
 }
 
 func (c *LiveClient) doJSON(ctx context.Context, method, url string, body any) ([]byte, int, error) {
-	if strings.HasSuffix(url, ":mutate") {
-		request, ok := body.(map[string]any)
-		if !ok || request["validateOnly"] != true {
-			return nil, 0, ErrLiveWriteUnavailable
-		}
+	if err := ValidateRequestBoundary(method, url, body); err != nil {
+		return nil, 0, err
+	}
+	if c.loginCID != "" && !ValidCustomerID(c.loginCID) {
+		return nil, 0, fmt.Errorf("invalid Google Ads login customer ID")
 	}
 	var br io.Reader
 	if body != nil {
@@ -92,24 +99,40 @@ func (c *LiveClient) doJSON(ctx context.Context, method, url string, body any) (
 		return nil, 0, err
 	}
 	req.Header = hdr
-	resp, err := c.http.Do(req)
+	// Google Ads has a fixed API origin. Do not forward its developer token or
+	// other headers to redirect destinations, including unrelated subdomains.
+	httpClient := *c.http
+	httpClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, 0, err
+		if ctx.Err() != nil {
+			return nil, 0, ctx.Err()
+		}
+		return nil, 0, fmt.Errorf("Google Ads transport failed")
 	}
 	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
+	const maxResponseBytes = 16 << 20
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
 	if err != nil {
-		return nil, resp.StatusCode, err
+		return nil, resp.StatusCode, fmt.Errorf("Google Ads response read failed")
 	}
-	if resp.StatusCode >= 400 {
-		return data, resp.StatusCode, fmt.Errorf("google ads http %d: %s", resp.StatusCode, string(data))
+	if len(data) > maxResponseBytes {
+		return nil, resp.StatusCode, fmt.Errorf("Google Ads response exceeds adapter size limit")
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, resp.StatusCode, NewProviderError(resp.StatusCode, resp.Header, data)
 	}
 	if !json.Valid(data) {
 		return nil, resp.StatusCode, fmt.Errorf("invalid Google Ads JSON response")
 	}
 	var envelope map[string]any
-	if json.Unmarshal(data, &envelope) == nil && envelope["partialFailureError"] != nil {
-		return data, resp.StatusCode, fmt.Errorf("Google Ads returned partialFailureError")
+	if json.Unmarshal(data, &envelope) == nil {
+		if envelope == nil {
+			return nil, resp.StatusCode, fmt.Errorf("Google Ads returned null response")
+		}
+		if envelope["partialFailureError"] != nil || envelope["error"] != nil {
+			return nil, resp.StatusCode, NewProviderError(resp.StatusCode, resp.Header, data)
+		}
 	}
 	return data, resp.StatusCode, nil
 }
@@ -125,6 +148,11 @@ func (c *LiveClient) ListAccessibleCustomers(ctx context.Context) ([]string, err
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, fmt.Errorf("decode accessible customers: %w", err)
+	}
+	for _, resource := range resp.ResourceNames {
+		if !strings.HasPrefix(resource, "customers/") || !ValidCustomerID(strings.TrimPrefix(resource, "customers/")) {
+			return nil, fmt.Errorf("Google Ads returned invalid accessible customer resource")
+		}
 	}
 	return resp.ResourceNames, nil
 }
@@ -621,12 +649,6 @@ func (c *LiveClient) GetExperiment(ctx context.Context, customerID, experimentRe
 }
 
 // Keyword ideas via Google Ads REST (generateKeywordIdeas)
-type KeywordIdea struct {
-	Text               string
-	AvgMonthlySearches int
-	Competition        string
-}
-
 func (c *LiveClient) KeywordIdeas(ctx context.Context, seedDomain string, seeds []string) ([]KeywordIdea, error) {
 	cid := strings.TrimSpace(c.customerID)
 	if cid == "" {
@@ -656,45 +678,61 @@ func (c *LiveClient) KeywordIdeas(ctx context.Context, seedDomain string, seeds 
 	default:
 		return nil, fmt.Errorf("keyword or URL seed required")
 	}
-	data, _, err := c.doJSON(ctx, http.MethodPost, url, body)
-	if err != nil {
-		return nil, err
-	}
-	// Parse results
-	var resp struct {
-		Results []map[string]any `json:"results"`
-	}
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, fmt.Errorf("decode keyword ideas: %w", err)
-	}
-	out := make([]KeywordIdea, 0, len(resp.Results))
-	for _, r := range resp.Results {
-		kw := ""
-		if t, ok := r["text"].(string); ok {
-			kw = t
+	out := make([]KeywordIdea, 0)
+	seenTokens := map[string]bool{}
+	// Bounded pagination is adapter policy, not a Google quota. An incomplete
+	// result returns an error rather than masquerading as complete research.
+	for page := 0; page < 100; page++ {
+		data, _, err := c.doJSON(ctx, http.MethodPost, url, body)
+		if err != nil {
+			return nil, err
 		}
-		avg := 0
-		comp := "UNSPECIFIED"
-		if m, ok := r["keywordIdeaMetrics"].(map[string]any); ok {
-			switch v := m["avgMonthlySearches"].(type) {
-			case string:
-				parsed, err := strconv.ParseInt(v, 10, 64)
-				if err != nil {
-					return nil, fmt.Errorf("invalid avgMonthlySearches: %w", err)
+		var resp struct {
+			Results []struct {
+				Text    string `json:"text"`
+				Metrics *struct {
+					Average     json.RawMessage `json:"avgMonthlySearches"`
+					Competition string          `json:"competition"`
+				} `json:"keywordIdeaMetrics"`
+			} `json:"results"`
+			NextPageToken string `json:"nextPageToken"`
+		}
+		if json.Unmarshal(data, &resp) != nil {
+			return nil, fmt.Errorf("invalid keyword ideas response")
+		}
+		for _, row := range resp.Results {
+			if strings.TrimSpace(row.Text) == "" {
+				return nil, fmt.Errorf("Google Ads keyword idea has no text")
+			}
+			idea := KeywordIdea{Text: row.Text, Competition: "UNSPECIFIED"}
+			if row.Metrics != nil {
+				if len(row.Metrics.Average) > 0 && string(row.Metrics.Average) != "null" {
+					value := string(row.Metrics.Average)
+					if value[0] == '"' && json.Unmarshal(row.Metrics.Average, &value) != nil {
+						return nil, fmt.Errorf("invalid keyword search count")
+					}
+					count, err := strconv.ParseInt(value, 10, 64)
+					if err != nil || count < 0 {
+						return nil, fmt.Errorf("invalid keyword search count")
+					}
+					idea.AvgMonthlySearches = &count
 				}
-				avg = int(parsed)
-			case float64:
-				avg = int(v)
+				if row.Metrics.Competition != "" {
+					idea.Competition = row.Metrics.Competition
+				}
 			}
-			if v2, ok := m["competition"].(string); ok && v2 != "" {
-				comp = strings.ToUpper(v2)
-			}
+			out = append(out, idea)
 		}
-		if kw != "" {
-			out = append(out, KeywordIdea{Text: kw, AvgMonthlySearches: avg, Competition: comp})
+		if resp.NextPageToken == "" {
+			return out, nil
 		}
+		if seenTokens[resp.NextPageToken] {
+			return nil, fmt.Errorf("Google Ads repeated keyword page token; results incomplete")
+		}
+		seenTokens[resp.NextPageToken] = true
+		body["pageToken"] = resp.NextPageToken
 	}
-	return out, nil
+	return nil, fmt.Errorf("Google Ads keyword pagination limit reached; results incomplete")
 }
 
 // --- AB test live helpers (MVP) ---

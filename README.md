@@ -19,7 +19,7 @@ Agent 加载指令包，使用所在平台已有的工具、连接器、授权�
 > 加载 AdsPilot Skill，检查你已有的 Google Ads 和联盟连接器。
 > 先确认可访问的账户和数据来源，给这个产品做关键词和暂停状态的广告计划。
 
-包内只有 Markdown 指令、引用和 JSON 能力清单，没有安装脚本或后台进程。
+包内只有 Markdown 指令、引用和 JSON 业务契约，没有安装脚本或后台进程。
 宿主没有连接器时，Agent 应找可用接入方式、整理缺项和配置方案，
 给出具体的宿主能力请求，同时继续研究/起草；不能假装投放成功，
 也不能要求用户部署 AdsPilot 服务来补齐。
@@ -47,14 +47,18 @@ AI 先检查已经知道和已经连好的部分，只问缺少的内容：
 
 | 能力 | 当前状态 |
 | --- | --- |
-| Agent 安装包与能力发现 | v0.2.0：条件式资料清单、自动接入、结构化排错与 CI 打包 |
+| Agent 安装包与能力发现 | v0.3.0：15 项逻辑操作、条件接入、排错、两类宿主适配与 CI 打包 |
 | I-Lang 协议 | 固定官方版本；严格语法、判断函数及模式样例通过验证 |
-| 账户/关键词/广告计划 | 工作流已定义；真实执行依赖宿主已连接工具，尚未做实号验收 |
-| 广告变更 | 要求真实校验、范围授权、持久执行记录和回读；超时不盲重试 |
-| 联盟 offer/佣金/转化 | 已定义证据与对账流程；CJ 实际连接器及全链路验收仍待完成 |
+| 账户/关键词/广告计划 | 完整契约与样例测试：层级/分页/金额/来源、暂停 Search 依赖计划；实号结果另验 |
+| 广告变更 | 精确校验/授权/持久占用/逐资源回读，含失败与断点场景；超时不盲重试 |
+| 联盟 offer/佣金/转化 | CJ 增量对账、重复/更正/退款/分页恢复、Data Manager/旧路线选择及逐条回执；真实接入另验 |
 | 旧 Go AdsCenter | 可选开发适配层；未实现的执行明确失败，不再伪报成功 |
 
 不要把指令包、单元测试或 HTTP 501 当成真实广告投放能力。
+
+统一验收见 [P0/P1 验收清单](docs/P0_P1_ACCEPTANCE_v4_2026-09-07.md)。
+包内也有 [用户 AI 验收说明](skills/adspilot/references/acceptance.md)：
+先演练异常情况，再检查实际连接；默认不花钱、不创建广告、不上传转化。
 
 ## I-Lang 协议基线
 
@@ -74,11 +78,7 @@ AI 先检查已经知道和已经连好的部分，只问缺少的内容：
 以下是贡献者命令，不是产品安装步骤；无需先运行 `npm install`：
 
 ```sh
-node scripts/verify-agent-package.mjs
-node scripts/verify-agent-contracts.mjs
-node --test tests/agent-package/*.test.mjs scripts/verify-go.test.mjs
-node scripts/verify-go.mjs --inventory-only
-python scripts/verify-ilang.py
+node scripts/verify-release.mjs
 python scripts/package-agent.py
 ```
 
@@ -94,8 +94,8 @@ python scripts/package-agent.py
 - `services/adscenter/`、`services/affiliate/`：可选历史适配层。
 - 其他服务、前端、旧本地授权/部署脚本：保留的历史资产，不是安装依赖。
 
-当前产品与验收以 [文档驱动 Agent 路线 v3](docs/AGENT_ONBOARDING_v3_2026-09-06.md)
-为准；[v2](docs/AGENT_NATIVE_ROADMAP_v2_2026-09-06.md) 保留此前紧急修复记录。
+当前产品与验收以 [统一验收 v4](docs/P0_P1_ACCEPTANCE_v4_2026-09-07.md)
+为准；v1/v2/v3 保留此前审计、紧急修复和设计变更记录。
 未完成事项和恢复信息见 [项目记忆](docs/PROJECT_MEMORY_v1_2026-09-06.md)。
 
 [MIT License](LICENSE)

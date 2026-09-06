@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "version": "0.3.0",
+  "kind": "google-ads-workflow-contract",
+  "reviewed_at": "2026-09-07",
+  "api_baseline": "v25",
+  "representation": "AdsPilot domain data; not Google wire schemas or a runnable connector",
+  "runtime_required": false,
+  "identity": {
+    "direct_access_method": "customers:listAccessibleCustomers",
+    "hierarchy_resource": "customer_client",
+    "client_fields": ["customer.id", "customer.manager", "customer.currency_code", "customer.time_zone"],
+    "invariants": ["direct_access_is_not_all_descendants", "inspect_manager_hierarchy", "bind_selected_non_manager_client", "login_customer_id_is_access_path_not_target", "recheck_identity_on_account_switch"]
+  },
+  "campaign_report": {
+    "resource": "campaign",
+    "fields": ["campaign.resource_name", "campaign.id", "campaign.name", "campaign.status", "campaign.campaign_budget", "campaign_budget.amount_micros", "metrics.impressions", "metrics.clicks", "metrics.cost_micros", "metrics.conversions"],
+    "money_encoding": "decimal_integer_string_micros",
+    "date_semantics": "inclusive_requested_dates_in_selected_customer_timezone",
+    "result_states": ["complete", "empty", "incomplete", "missing", "blocked"],
+    "missing_metric": null,
+    "rules": ["consume_every_search_page_or_stream_chunk", "preserve_query_and_field_mask", "do_not_total_incomplete_or_overlapping_rows", "zero_only_when_observed_or_documented_default_is_verified", "do_not_infer_revenue_from_conversions", "retain_attribution_lag_warning"]
+  },
+  "keyword_ideas": {
+    "method": "customers:generateKeywordIdeas",
+    "seed_oneof": ["keywordSeed", "urlSeed", "keywordAndUrlSeed", "siteSeed"],
+    "provenance_fields": ["customer_id", "currency", "language", "geo_target_constants", "keyword_plan_network", "seed", "observed_at", "source_mode", "request_ref", "historical_period"],
+    "numeric_fields": ["avgMonthlySearches", "competitionIndex", "lowTopOfPageBidMicros", "highTopOfPageBidMicros"],
+    "rules": ["resolve_targeting_before_request", "keep_missing_metrics_null", "keep_historical_metrics_distinct_from_forecast", "mark_qualitative_or_csv_fallback_as_non_provider_data", "do_not_relabel_access_errors_as_empty_results"]
+  },
+  "paused_search": {
+    "scope": "one_new_non_shared_budget_and_one_paused_search_campaign_manual_cpc",
+    "operation_kinds": ["campaign_budget", "campaign", "geo_criterion", "language_criterion", "ad_group", "keyword_criterion", "responsive_search_ad"],
+    "dependency_order": ["campaign_budget", "campaign", "geo_criterion", "language_criterion", "ad_group", "keyword_criterion", "responsive_search_ad"],
+    "required_business_fields": ["customer_id", "currency", "timezone", "daily_budget", "max_cpc", "geographies", "languages", "keywords", "headlines", "descriptions", "landing_page", "network", "political_declaration"],
+    "defaults": {"status": "PAUSED", "validate_only": true, "partial_failure": false, "budget_shared": false, "positive_geo_target_type": "PRESENCE"},
+    "provider_translation": "Discovered host tool maps domain operations to current method schema, ordered unique temporary IDs and update masks. Preserve both plan digest and exact wire request digest.",
+    "submission_bindings": ["plan_id", "revision", "plan_digest", "wire_digest", "customer_id", "currency", "timezone", "daily_budget_micros", "operation_count", "session_ref", "execution_actor_ref", "claim_owner_ref"],
+    "required_host_evidence": ["current_identity", "exact_provider_validation", "scoped_approval", "owned_durable_claim", "enforced_write_boundary"],
+    "completion": "All required returned resources and fields, including dependency edges and targeting, re-read in the selected customer and compared with this exact plan.",
+    "budget_semantics": "An average daily budget is not a hard daily or lifetime spending cap. A separate total limit needs a host-enforced control and period.",
+    "idempotency": "No provider creation idempotency is claimed. A local operation ID or Google request ID is not an idempotency key."
+  },
+  "recovery": {
+    "unknown_outcome": "retain_claim_and_reconcile_no_create_retry",
+    "partial_failure": "preserve_per_operation_results_no_whole_batch_retry",
+    "readback_mismatch": "remain_unverified_no_automatic_reverse_mutation",
+    "changed_payload": "new_revision_new_exact_validation_and_scope_binding",
+    "duplicate_claim": "do_not_submit",
+    "rules_source": "recovery-catalog.json"
+  },
+  "optimization": {
+    "mode": "proposal_only_until_separately_validated_and_authorized",
+    "supported_narrow_changes": ["pause_campaign", "set_non_shared_campaign_budget"],
+    "requirements": ["complete_same_account_currency_timezone_report", "explicit_owner_thresholds", "sufficient_sample_and_attribution_window", "current_resource_before_state", "exact_update_mask", "fresh_validation_and_authorization_for_change"],
+    "unsupported_policy": "return_specific_capability_gap_and_draft_not_fake_execution"
+  },
+  "sources": [
+    "https://developers.google.com/google-ads/api/docs/account-management/listing-accounts",
+    "https://developers.google.com/google-ads/api/docs/account-management/get-account-hierarchy",
+    "https://developers.google.com/google-ads/api/rest/common/search",
+    "https://developers.google.com/google-ads/api/reference/rpc/v25/Metrics",
+    "https://developers.google.com/google-ads/api/docs/keyword-planning/generate-keyword-ideas",
+    "https://developers.google.com/google-ads/api/docs/mutating/overview",
+    "https://developers.google.com/google-ads/api/docs/campaigns/create-campaigns",
+    "https://developers.google.com/google-ads/api/docs/responsive-search-ads/create-responsive-search-ads",
+    "https://developers.google.com/google-ads/api/docs/targeting/location-targeting",
+    "https://developers.google.com/google-ads/api/reference/rpc/v25/Campaign.GeoTargetTypeSetting",
+    "https://developers.google.com/google-ads/api/docs/best-practices/partial-failures",
+    "https://support.google.com/google-ads/answer/6385083"
+  ]
+}
