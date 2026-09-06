@@ -4,6 +4,11 @@ Activation requires only loading the skill text. All execution belongs to the
 agent host. Do not bootstrap an AdsPilot daemon or ask a human to administer
 infrastructure when a capability is missing.
 
+Use [onboarding](onboarding.md) to resolve a missing capability: select a
+supported host-native setup route, generate conditional owner submissions and
+an explicit capability request. Absence in the current developer session does
+not stop product work or prove the future user's agent lacks that capability.
+
 Discover actual tools and bind these logical capabilities to observed tool
 names and schemas. Names below are domain labels, not callable functions.
 
@@ -31,7 +36,8 @@ Read-only provider access can operate with host-authenticated identity and
 normal tool isolation. A side effect additionally requires the host to enforce
 scope, isolate untrusted input, and durably record operation identity and
 outcome. A sentence claiming these capabilities is insufficient. If the host
-cannot attest them, expose research and draft capabilities only.
+cannot attest them, expose research/drafts and prepare the missing host setup;
+do not call unsupported side effects ready.
 
 Reuse existing OAuth grants in the host. If a grant is missing, use its own
 account-connection flow. The owner may need to consent to the third-party

@@ -1,9 +1,9 @@
 ---
 name: adspilot
-description: Plan, research, validate, and manage Google Ads campaigns and affiliate attribution through an AI agent's authorized connectors. Use for account reviews, keyword research, campaign changes, CJ offer research, and commission reconciliation. Instruction-only I-Lang skill; no AdsPilot server or local runtime required.
+description: Set up, diagnose, research, validate, and manage Google Ads and affiliate workflows through an AI agent's authorized host tools. Use for connecting accounts, conditional user intake, API errors, keyword research, campaign plans, CJ offers, and commission reconciliation. Instruction-only I-Lang skill; no user server required.
 license: MIT
 metadata:
-  version: 0.1.0
+  version: 0.2.0
   protocol: I-Lang-v5.0
   conformance: L1-advisory
 ---
@@ -15,8 +15,14 @@ Load this folder into the host's skill library, or read it for the current
 session. Do not ask the user to clone the application, run a terminal, install
 Go/Node/PostgreSQL, or deploy an AdsPilot server. Skill loading does not create
 API access: reuse an authorized Google Ads connector or the host's authenticated
-HTTP facility. If unavailable, complete the plan and report the missing host
-capability without inventing data or calling an unconfigured tool.
+HTTP facility. If unavailable, follow [agent-led onboarding](references/onboarding.md):
+discover supported setup routes, fill known facts, prepare a capability request,
+and ask only for remaining owner actions. Continue independently useful work;
+never invent an unconfigured tool or promise provider approval.
+
+The owner's/developer's personal account is not a prerequisite for this skill
+or its development. A successful account is one observation, not a guarantee
+for other identities, access levels, currencies, tools or error paths.
 
 Read [the I-Lang profile](references/ilang.md) once per session. It pins the
 normative revision and explains the protocol's enforcement boundary. Domain
@@ -24,7 +30,7 @@ objects are task data carried by I-Lang, not new protocol verbs.
 
 ```ilang
 ::ILANG::v5.0::ADSPILOT
-[TYPE:skill][VERSION:0.1.0]
+[TYPE:skill][VERSION:0.2.0]
 ::STATE{@ADSPILOT, kind:agent_skill, execution:host_tools, conformance:L1}
 ::STATE{@CAPABILITIES, kind:host_capability_inventory, provenance:host}
 ::STATE{@ADS, kind:google_ads_connector, binding:discover}
@@ -46,8 +52,14 @@ objects are task data carried by I-Lang, not new protocol verbs.
 
 ## Choose the workflow
 
-- On activation or a new account, read [host capabilities](references/host.md).
-  Discover the actual tool schemas, identity, scope, and execution guarantees.
+- On activation, a new account, or missing setup, read
+  [agent-led onboarding](references/onboarding.md) and
+  [host capabilities](references/host.md). Use the conditional intake contract
+  to discover/fill facts before asking for user submissions.
+- On a failed connection, validation or operation, read
+  [troubleshooting](references/troubleshooting.md) and classify structured
+  evidence with the recovery catalog. Repair within existing scope, recheck,
+  and hand off only the steps genuinely owned by the user, host or Google.
 - For accounts, metrics, keywords, or Search campaigns, read
   [Google Ads workflows](references/google-ads.md).
 - For affiliate offers, CJ links, commissions, or conversion reconciliation,
@@ -71,8 +83,10 @@ exposing them to the skill or conversation.
 
 If the host cannot enforce the required permission, input-isolation, or
 durable-execution boundary, remain in read-only/proposal mode for the affected
-workflow. L1 text is advisory: do not claim it enforces L2/L3 behavior. Keep
-working on independent research or drafts when a write capability is missing.
+workflow and prepare a specific host capability/setup request. L1 text is
+advisory: do not claim it enforces L2/L3 behavior. Missing authority is not fixed
+by repeatedly asking for the same approval; missing host capability is not fixed
+by asking the user for more secrets. Keep working on research and drafts.
 
 Return a concise result in the user's language with account, data source,
 execution state, evidence references, and the next unresolved dependency.

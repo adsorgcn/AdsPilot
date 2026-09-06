@@ -23,13 +23,33 @@ certification across every agent platform.
 
 The package contains only Markdown instructions/references and a JSON
 manifest. No install scripts, background processes, or bundled SDKs.
-Missing tools produce explicit readiness limits and useful research/drafts,
-not invented execution or instructions to deploy an AdsPilot server.
+Missing tools trigger host capability discovery, conditional intake, a setup
+packet and useful research/drafts; they do not trigger invented execution or
+instructions to deploy an AdsPilot server.
 An account owner may still need to authorize Google/CJ through the host.
+
+## What the owner supplies
+
+The agent discovers/fills existing facts first. The owner supplies the product,
+goal, audience and (for campaign tasks) spending scope; selects an unresolved
+account; and completes Google sign-in/consent or owner-only attestations.
+Secrets go into the host's protected connection flow, never chat.
+
+The agent prepares missing setup/application material, checks actual API
+capabilities, diagnoses structured failures, repairs within its existing scope,
+and resumes from evidence. Existing connector users need not obtain their own
+developer token or Cloud project. Owner-managed API setup is a conditional path.
+See [onboarding](skills/adspilot/references/onboarding.md) and
+[recovery](skills/adspilot/references/troubleshooting.md).
+
+Development and acceptance use official contracts plus diverse scenarios.
+The author's personal account is neither a development prerequisite nor proof
+that arbitrary users will have no bugs.
 
 ## Honest release status
 
-Version 0.1.0 includes capability discovery, account and keyword workflows,
+Version 0.2.0 adds conditional intake and agent-led onboarding/recovery to
+capability discovery, account and keyword workflows,
 validated/approved campaign plans, execution evidence, affiliate research,
 commission reconciliation, and conversion-upload instructions.
 
@@ -64,6 +84,7 @@ is needed for the primary checks.
 
 ```sh
 node scripts/verify-agent-package.mjs
+node scripts/verify-agent-contracts.mjs
 node --test tests/agent-package/*.test.mjs scripts/verify-go.test.mjs
 node scripts/verify-go.mjs --inventory-only
 python scripts/verify-ilang.py
@@ -77,7 +98,8 @@ services. See [developer verification](scripts/README.md).
 
 The main product is `skills/adspilot/`. Legacy services, frontend, and local
 OAuth/deployment scripts are retained assets, not runtime dependencies.
-The [v2 roadmap](docs/AGENT_NATIVE_ROADMAP_v2_2026-09-06.md) supersedes the
-historical local-first product definition.
+The [v3 documentation-driven acceptance plan](docs/AGENT_ONBOARDING_v3_2026-09-06.md)
+is current; [v2](docs/AGENT_NATIVE_ROADMAP_v2_2026-09-06.md) retains the urgent
+legacy-containment history.
 
 [MIT License](LICENSE)

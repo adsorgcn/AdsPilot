@@ -20,15 +20,34 @@ Agent 加载指令包，使用所在平台已有的工具、连接器、授权�
 > 先确认可访问的账户和数据来源，给这个产品做关键词和暂停状态的广告计划。
 
 包内只有 Markdown 指令、引用和 JSON 能力清单，没有安装脚本或后台进程。
-宿主没有连接器时，Agent 应报告缺少的能力并继续研究/起草，
-不能假装投放成功，也不能要求用户部署 AdsPilot 服务来补齐。
+宿主没有连接器时，Agent 应找可用接入方式、整理缺项和配置方案，
+给出具体的宿主能力请求，同时继续研究/起草；不能假装投放成功，
+也不能要求用户部署 AdsPilot 服务来补齐。
 账户所有者仍可能需要在宿主的连接流程中同意 Google/CJ 授权。
+
+## 用户提供什么，AI 负责什么
+
+AI 先检查已经知道和已经连好的部分，只问缺少的内容：
+
+- 用户提供商品/网站、想达成的目标、目标地区和语言；需要投放时再确认预算。
+- 用户选择广告账户，在 Google 正式授权页同意连接；不把密码、验证码或令牌贴进聊天。
+- AI 自动整理账户和权限、准备必要的申请/配置材料、检查接口条件、生成方案。
+- 遇到错误，AI 按官方错误原因修复并复查；只有本人登录/同意、资料真实性确认、
+  Google 审批等不能代办的环节，才给用户一张简短操作卡。
+
+已有连接器的用户无需重复申请开发者令牌或自建项目。
+只有实际选择自备 API 路线时，才由 AI 按条件整理配置清单。
+见 [自动接入与用户资料清单](skills/adspilot/references/onboarding.md) 和
+[自动排错流程](skills/adspilot/references/troubleshooting.md)。
+
+开发依据是 Google 官方文档、多种账户条件与故障场景测试，**不以作者的
+个人账户为前提，也不以任何一个账户跑通作为“没有 bug”的证明**。
 
 ## 当前能交付什么
 
 | 能力 | 当前状态 |
 | --- | --- |
-| Agent 安装包与能力发现 | 已有 v0.1.0 指令包、结构测试和 CI 打包 |
+| Agent 安装包与能力发现 | v0.2.0：条件式资料清单、自动接入、结构化排错与 CI 打包 |
 | I-Lang 协议 | 固定官方版本；严格语法、判断函数及模式样例通过验证 |
 | 账户/关键词/广告计划 | 工作流已定义；真实执行依赖宿主已连接工具，尚未做实号验收 |
 | 广告变更 | 要求真实校验、范围授权、持久执行记录和回读；超时不盲重试 |
@@ -56,6 +75,7 @@ Agent 加载指令包，使用所在平台已有的工具、连接器、授权�
 
 ```sh
 node scripts/verify-agent-package.mjs
+node scripts/verify-agent-contracts.mjs
 node --test tests/agent-package/*.test.mjs scripts/verify-go.test.mjs
 node scripts/verify-go.mjs --inventory-only
 python scripts/verify-ilang.py
@@ -74,8 +94,8 @@ python scripts/package-agent.py
 - `services/adscenter/`、`services/affiliate/`：可选历史适配层。
 - 其他服务、前端、旧本地授权/部署脚本：保留的历史资产，不是安装依赖。
 
-当前工作以 [Agent-native 路线图 v2](docs/AGENT_NATIVE_ROADMAP_v2_2026-09-06.md)
-为准；历史“本机单用户运行”描述已被 2026-09-06 的产品决定替代。
+当前产品与验收以 [文档驱动 Agent 路线 v3](docs/AGENT_ONBOARDING_v3_2026-09-06.md)
+为准；[v2](docs/AGENT_NATIVE_ROADMAP_v2_2026-09-06.md) 保留此前紧急修复记录。
 未完成事项和恢复信息见 [项目记忆](docs/PROJECT_MEMORY_v1_2026-09-06.md)。
 
 [MIT License](LICENSE)

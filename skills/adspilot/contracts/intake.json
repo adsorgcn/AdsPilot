@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "version": "0.2.0",
+  "kind": "conditional-intake-contract",
+  "reviewed_at": "2026-09-06",
+  "purpose": "The agent fills known facts, asks only for unresolved owner facts, and prepares host/provider setup requests.",
+  "discovery_first": true,
+  "secret_collection": "host_secret_store_only",
+  "forbidden_chat_fields": ["password", "two_factor_code", "access_token", "refresh_token", "developer_token", "client_secret", "private_key", "authorization_code"],
+  "fields": {
+    "business_goal": {"actor": "owner", "classification": "non_secret", "ask": "What outcome do you want: research, account review, or a campaign?"},
+    "landing_page": {"actor": "owner", "classification": "non_secret", "ask": "Which product or landing page should this campaign promote?"},
+    "target_locations": {"actor": "owner", "classification": "non_secret", "ask": "Which countries or regions should this campaign target?"},
+    "target_languages": {"actor": "owner", "classification": "non_secret", "ask": "Which audience/ad languages are intended? Reuse an existing explicit choice."},
+    "budget_limit": {"actor": "owner", "classification": "non_secret", "ask": "What daily/total spending limit and period do you authorize?"},
+    "budget_currency": {"actor": "agent", "classification": "non_secret", "ask": "Resolve the account currency; ask the owner only if the requested budget uses another currency."},
+    "requested_status": {"actor": "owner", "classification": "non_secret", "ask": "Use the requested state; a new campaign remains paused unless enabling is explicitly authorized."},
+    "political_ads_declaration": {"actor": "owner", "classification": "non_secret", "ask": "Obtain any applicable political-advertising declaration from owner evidence, never infer an attestation."},
+    "target_customer_id": {"actor": "agent", "classification": "non_secret", "ask": "Discover accessible accounts and existing target scope; ask for selection only if unresolved."},
+    "manager_customer_id": {"actor": "agent", "classification": "non_secret", "ask": "Discover the authorized manager path; omit when direct account access needs no manager."},
+    "connection_ref": {"actor": "host", "classification": "opaque_reference", "ask": "Use an existing scoped host connection or the host account-connection flow."},
+    "cloud_project_id": {"actor": "host", "classification": "non_secret", "ask": "Resolve the selected host/API provider project; do not require a user-owned project for an existing connector."},
+    "oauth_client_id": {"actor": "host", "classification": "non_secret", "ask": "Only when configuring owner-managed user OAuth; resolve the host-supported registered OAuth client."},
+    "oauth_credential_ref": {"actor": "host", "classification": "secret_reference", "ask": "Have the host store/inject the OAuth grant; never request raw token values in conversation."},
+    "developer_token_ref": {"actor": "host", "classification": "secret_reference", "ask": "Resolve the integration's token through secure host storage, not a public form."},
+    "cloud_access_approval_ref": {"actor": "host", "classification": "opaque_reference", "ask": "Evidence of approved Cloud-managed access pilot enrollment; missing token is not proof of enrollment."},
+    "service_account_identity": {"actor": "host", "classification": "non_secret", "ask": "Only for a chosen supported service-account route; resolve the actual principal granted Ads account access."},
+    "service_account_credential_ref": {"actor": "host", "classification": "secret_reference", "ask": "Use the host-supported signing identity or protected credential import; never paste a private key."}
+  },
+  "task_inputs": {
+    "onboarding": [],
+    "research": ["business_goal", "landing_page", "target_locations", "target_languages"],
+    "account_review": ["business_goal", "target_customer_id"],
+    "campaign": ["business_goal", "landing_page", "target_locations", "target_languages", "budget_limit", "budget_currency", "requested_status", "political_ads_declaration", "target_customer_id"]
+  },
+  "auth_routes": [
+    {"id": "existing_connector", "requires": ["connection_ref"], "user_api_project_required": false, "user_developer_token_required": false, "action": "Discover schema and connected identity, reuse grants, and check the requested capabilities."},
+    {"id": "host_managed_oauth", "requires": ["connection_ref"], "user_api_project_required": false, "user_developer_token_required": false, "action": "Start the host's connection flow using its registered OAuth app and API access; owner completes Google consent."},
+    {"id": "owner_api_oauth", "requires": ["cloud_project_id", "oauth_client_id", "oauth_credential_ref"], "api_access": "resolve_access_mode", "user_api_project_required": true, "user_developer_token_required": "unless_approved_cloud_managed", "action": "Only when selected/needed: agent prepares project/API/client configuration in authorized host tools; owner supplies consent and approvals. Host must supply the valid callback and secret transport."},
+    {"id": "host_service_account", "requires": ["cloud_project_id", "service_account_identity", "service_account_credential_ref"], "api_access": "resolve_access_mode", "user_api_project_required": false, "user_developer_token_required": "depends_on_integration_owner", "action": "Use only a supported, chosen service-account integration. Owner grants the actual service-account principal appropriate Google Ads account access; do not assume Cloud IAM grants Ads access."}
+  ],
+  "api_access_modes": [
+    {"id": "developer_token", "requires": ["developer_token_ref"], "proof": "Integration/provider access-level and permissible-use evidence plus actual capability checks."},
+    {"id": "approved_cloud_managed", "requires": ["cloud_access_approval_ref"], "proof": "Verified participating organization/project enrollment. This is a pilot, never an inferred default."}
+  ],
+  "owner_handoffs": ["google_sign_in_and_consent", "two_factor_or_passkey_challenge", "account_access_invitation_or_approval", "business_or_identity_attestation", "spend_scope_decision"],
+  "provider_handoffs": ["developer_access_review", "oauth_app_verification", "advertiser_or_policy_review", "pilot_enrollment"],
+  "capability_request": ["requested_capability", "observed_host_tools", "missing_guarantee", "host_native_setup_candidate", "owner_action_if_any", "safe_work_completed", "resume_check"],
+  "result_fields": ["route", "facts_with_evidence", "missing_owner_fields", "agent_next_actions", "owner_action_cards", "host_or_provider_pending", "per_capability_readiness", "resume_checkpoint"],
+  "sources": [
+    "https://developers.google.com/google-ads/api/docs/oauth/overview",
+    "https://developers.google.com/google-ads/api/docs/oauth/multi-user-authentication",
+    "https://developers.google.com/google-ads/api/docs/oauth/service-accounts",
+    "https://developers.google.com/google-ads/api/docs/api-policy/developer-token",
+    "https://developers.google.com/google-ads/api/docs/api-policy/access-levels",
+    "https://developers.google.com/google-ads/api/docs/concepts/no-developer-token",
+    "https://developers.google.com/google-ads/api/docs/account-management/listing-accounts"
+  ]
+}

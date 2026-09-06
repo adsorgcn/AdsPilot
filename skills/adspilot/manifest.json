@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "name": "adspilot",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "kind": "instruction-only-agent-skill",
   "entrypoint": "SKILL.md",
   "protocol": {
@@ -25,9 +25,15 @@
     "references/host.md",
     "references/records.md",
     "references/google-ads.md",
-    "references/affiliate.md"
+    "references/affiliate.md",
+    "references/onboarding.md",
+    "references/troubleshooting.md",
+    "contracts/intake.json",
+    "contracts/recovery-catalog.json"
   ],
   "capabilities": [
+    {"id": "onboarding.plan", "mode": "instruction", "requires": []},
+    {"id": "recovery.diagnose", "mode": "instruction", "requires": []},
     {"id": "plan", "mode": "instruction", "requires": []},
     {"id": "accounts.read", "mode": "read", "requires": ["google_ads.identity", "google_ads.query"]},
     {"id": "keywords.research", "mode": "read", "requires": ["google_ads.keyword_ideas"]},

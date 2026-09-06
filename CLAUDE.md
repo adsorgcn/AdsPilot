@@ -6,7 +6,11 @@ Users must not need their own computer/server, Go/Node, daemon, or database.
 The agent host provides tools, connectors, permission enforcement, secret
 storage, durable execution records, and optional scheduling.
 
-Read `AGENTS.md`, `docs/AGENT_NATIVE_ROADMAP_v2_2026-09-06.md`, and
+Develop from official API contracts, conditional intake and multi-scenario
+agent evaluations. Do not gate product work on the author's personal account
+or call one successful integration proof of correctness for all users.
+
+Read `AGENTS.md`, `docs/AGENT_ONBOARDING_v3_2026-09-06.md`, and
 `docs/PROJECT_MEMORY_v1_2026-09-06.md` before work.
 
 ## Layout and status

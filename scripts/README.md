@@ -10,6 +10,7 @@ Node 22+ is sufficient; `npm install` is not needed:
 
 ```sh
 node scripts/verify-agent-package.mjs
+node scripts/verify-agent-contracts.mjs
 node scripts/verify-go.mjs --inventory-only
 node --test tests/agent-package/*.test.mjs scripts/verify-go.test.mjs
 ```
@@ -23,6 +24,12 @@ fixtures. Its offline regression checks are
 `python scripts/package-agent.py` creates a versioned, dated instruction-only
 ZIP under `dist/`. CI runs both and retains the packaged skill as an artifact.
 These Python commands are contributor tools, not agent installation steps.
+
+The v0.2 data-only onboarding/recovery contracts have an offline developer
+reference evaluator and regression scenarios. These verify covered policy
+decisions, not a universal AI behavior claim or live provider connectivity.
+Independent agent simulations and optional provider integration checks are
+separate evidence layers; neither requires the repository owner's account.
 
 `npm test` runs skill validation and verifier tests when npm is available.
 CI runs those checks on Windows and Linux for every PR and push to `main`.

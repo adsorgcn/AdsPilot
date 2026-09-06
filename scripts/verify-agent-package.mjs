@@ -3,6 +3,7 @@
 import { readFile, readdir, lstat, realpath } from 'node:fs/promises';
 import { resolve, relative, dirname, extname, isAbsolute, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { validateContracts } from './verify-agent-contracts.mjs';
 
 export const defaultRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../skills/adspilot');
 const validatorPinPath = resolve(dirname(fileURLToPath(import.meta.url)), '../config/ilang-validator-pin.json');
@@ -19,6 +20,12 @@ export async function verifyAgentPackage(root = defaultRoot) {
   const errors = [];
   const require = (condition, message) => { if (!condition) errors.push(message); };
   const manifest = JSON.parse(await readFile(resolve(root, 'manifest.json'), 'utf8'));
+  const intake = JSON.parse(await readFile(resolve(root, 'contracts/intake.json'), 'utf8'));
+  const recovery = JSON.parse(await readFile(resolve(root, 'contracts/recovery-catalog.json'), 'utf8'));
+  const contracts = validateContracts(intake, recovery);
+  errors.push(...contracts.errors);
+  require(intake.version === manifest.version && recovery.version === manifest.version,
+    'Intake/recovery contracts must match the shipped package version');
   const validatorPin = JSON.parse(await readFile(validatorPinPath, 'utf8'));
   require(validatorPin.schema_version === 1 && /^[a-f0-9]{40}$/.test(validatorPin.revision ?? ''),
     'Approved I-Lang validator pin is malformed');

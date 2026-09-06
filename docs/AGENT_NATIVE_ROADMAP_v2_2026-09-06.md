@@ -1,5 +1,10 @@
 # AdsPilot Agent-native roadmap v2 — 2026-09-06
 
+> Historical v0.1 delivery plan. The owner subsequently clarified that personal
+> account connection must not gate development or define product acceptance.
+> Follow [documentation-driven v3](AGENT_ONBOARDING_v3_2026-09-06.md) for current
+> conditional intake, agent-led setup/recovery and scenario-based acceptance.
+
 ## Product decision
 
 The owner explicitly authorized P0/P1 implementation and corrected the earlier

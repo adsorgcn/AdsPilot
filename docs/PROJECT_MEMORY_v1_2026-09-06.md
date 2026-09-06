@@ -2,6 +2,43 @@
 
 ## Current state
 
+- Latest owner correction: stop treating their account as the development gate.
+  v0.2 work now defines Google-official-doc-driven conditional user submissions,
+  AI onboarding/repair, and multi-account/error scenario acceptance. Personal
+  account success is only a sample, not a correctness proof. No live credentials
+  are required for this development or offline evaluation.
+- Recovery for this iteration: root owns intake/entrypoint/docs/packaging;
+  `google_requirements_v2` researches official auth/access requirements;
+  `google_recovery_v2` owns recovery catalog and troubleshooting reference.
+  No background product service or live Google account mutation is involved.
+- Verified documentation milestones: integration-owned credentials vs user
+  grants, four API access levels including Explorer planning restrictions,
+  client/MCC hierarchy, Cloud-managed pilot exception, host-managed OAuth/
+  service identity routes, and account-independent testing limits. Sources are
+  linked from the packaged onboarding and recovery references.
+- v0.2 intake/route contract and onboarding reference implemented. Recovery
+  agent delivered 31 rules with 88 typed codes, explicit actors, retry/stop
+  policies and official sources. Contract validation passes four routes/31 rules;
+  final Node checks pass 37/37, including 21 new onboarding/recovery cases.
+- Independent Agent forward simulation completed four raw cases: native
+  consent, planning/configuration failure, unknown creation outcome, and changed
+  account/currency. Expected boundaries were observed; see
+  `docs/AGENT_EVALUATION_v2_2026-09-06.md`. These are actual simulated Agent
+  outputs, distinct from deterministic tests and not live Google certification.
+  All subagent work is complete; no background local task remains.
+- Final v0.2 local verification passed: Node 37/37; Python failure-handling
+  tests 4/4; strict pinned I-Lang syntax zero errors/warnings in nine files,
+  judge selftest 14/14 and fixtures 6/6; Skill quick validation; inventory
+  36 modules/seven exclusions; diff check. This iteration changes no Go code.
+- v0.2 dated ZIP built and integrity/inventory verified (12 instruction/data
+  files): `dist/adspilot-agent-v0.2.0-2026-09-06.zip`, SHA256
+  `d452ec20bd31efc7e7a3c942e27f2f8d25eb6be1eda33b149c5e967b922d8a59`.
+  The v0.1 ZIP was retained and its original SHA256 rechecked unchanged.
+- v0.2 publication recovery: deliver the verified index to the existing review
+  branch/PR #2; never overwrite a changed remote head or merge main. The local
+  dated receipt `dist/DELIVERY_RECEIPT_v2_2026-09-06.md` records the publication
+  commit, hosted run ID/status and next command as they become available.
+
 - 2026-09-06 owner correction: agent-native, instruction-only installation and
   use; no user-managed computer/server/runtime. Follow I-Lang at ilang.ai.
 - P0 and P1 implementation authorized. Active branch:
@@ -50,12 +87,14 @@ Resume from the local checkout above. Before changing code, read `CLAUDE.md`, th
 
 ## Pending decisions
 
-- Current roadmap is `docs/AGENT_NATIVE_ROADMAP_v2_2026-09-06.md`; v1 is historical.
+- Current plan is `docs/AGENT_ONBOARDING_v3_2026-09-06.md`; v1/v2 retain history.
 - Normal development/tooling work is authorized. Deliver on the active review
   branch; do not merge unverified changes to main.
 - Whether the legacy SaaS frontend/services should be archived or retained as a
   separately supported product surface. Current default: retain frozen assets.
 - Authorization and safe account scope for any future live Google Ads test.
+  This applies only to optional provider integration tests, never as a gate for
+  official-contract-driven development, onboarding design or offline evaluation.
 
 ## Implementation milestones
 
@@ -115,3 +154,6 @@ Resume from the local checkout above. Before changing code, read `CLAUDE.md`, th
 - Remote verification run `34031924587` was in progress at first observation;
   this is not a green-CI claim. Recheck the PR checks or its Actions run before
   merge. CI continuation is hosted by GitHub, not a local background task.
+- Subsequent v0.1 receipt commit `6ad161b5fc23c30ec96d6ef727e0b9086a5c855e`
+  has a completed successful run `34032021277`, rechecked before v0.2 delivery.
+  This historical success does not establish the new v0.2 commit's CI outcome.

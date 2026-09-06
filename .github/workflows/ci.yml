@@ -38,6 +38,8 @@ jobs:
       # npm install, Go, database, daemon, or user-managed server.
       - name: Validate the instruction-only agent package
         run: node scripts/verify-agent-package.mjs
+      - name: Validate conditional intake and recovery contracts
+        run: node scripts/verify-agent-contracts.mjs
       - name: Check complete legacy Go inventory
         run: node scripts/verify-go.mjs --inventory-only
       - name: Test verifier failure handling

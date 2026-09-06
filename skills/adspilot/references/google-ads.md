@@ -5,6 +5,16 @@ consult current official method schemas before constructing requests. The
 baseline reviewed on 2026-09-06 is REST v25; v16 is sunset. The host injects
 OAuth and developer tokens, with `login-customer-id` only when required.
 
+Run [onboarding](onboarding.md) for conditional setup and per-capability access
+checks. Developer-token injection applies to the normal access mode; a verified
+Cloud-managed pilot uses its documented alternative. Do not require a user's
+own API project/token when the chosen integration already supplies them.
+
+On failure use [troubleshooting](troubleshooting.md). Check current schema and
+structured provider error details, repair within scope, validate changed
+requests again, and preserve the receipt. Do not defer every unfamiliar error
+to the owner or turn a successful account read into a global readiness claim.
+
 ## Account and performance reads
 
 List accessible customers, inspect the selected client (not merely its MCC),
