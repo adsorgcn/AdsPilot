@@ -1,65 +1,122 @@
-name: Continuous Integration
+name: AdsPilot Verification
 
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
+    inputs:
+      verify_legacy:
+        description: Also test and build optional legacy Go adapters
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
+concurrency:
+  group: verification-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  go-tests:
-    name: Go Unit Tests
-    runs-on: ubuntu-latest
+  agent-package:
+    name: Agent package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          go-version: 1.25.1
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      # Developer validation only. Installing/using the skill requires no Node,
+      # npm install, Go, database, daemon, or user-managed server.
+      - name: Validate the instruction-only agent package
+        run: node scripts/verify-agent-package.mjs
+      - name: Check complete legacy Go inventory
+        run: node scripts/verify-go.mjs --inventory-only
+      - name: Test verifier failure handling
+        run: node --test tests/agent-package/*.test.mjs scripts/verify-go.test.mjs
+      - name: Validate I-Lang with pinned upstream validators
+        run: python scripts/verify-ilang.py
+      - name: Test I-Lang pin and fixture failure handling
+        run: python -B -m unittest discover -s tests/agent-package -p "test_*.py"
+      - name: Package the instruction-only skill
+        run: python scripts/package-agent.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: adspilot-agent-${{ matrix.os }}
+          path: dist/adspilot-agent-v*.zip
+          if-no-files-found: error
 
-      - name: Download modules
-        run: go mod download
-
-      - name: gofmt diff check
-        run: |
-          CHANGED=$(gofmt -l $(find . -name '*.go' -not -path './vendor/*'))
-          if [ -n "${CHANGED}" ]; then
-            echo "Files not gofmt'ed:"
-            echo "${CHANGED}"
-            exit 1
-          fi
-
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      - name: Run Go tests per module
-        run: |
-          set -euo pipefail
-          MODULES=$(go work edit -json | jq -r '.Use[].DiskPath')
-          if [ -z "$MODULES" ]; then
-            echo "No modules discovered in go.work"
-            exit 1
-          fi
-          for mod in $MODULES; do
-            echo "Running tests for module: $mod"
-            pushd "$mod" >/dev/null
-            GOWORK=off go test ./...
-            popd >/dev/null
-          done
-          echo "All module tests passed"
-
-  secrets-scan:
-    name: Secret Detection
+  changed-adapters:
+    name: Detect optional adapter changes
     runs-on: ubuntu-latest
+    outputs:
+      verify: ${{ steps.changes.outputs.verify }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - id: changes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          MANUAL_VERIFY: ${{ inputs.verify_legacy }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$MANUAL_VERIFY" == "true" ]]; then
+            echo "verify=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "verify=false" >> "$GITHUB_OUTPUT"
+          elif [[ -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]]; then
+            echo "verify=true" >> "$GITHUB_OUTPUT"
+          else
+            changed_files=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+            if grep -Eq '^(services/(adscenter|affiliate)/|pkg/|config/go-module-inventory\.json$|scripts/verify-(go|build)|\.github/workflows/ci\.yml$)' <<< "$changed_files"; then
+              echo "verify=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "verify=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
 
-      - name: Run GitLeaks
-        uses: gitleaks/gitleaks-action@v2
+  legacy-adapters:
+    name: Optional Go adapters (${{ matrix.os }})
+    needs: changed-adapters
+    if: needs.changed-adapters.outputs.verify == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.14'
+          cache-dependency-path: '**/go.sum'
+      - name: Test and build AdsCenter default + ads_live and Affiliate
+        run: node scripts/verify-go.mjs --scope adapters
+      - name: Check module manifests remain unchanged
+        run: git diff --exit-code -- '**/go.mod' '**/go.sum' go.work go.work.sum
+
+  secrets-scan:
+    name: Secret detection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

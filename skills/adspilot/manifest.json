@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "name": "adspilot",
+  "version": "0.1.0",
+  "kind": "instruction-only-agent-skill",
+  "entrypoint": "SKILL.md",
+  "protocol": {
+    "name": "I-Lang",
+    "version": "5.0",
+    "execution_baseline": "4.0-FINAL",
+    "judgment_document_version": "2.0.1",
+    "source_commit": "f81e2bf1a952563ede3d45b814bb4a8482ba38cd",
+    "declared_conformance": "L1",
+    "enforcement": "host-provided-not-claimed-by-skill"
+  },
+  "runtime_dependencies": [],
+  "install_commands": [],
+  "services": [],
+  "credential_storage": "host-secret-store",
+  "files": [
+    "SKILL.md",
+    "LICENSE.md",
+    "manifest.json",
+    "references/ilang.md",
+    "references/host.md",
+    "references/records.md",
+    "references/google-ads.md",
+    "references/affiliate.md"
+  ],
+  "capabilities": [
+    {"id": "plan", "mode": "instruction", "requires": []},
+    {"id": "accounts.read", "mode": "read", "requires": ["google_ads.identity", "google_ads.query"]},
+    {"id": "keywords.research", "mode": "read", "requires": ["google_ads.keyword_ideas"]},
+    {"id": "campaigns.validate", "mode": "validate", "requires": ["google_ads.validate"]},
+    {"id": "campaigns.mutate", "mode": "write", "requires": ["google_ads.validate", "google_ads.mutate", "google_ads.query", "host.records", "host.authorization", "host.input_isolation"]},
+    {"id": "affiliate.research", "mode": "read", "requires": ["affiliate.read"]},
+    {"id": "commissions.reconcile", "mode": "read", "requires": ["affiliate.read", "host.records"]},
+    {"id": "conversions.upload", "mode": "write", "requires": ["google_ads.conversions", "host.records", "host.authorization", "host.input_isolation"]}
+  ]
+}

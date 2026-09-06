@@ -3,22 +3,14 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/ScientificInternet/Google-Monetize/pkg/apierrors"
 	pcache "github.com/ScientificInternet/Google-Monetize/pkg/cache"
 	"github.com/ScientificInternet/Google-Monetize/pkg/middleware"
-	rlredis "github.com/ScientificInternet/Google-Monetize/pkg/ratelimitredis"
-	adsstub "github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/ads"
-	adscfg "github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/config"
 	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/oapi"
-	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/ratelimit"
-	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/storage"
 )
 
 // DiagnoseHandler handles diagnostic endpoints for Google Ads accounts
@@ -236,283 +228,28 @@ func (h *DiagnoseHandler) HandleDiagnosePlan(w http.ResponseWriter, r *http.Requ
 	_ = json.NewEncoder(w).Encode(map[string]any{"plan": plan, "validateOnly": true})
 }
 
-// HandleDiagnoseExecute generates a plan from metrics and enqueues it as a bulk operation
-// POST /api/v1/adscenter/diagnose/execute
+// HandleDiagnoseExecute fails closed until a real approved execution path exists.
 func (h *DiagnoseHandler) HandleDiagnoseExecute(w http.ResponseWriter, r *http.Request) {
-	uid, _ := r.Context().Value(middleware.UserIDKey).(string)
-	if uid == "" {
-		apiErr := apierrors.Unauthorized("Unauthorized")
-		apiErr.WriteJSON(w, r)
+	if uid, _ := r.Context().Value(middleware.UserIDKey).(string); uid == "" {
+		apierrors.Unauthorized("Unauthorized").WriteJSON(w, r)
 		return
 	}
-
-	// Cross-instance RPM gate for diagnose execute (enqueue)
-	if h.RC != nil && h.RC.Ready() {
-		planName := ratelimit.ResolveUserPlan(r)
-		pol := ratelimit.LoadPolicy(r.Context())
-		rl := pol.For(planName, "mutate")
-		if rl.RPM > 0 {
-			if rr, _ := rlredis.AllowRPM(r.Context(), h.RC, uid+":diag_exec", rl.RPM); !rr.Allowed {
-				if rr.RetryAfterMs > 0 {
-					w.Header().Set("Retry-After", fmt.Sprintf("%d", (rr.RetryAfterMs+999)/1000))
-				}
-				apiErr := apierrors.RateLimited(int(rr.RetryAfterMs))
-				apiErr.WriteJSON(w, r)
-				return
-			}
-		}
-	}
-
 	if r.Method != http.MethodPost {
-		apiErr := apierrors.New(apierrors.CodeInvalidRequest, "Method not allowed", nil)
+		apiErr := apierrors.InvalidRequest("method", "Method not allowed")
 		apiErr.HTTPStatus = http.StatusMethodNotAllowed
 		apiErr.WriteJSON(w, r)
 		return
 	}
-
-	var body struct {
-		Metrics map[string]any `json:"metrics"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		apiErr := apierrors.InvalidRequest("param", "invalid body")
-		apiErr.WriteJSON(w, r)
-		return
-	}
-
-	plan := buildPlanFromMetrics(body.Metrics)
-
-	// Enqueue similar to submit handler (minimal)
-	var db *sql.DB
-	var err error
-	needClose := false
-
-	if h.DB != nil {
-		db = h.DB
-	} else {
-		dbURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
-		if dbURL == "" {
-			apiErr := apierrors.InternalError("DATABASE_URL not set")
-			apiErr.WriteJSON(w, r)
-			return
-		}
-		db, err = sql.Open("postgres", dbURL)
-		if err != nil {
-			apiErr := apierrors.InternalError("db open failed")
-			apiErr.Details = map[string]interface{}{"error": err.Error()}
-			apiErr.WriteJSON(w, r)
-			return
-		}
-		needClose = true
-		defer func() {
-			if needClose {
-				db.Close()
-			}
-		}()
-	}
-
-	// Enforce per-plan daily quota before creating an operation
-	planName := ratelimit.ResolveUserPlan(r)
-	pol := ratelimit.LoadPolicy(r.Context())
-	if daily := pol.QuotaDailyFor(planName); daily > 0 {
-		usage := 0
-		_ = db.QueryRow(`SELECT COUNT(1) FROM "BulkActionOperation" WHERE user_id=$1 AND created_at::date = CURRENT_DATE`, uid).Scan(&usage)
-		if usage >= daily {
-			apiErr := apierrors.RateLimited(0)
-			apiErr.Message = "daily quota exceeded"
-			apiErr.Details = map[string]interface{}{"plan": planName}
-			apiErr.WriteJSON(w, r)
-			return
-		}
-	}
-
-	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS "BulkActionOperation"(id TEXT PRIMARY KEY, user_id TEXT, plan JSONB, status TEXT, created_at TIMESTAMPTZ DEFAULT now(), updated_at TIMESTAMPTZ DEFAULT now());`)
-	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS "BulkActionAudit"(id BIGSERIAL PRIMARY KEY, op_id TEXT NOT NULL, user_id TEXT NOT NULL, kind TEXT NOT NULL, snapshot JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now());`)
-
-	planBytes, _ := json.Marshal(plan)
-	opID := generateOperationID()
-
-	_, _ = db.Exec(`INSERT INTO "BulkActionOperation"(id, user_id, plan, status) VALUES ($1,$2,$3,'queued')`, opID, uid, string(planBytes))
-	_, _ = db.Exec(`INSERT INTO "BulkActionAudit"(op_id, user_id, kind, snapshot) VALUES ($1,$2,'before',$3::jsonb)`, opID, uid, string(planBytes))
-
-	// shard planning
-	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS "BulkActionShard"(
-		id BIGSERIAL PRIMARY KEY,
-		op_id TEXT NOT NULL,
-		seq INT NOT NULL,
-		actions JSONB NOT NULL,
-		status TEXT NOT NULL DEFAULT 'queued',
-		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-		updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-	)`)
-
-	if len(plan.Actions) > 0 {
-		batchSize := 20
-		if v := strings.TrimSpace(os.Getenv("ADS_MUTATE_BATCH_SIZE")); v != "" {
-			if n, err := strconv.Atoi(v); err == nil && n > 0 {
-				batchSize = n
-			}
-		}
-
-		total := len(plan.Actions)
-		if total > batchSize {
-			shards := 0
-			for i := 0; i < total; i += batchSize {
-				j := i + batchSize
-				if j > total {
-					j = total
-				}
-				part := plan.Actions[i:j]
-				pb, _ := json.Marshal(map[string]any{"actions": part})
-				_, _ = db.Exec(`INSERT INTO "BulkActionShard"(op_id, seq, actions, status) VALUES ($1,$2,$3,'queued')`, opID, shards, string(pb))
-				shards++
-			}
-
-			sp := map[string]any{"kind": "shard_plan", "batchSize": batchSize, "shards": shards, "totalActions": total}
-			sb, _ := json.Marshal(sp)
-			_, _ = db.Exec(`INSERT INTO "BulkActionAudit"(op_id, user_id, kind, snapshot) VALUES ($1,$2,'other',$3::jsonb)`, opID, uid, string(sb))
-		}
-	}
-
-	// async update to running->completed with shard simulation
-	go func(opId, user string) {
-		time.Sleep(300 * time.Millisecond)
-		_, _ = db.Exec(`UPDATE "BulkActionOperation" SET status='running', updated_at=NOW() WHERE id=$1`, opId)
-
-		rows, err := db.Query(`SELECT id, seq FROM "BulkActionShard" WHERE op_id=$1 ORDER BY seq ASC`, opId)
-		if err == nil {
-			for rows.Next() {
-				var shardID int64
-				var seq int
-				if err := rows.Scan(&shardID, &seq); err == nil {
-					_, _ = db.Exec(`UPDATE "BulkActionShard" SET status='running', updated_at=NOW() WHERE id=$1`, shardID)
-					time.Sleep(200 * time.Millisecond)
-					_, _ = db.Exec(`UPDATE "BulkActionShard" SET status='completed', updated_at=NOW() WHERE id=$1`, shardID)
-				}
-			}
-			rows.Close()
-		}
-
-		// simulate after snapshot
-		snap := map[string]any{"executed": len(plan.Actions)}
-		b, _ := json.Marshal(snap)
-		_, _ = db.Exec(`INSERT INTO "BulkActionAudit"(op_id, user_id, kind, snapshot) VALUES ($1,$2,'after',$3::jsonb)`, opId, user, string(b))
-		_, _ = db.Exec(`UPDATE "BulkActionOperation" SET status='completed', updated_at=NOW() WHERE id=$1`, opId)
-	}(opID, uid)
-
-	writeJSON(w, http.StatusAccepted, map[string]any{"operationId": opID, "status": "queued"})
+	writeExecutionUnavailable(w, r, "Diagnostic execution is unavailable: no validated and approved executor is connected")
 }
 
-// HandleDiagnoseMetrics provides metrics autofill (stub or live)
-// GET /api/v1/adscenter/diagnose/metrics?accountId=xxx
+// HandleDiagnoseMetrics never substitutes generated or heuristic values for account metrics.
 func (h *DiagnoseHandler) HandleDiagnoseMetrics(w http.ResponseWriter, r *http.Request) {
-	uid, _ := r.Context().Value(middleware.UserIDKey).(string)
-	if uid == "" {
-		apiErr := apierrors.Unauthorized("Unauthorized")
-		apiErr.WriteJSON(w, r)
+	if uid, _ := r.Context().Value(middleware.UserIDKey).(string); uid == "" {
+		apierrors.Unauthorized("Unauthorized").WriteJSON(w, r)
 		return
 	}
-
-	// Live mode gated behind ADS_DIAG_LIVE
-	live := strings.EqualFold(strings.TrimSpace(os.Getenv("ADS_DIAG_LIVE")), "true")
-	accountID := strings.TrimSpace(r.URL.Query().Get("accountId"))
-	if accountID == "" {
-		accountID = uid
-	}
-
-	if live {
-		// per-user plan limiter (action=diagnose)
-		plan := ratelimit.ResolveUserPlan(r)
-		pol := ratelimit.LoadPolicy(r.Context())
-		rl := pol.For(plan, "diagnose")
-
-		// Cross-instance RPM via Redis
-		if h.RC != nil && h.RC.Ready() && rl.RPM > 0 {
-			if rr, _ := rlredis.AllowRPM(r.Context(), h.RC, uid+":diagnose", rl.RPM); !rr.Allowed {
-				if rr.RetryAfterMs > 0 {
-					w.Header().Set("Retry-After", fmt.Sprintf("%d", (rr.RetryAfterMs+999)/1000))
-				}
-				apiErr := apierrors.RateLimited(int(rr.RetryAfterMs))
-				apiErr.WriteJSON(w, r)
-				return
-			}
-		}
-
-		// Attempt Live client; fallback to stub if errors occur
-		cfgAds, _ := adscfg.LoadAdsCreds(r.Context())
-
-		// Try user-level refresh token for better permissions
-		tokenEnc, loginCID, _, _ := storage.GetUserRefreshToken(r.Context(), h.DB, uid)
-		rt := tokenEnc
-		if pt, ok := DecryptWithRotation(tokenEnc); ok {
-			rt = pt
-		}
-		if rt == "" {
-			rt = cfgAds.RefreshToken
-		}
-
-		client, err := adsstub.NewClient(r.Context(), adsstub.LiveConfig{
-			DeveloperToken:    cfgAds.DeveloperToken,
-			OAuthClientID:     cfgAds.OAuthClientID,
-			OAuthClientSecret: cfgAds.OAuthClientSecret,
-			RefreshToken:      rt,
-			LoginCustomerID: func() string {
-				if cfgAds.LoginCustomerID != "" {
-					return cfgAds.LoginCustomerID
-				}
-				return loginCID
-			}(),
-		})
-
-		if err == nil && client != nil {
-			// campaigns -> derive simple metrics
-			n, err2 := client.GetCampaignsCount(r.Context(), accountID)
-			if err2 == nil {
-				impressions := n*200 + 300 // heuristic
-				ctr := 1.2
-				if n > 10 {
-					ctr = 0.8
-				}
-				if n > 50 {
-					ctr = 0.5
-				}
-				qs := 6
-				if n < 5 {
-					qs = 7
-				} else if n > 30 {
-					qs = 5
-				}
-				budget := 50 + n
-				pacing := 0.3
-
-				writeJSON(w, http.StatusOK, map[string]any{
-					"impressions":  impressions,
-					"ctr":          ctr,
-					"qualityScore": qs,
-					"dailyBudget":  budget,
-					"budgetPacing": pacing,
-				})
-				return
-			}
-		}
-		// Fall through to stub if live failed
-	}
-
-	// Stub/pseudo: deterministic metrics for consistent UX
-	hashVal := fnvHash(accountID)
-	impressions := (hashVal%2000 + 100)
-	ctr := float64((hashVal%100)+1) / 10.0
-	qs := (hashVal%10 + 1)
-	budget := (hashVal%200 + 20)
-	pacing := float64((hashVal%90)+1) / 100.0
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"impressions":  impressions,
-		"ctr":          ctr,
-		"qualityScore": qs,
-		"dailyBudget":  budget,
-		"budgetPacing": pacing,
-	})
+	writeExecutionUnavailable(w, r, "Verified Google Ads diagnostic metrics are not implemented; supply actual metrics to the diagnostic plan endpoint")
 }
 
 // --- Helper functions ---
@@ -547,7 +284,7 @@ func buildPlanFromMetrics(metrics map[string]any) (out struct {
 	pacing := getNum("budgetPacing", 0)
 	dailyBudget := getNum("dailyBudget", 0)
 
-	out.ValidateOnly = false
+	out.ValidateOnly = true
 
 	add := func(typ string, params map[string]any) {
 		out.Actions = append(out.Actions, map[string]any{"type": typ, "params": params})

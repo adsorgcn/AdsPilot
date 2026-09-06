@@ -1,5 +1,9 @@
 # AdsPilot / Google-Monetize 工程书进度表(接手版)
 
+> 历史文档，不作为当前验收证据。2026-09-06 已转向纯指令 Agent Skill；
+> 下文“11 个服务全绿”“本机运行”描述不是当前产品定义或本次测试结论。
+> 请先读 [当前路线图 v2](AGENT_NATIVE_ROADMAP_v2_2026-09-06.md)。
+
 > 看完不靠猜就能接手。所有工作已合入 `main`。
 > 仓库状态:**11 个服务全部编译通过(verify-build 全绿),本地模式(ADSPILOT_LOCAL=1 + 内嵌 PostgreSQL)可一键启动,本地 Google Ads OAuth 流已跑通到"差真 Google 登录"这一步,全仓已做过一轮大清理(见第 10 节)。**
 

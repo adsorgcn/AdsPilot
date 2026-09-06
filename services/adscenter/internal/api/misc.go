@@ -162,9 +162,11 @@ func (h *MiscHandler) HandleAccountsStream(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *MiscHandler) loadAccountsSnapshot(ctx context.Context, uid string) ([]accountPayload, string, error) {
-	cacheKey := fmt.Sprintf("adscenter:accounts:%s", uid)
+	cacheKey := fmt.Sprintf("adscenter:accounts:v2:%s", uid)
 
-	if h.RC != nil && h.RC.Ready() {
+	// The fixed local identity is not safe across shared Redis instances or
+	// OAuth account changes. Local reads must resolve the current credential.
+	if !middleware.LocalMode() && h.RC != nil && h.RC.Ready() {
 		if cached, ok := h.RC.Get(ctx, cacheKey); ok {
 			var wrapper struct {
 				Items []accountPayload `json:"items"`
@@ -175,37 +177,27 @@ func (h *MiscHandler) loadAccountsSnapshot(ctx context.Context, uid string) ([]a
 		}
 	}
 
-	if supaAccounts, err := h.listSupabaseAccounts(ctx, uid); err == nil {
-		if len(supaAccounts) > 0 {
-			h.cacheAccountsSnapshot(ctx, cacheKey, supaAccounts)
-			return supaAccounts, "MISS", nil
+	if !middleware.LocalMode() {
+		if supaAccounts, err := h.listSupabaseAccounts(ctx, uid); err == nil {
+			if len(supaAccounts) > 0 {
+				h.cacheAccountsSnapshot(ctx, cacheKey, supaAccounts)
+				return supaAccounts, "MISS", nil
+			}
+		} else if !isUndefinedAdsConnectionsErr(err) {
+			return nil, "", err
 		}
-	} else if !isUndefinedAdsConnectionsErr(err) {
+	}
+
+	cfgAds, err := loadUserAdsCredentials(ctx, h.DB, uid)
+	if err != nil {
 		return nil, "", err
-	}
-
-	cfgAds, _ := adscfg.LoadAdsCreds(ctx)
-
-	tokenEnc, _, _, err := storage.GetUserRefreshToken(ctx, h.DB, uid)
-	if err != nil || strings.TrimSpace(tokenEnc) == "" {
-		return nil, "", fmt.Errorf("missing refresh token")
-	}
-
-	var userRT string
-	if pt, ok := DecryptWithRotation(tokenEnc); ok {
-		userRT = pt
-	} else {
-		if os.Getenv("REFRESH_TOKEN_ENC_KEY_B64") != "" || os.Getenv("REFRESH_TOKEN_ENC_KEY_B64_OLD") != "" {
-			return nil, "", fmt.Errorf("decrypt refresh token failed")
-		}
-		userRT = tokenEnc
 	}
 
 	live, err := adsstub.NewClient(ctx, adsstub.LiveConfig{
 		DeveloperToken:    cfgAds.DeveloperToken,
 		OAuthClientID:     cfgAds.OAuthClientID,
 		OAuthClientSecret: cfgAds.OAuthClientSecret,
-		RefreshToken:      userRT,
+		RefreshToken:      cfgAds.RefreshToken,
 		LoginCustomerID:   cfgAds.LoginCustomerID,
 	})
 	if err != nil {
@@ -220,31 +212,7 @@ func (h *MiscHandler) loadAccountsSnapshot(ctx context.Context, uid string) ([]a
 
 	items := make([]accountPayload, 0, len(names))
 	for _, rn := range names {
-		id := rn
-		if i := strings.LastIndex(rn, "/"); i >= 0 {
-			id = rn[i+1:]
-		}
-		connectedAt := time.Now().UTC().Format(time.RFC3339)
-		payload := accountPayload{
-			ID:               id,
-			AccountID:        id,
-			AccountName:      rn,
-			Status:           "active",
-			Provider:         "google",
-			CurrencyCode:     "USD",
-			Timezone:         "UTC",
-			ConnectedAt:      connectedAt,
-			CreatedAt:        connectedAt,
-			UpdatedAt:        connectedAt,
-			TotalCost:        0,
-			TotalRevenue:     0,
-			TotalConversions: 0,
-			Roas:             0,
-			LinkedOffers:     0,
-			ActiveCampaigns:  0,
-		}
-		payload.applyDefaults()
-		items = append(items, payload)
+		items = append(items, accessibleAccountPayload(rn))
 	}
 
 	h.cacheAccountsSnapshot(ctx, cacheKey, items)
@@ -252,8 +220,56 @@ func (h *MiscHandler) loadAccountsSnapshot(ctx context.Context, uid string) ([]a
 	return items, "MISS", nil
 }
 
+// ListAccessibleCustomers proves access to resource names only. It does not
+// return account status, currency, timezone, manager/client type or metrics.
+func accessibleAccountPayload(resourceName string) accountPayload {
+	id := resourceName
+	if i := strings.LastIndex(resourceName, "/"); i >= 0 {
+		id = resourceName[i+1:]
+	}
+	return accountPayload{
+		ID: id, AccountID: id, Status: "unknown", Provider: "google",
+		Source: "google_ads_accessible_customers", MetadataVerified: false,
+	}
+}
+
+// loadUserAdsCredentials keeps the optional local adapter on the same source
+// as its OAuth callback. Local requests must never consult the legacy database
+// token table, even if a database is configured for operation records.
+func loadUserAdsCredentials(ctx context.Context, db *sql.DB, uid string) (*adscfg.AdsCreds, error) {
+	creds, err := adscfg.LoadAdsCreds(ctx)
+	if err != nil {
+		return nil, errors.New("failed to load Google Ads credentials")
+	}
+	if middleware.LocalMode() {
+		if strings.TrimSpace(creds.RefreshToken) == "" {
+			return nil, errors.New("missing refresh token: complete local Google Ads authorization")
+		}
+		return creds, nil
+	}
+	if db == nil {
+		return nil, errors.New("database not configured for legacy Google Ads credentials")
+	}
+	tokenEnc, loginCID, _, err := storage.GetUserRefreshToken(ctx, db, uid)
+	if err != nil || strings.TrimSpace(tokenEnc) == "" {
+		return nil, errors.New("missing refresh token")
+	}
+	if pt, ok := DecryptWithRotation(tokenEnc); ok {
+		creds.RefreshToken = pt
+	} else {
+		if os.Getenv("REFRESH_TOKEN_ENC_KEY_B64") != "" || os.Getenv("REFRESH_TOKEN_ENC_KEY_B64_OLD") != "" {
+			return nil, errors.New("decrypt refresh token failed")
+		}
+		creds.RefreshToken = tokenEnc
+	}
+	if creds.LoginCustomerID == "" {
+		creds.LoginCustomerID = strings.TrimSpace(loginCID)
+	}
+	return creds, nil
+}
+
 func (h *MiscHandler) cacheAccountsSnapshot(ctx context.Context, key string, items []accountPayload) {
-	if h.RC == nil || !h.RC.Ready() {
+	if middleware.LocalMode() || h.RC == nil || !h.RC.Ready() {
 		return
 	}
 
@@ -319,137 +335,34 @@ func (h *MiscHandler) HandleAccountDetail(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, payload)
 }
 
-// HandleSyncAllAccounts updates the synced_at timestamp for all accounts of current user.
+// HandleSyncAllAccounts rejects the unimplemented provider synchronization.
 // POST /api/v1/adscenter/accounts/sync-all
 func (h *MiscHandler) HandleSyncAllAccounts(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		apiErr := apierrors.New(apierrors.CodeInvalidRequest, "Method not allowed", nil)
-		apiErr.HTTPStatus = http.StatusMethodNotAllowed
-		apiErr.WriteJSON(w, r)
-		return
-	}
-
-	uid, _ := r.Context().Value(middleware.UserIDKey).(string)
-	if uid == "" {
-		apiErr := apierrors.Unauthorized("Unauthorized")
-		apiErr.WriteJSON(w, r)
-		return
-	}
-
-	if h.DB == nil {
-		apiErr := apierrors.InternalError("database not configured")
-		apiErr.WriteJSON(w, r)
-		return
-	}
-
-	ctx := r.Context()
-	queryCtx, cancel := dbutil.WithShortQueryTimeout(ctx)
-	defer cancel()
-	syncedAt := time.Now().UTC()
-	res, err := h.DB.ExecContext(queryCtx, `
-		UPDATE public.ads_connections
-		SET synced_at = $1,
-		    updated_at = NOW()
-	WHERE user_id = $2
-	`, syncedAt, uid)
-	if err != nil {
-		apiErr := apierrors.InternalError("Failed to update accounts")
-		apiErr.Details = map[string]interface{}{"error": err.Error()}
-		apiErr.WriteJSON(w, r)
-		return
-	}
-
-	count, _ := res.RowsAffected()
-
-	// Invalidate cache
-	if h.RC != nil && h.RC.Ready() {
-		cacheKey := fmt.Sprintf("adscenter:accounts:%s", uid)
-		h.RC.Del(ctx, cacheKey)
-	}
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"success":      true,
-		"synced_count": count,
-		"synced_at":    syncedAt.Format(time.RFC3339),
-	})
+	h.rejectUnavailableAccountSync(w, r, false)
 }
 
-// HandleSyncAccount updates the synced_at timestamp for a specific account of current user.
+// HandleSyncAccount rejects the unimplemented provider synchronization.
 // POST /api/v1/adscenter/accounts/{id}/sync
 func (h *MiscHandler) HandleSyncAccount(w http.ResponseWriter, r *http.Request) {
+	h.rejectUnavailableAccountSync(w, r, true)
+}
+
+func (h *MiscHandler) rejectUnavailableAccountSync(w http.ResponseWriter, r *http.Request, requireAccount bool) {
 	if r.Method != http.MethodPost {
-		apiErr := apierrors.New(apierrors.CodeInvalidRequest, "Method not allowed", nil)
+		apiErr := apierrors.InvalidRequest("method", "Method not allowed")
 		apiErr.HTTPStatus = http.StatusMethodNotAllowed
 		apiErr.WriteJSON(w, r)
 		return
 	}
-
-	uid, _ := r.Context().Value(middleware.UserIDKey).(string)
-	if uid == "" {
-		apiErr := apierrors.Unauthorized("Unauthorized")
-		apiErr.WriteJSON(w, r)
+	if uid, _ := r.Context().Value(middleware.UserIDKey).(string); uid == "" {
+		apierrors.Unauthorized("Unauthorized").WriteJSON(w, r)
 		return
 	}
-
-	accountID := strings.TrimSpace(chi.URLParam(r, "id"))
-	if accountID == "" {
-		apiErr := apierrors.InvalidRequest("id", "accountId required")
-		apiErr.WriteJSON(w, r)
+	if requireAccount && strings.TrimSpace(chi.URLParam(r, "id")) == "" {
+		apierrors.InvalidRequest("id", "accountId required").WriteJSON(w, r)
 		return
 	}
-
-	if h.DB == nil {
-		apiErr := apierrors.InternalError("database not configured")
-		apiErr.WriteJSON(w, r)
-		return
-	}
-
-	syncedAt := time.Now().UTC()
-	ctx := r.Context()
-	queryCtx, cancel := dbutil.WithShortQueryTimeout(ctx)
-	defer cancel()
-	var res sql.Result
-	var err error
-	if parsed, parseErr := uuidParse(accountID); parseErr == nil {
-		res, err = h.DB.ExecContext(queryCtx, `
-			UPDATE public.ads_connections
-			SET synced_at = $1,
-			    updated_at = NOW()
-			WHERE user_id = $2 AND id = $3::uuid
-		`, syncedAt, uid, parsed)
-	} else {
-		res, err = h.DB.ExecContext(queryCtx, `
-			UPDATE public.ads_connections
-			SET synced_at = $1,
-			    updated_at = NOW()
-			WHERE user_id = $2 AND account_id = $3
-		`, syncedAt, uid, accountID)
-	}
-
-	if err != nil {
-		apiErr := apierrors.InternalError("Failed to update account")
-		apiErr.Details = map[string]interface{}{"error": err.Error()}
-		apiErr.WriteJSON(w, r)
-		return
-	}
-
-	affected, _ := res.RowsAffected()
-	if affected == 0 {
-		apiErr := apierrors.NotFound("account not found", "")
-		apiErr.WriteJSON(w, r)
-		return
-	}
-
-	// Invalidate cache
-	if h.RC != nil && h.RC.Ready() {
-		cacheKey := fmt.Sprintf("adscenter:accounts:%s", uid)
-		h.RC.Del(ctx, cacheKey)
-	}
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"success":   true,
-		"synced_at": syncedAt.Format(time.RFC3339),
-	})
+	writeExecutionUnavailable(w, r, "Google Ads account synchronization is not implemented; no provider data or sync timestamps were changed")
 }
 
 // HandleDisconnectAccount deletes an account connection for the current user.
@@ -514,14 +427,14 @@ func (h *MiscHandler) HandleDisconnectAccount(w http.ResponseWriter, r *http.Req
 
 	// Invalidate cache
 	if h.RC != nil && h.RC.Ready() {
-		cacheKey := fmt.Sprintf("adscenter:accounts:%s", uid)
+		cacheKey := fmt.Sprintf("adscenter:accounts:v2:%s", uid)
 		h.RC.Del(ctx, cacheKey)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"success": true})
 }
 
-// HandleTransferBudget performs a stubbed budget transfer between accounts.
+// HandleTransferBudget rejects the unimplemented cross-account budget transfer.
 // POST /api/v1/adscenter/transfer-budget
 func (h *MiscHandler) HandleTransferBudget(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -538,52 +451,29 @@ func (h *MiscHandler) HandleTransferBudget(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	var payload struct {
-		FromAccountID string  `json:"from_account_id"`
-		ToAccountID   string  `json:"to_account_id"`
-		Amount        float64 `json:"amount"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		apiErr := apierrors.InvalidRequest("body", "invalid request body")
-		apiErr.WriteJSON(w, r)
-		return
-	}
-
-	if payload.FromAccountID == "" || payload.ToAccountID == "" || payload.Amount <= 0 {
-		apiErr := apierrors.InvalidRequest("payload", "from_account_id, to_account_id and positive amount required")
-		apiErr.WriteJSON(w, r)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"success":      true,
-		"from_account": payload.FromAccountID,
-		"to_account":   payload.ToAccountID,
-		"amount":       payload.Amount,
-		"processed_at": time.Now().UTC().Format(time.RFC3339),
-		"initiated_by": uid,
-	})
+	writeExecutionUnavailable(w, r, "Budget transfer is not implemented; no account budget was changed")
 }
 
 type accountPayload struct {
-	ID               string  `json:"id"`
-	AccountID        string  `json:"accountId"`
-	AccountName      string  `json:"accountName"`
-	Status           string  `json:"status"`
-	Provider         string  `json:"provider"`
-	CurrencyCode     string  `json:"currencyCode"`
-	Timezone         string  `json:"timezone"`
-	ConnectedAt      string  `json:"connectedAt"`
-	LastSyncedAt     *string `json:"lastSyncedAt,omitempty"`
-	CreatedAt        string  `json:"createdAt"`
-	UpdatedAt        string  `json:"updatedAt"`
-	TotalCost        float64 `json:"totalCost"`
-	TotalRevenue     float64 `json:"totalRevenue"`
-	TotalConversions float64 `json:"totalConversions"`
-	Roas             float64 `json:"roas"`
-	LinkedOffers     int     `json:"linkedOffersCount"`
-	ActiveCampaigns  int     `json:"activeCampaignsCount"`
+	ID               string   `json:"id"`
+	AccountID        string   `json:"accountId"`
+	AccountName      string   `json:"accountName,omitempty"`
+	Status           string   `json:"status"`
+	Provider         string   `json:"provider"`
+	Source           string   `json:"source"`
+	MetadataVerified bool     `json:"metadataVerified"`
+	CurrencyCode     string   `json:"currencyCode,omitempty"`
+	Timezone         string   `json:"timezone,omitempty"`
+	ConnectedAt      string   `json:"connectedAt,omitempty"`
+	LastSyncedAt     *string  `json:"lastSyncedAt,omitempty"`
+	CreatedAt        string   `json:"createdAt,omitempty"`
+	UpdatedAt        string   `json:"updatedAt,omitempty"`
+	TotalCost        *float64 `json:"totalCost,omitempty"`
+	TotalRevenue     *float64 `json:"totalRevenue,omitempty"`
+	TotalConversions *float64 `json:"totalConversions,omitempty"`
+	Roas             *float64 `json:"roas,omitempty"`
+	LinkedOffers     *int     `json:"linkedOffersCount,omitempty"`
+	ActiveCampaigns  *int     `json:"activeCampaignsCount,omitempty"`
 }
 
 func (h *MiscHandler) listSupabaseAccounts(ctx context.Context, userID string) ([]accountPayload, error) {
@@ -636,8 +526,7 @@ func (h *MiscHandler) listSupabaseAccounts(ctx context.Context, userID string) (
 		item.AccountName = strings.TrimSpace(accountName.String)
 		item.Status = strings.ToLower(strings.TrimSpace(status.String))
 		item.Provider = strings.TrimSpace(provider.String)
-		item.CurrencyCode = "USD"
-		item.Timezone = "UTC"
+		item.Source = "local_record"
 		item.ConnectedAt = createdAt.UTC().Format(time.RFC3339)
 		item.CreatedAt = item.ConnectedAt
 		item.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
@@ -715,8 +604,7 @@ func (h *MiscHandler) fetchSupabaseAccount(ctx context.Context, userID, accountI
 	item.AccountName = strings.TrimSpace(accName.String)
 	item.Status = strings.ToLower(strings.TrimSpace(status.String))
 	item.Provider = strings.TrimSpace(provider.String)
-	item.CurrencyCode = "USD"
-	item.Timezone = "UTC"
+	item.Source = "local_record"
 	item.ConnectedAt = createdAt.UTC().Format(time.RFC3339)
 	item.CreatedAt = item.ConnectedAt
 	item.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
@@ -756,48 +644,13 @@ func (a *accountPayload) applyDefaults() {
 		a.AccountName = a.AccountID
 	}
 	if a.Status == "" {
-		a.Status = "active"
+		a.Status = "unknown"
 	}
 	if a.Provider == "" {
 		a.Provider = "google"
 	}
-	if a.CurrencyCode == "" {
-		a.CurrencyCode = "USD"
-	}
-	if a.Timezone == "" {
-		a.Timezone = "UTC"
-	}
-	if strings.TrimSpace(a.ConnectedAt) == "" {
-		a.ConnectedAt = time.Now().UTC().Format(time.RFC3339)
-	}
-	if strings.TrimSpace(a.CreatedAt) == "" {
-		a.CreatedAt = a.ConnectedAt
-	}
-	if strings.TrimSpace(a.UpdatedAt) == "" {
-		a.UpdatedAt = a.CreatedAt
-	}
 	if a.LastSyncedAt != nil && strings.TrimSpace(*a.LastSyncedAt) == "" {
 		a.LastSyncedAt = nil
-	}
-	// For MVP we keep numeric fields zero-initialized
-	// but ensure non-negative defaults
-	if a.TotalCost < 0 {
-		a.TotalCost = 0
-	}
-	if a.TotalRevenue < 0 {
-		a.TotalRevenue = 0
-	}
-	if a.TotalConversions < 0 {
-		a.TotalConversions = 0
-	}
-	if a.Roas < 0 {
-		a.Roas = 0
-	}
-	if a.LinkedOffers < 0 {
-		a.LinkedOffers = 0
-	}
-	if a.ActiveCampaigns < 0 {
-		a.ActiveCampaigns = 0
 	}
 }
 

@@ -1,7 +1,7 @@
 {
   "name": "adspilot",
   "version": "3.0.0",
-  "description": "AdsPilot - local-first AI-driven Google Ads automation (Go backend + Next.js frontend)",
+  "description": "AdsPilot - instruction-only I-Lang agent skill for Google Ads, with optional legacy developer adapters",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -16,10 +16,12 @@
     "dev:frontend": "cd apps/frontend && npm run dev",
     "build": "turbo build",
     "lint": "turbo lint",
-    "test": "npm run test:frontend",
-    "test:frontend": "cd apps/frontend && npm test",
-    "test:backend": "cd services && go test ./...",
-    "verify:backend": "bash scripts/verify-build.sh",
+    "test": "node scripts/verify-agent-package.mjs && node --test tests/agent-package/*.test.mjs scripts/verify-go.test.mjs",
+    "test:backend": "node scripts/verify-go.mjs --test",
+    "check:legacy-frontend": "npm --workspace apps/frontend run typecheck && npm --workspace apps/frontend run lint",
+    "verify:agent": "node scripts/verify-agent-package.mjs",
+    "verify:inventory": "node scripts/verify-go.mjs --inventory-only",
+    "verify:backend": "node scripts/verify-go.mjs",
     "clean": "rm -rf apps/frontend/.next apps/frontend/node_modules",
     "setup": "npm install",
     "prepare": "git config core.hooksPath .githooks",
@@ -44,9 +46,9 @@
   },
   "keywords": [
     "google-ads",
-    "go",
-    "nextjs",
-    "local-first"
+    "ai-agent",
+    "skill",
+    "i-lang"
   ],
   "author": "AdsPilot",
   "license": "MIT",

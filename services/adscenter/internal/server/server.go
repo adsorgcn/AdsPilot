@@ -267,6 +267,9 @@ func authExceptLocalOAuth(next http.Handler) http.Handler {
 	authed := middleware.AuthMiddleware(next)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if isLocalOAuthPath(r.URL.Path) {
+			if !apihandlers.RequireLocalOAuthRequest(w, r) {
+				return
+			}
 			next.ServeHTTP(w, r)
 			return
 		}

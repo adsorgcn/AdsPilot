@@ -240,102 +240,23 @@ func (h *OASImpl) GetBulkActionPlan(w http.ResponseWriter, r *http.Request, id s
 	writeJSON(w, http.StatusOK, plan)
 }
 
-// ValidateBulkActions validates a bulk action plan before submission
+// ValidateBulkActions requires real Google Ads validateOnly, which is not wired here.
 func (h *OASImpl) ValidateBulkActions(w http.ResponseWriter, r *http.Request) {
-	// This is a simplified implementation
-	// Full implementation would include comprehensive validation logic
-
-	// For now, return a basic validation response
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"valid":    true,
-		"errors":   []interface{}{},
-		"warnings": []interface{}{},
-		"message":  "Validation passed (simplified implementation)",
-	})
+	writeExecutionUnavailable(w, r, "Google Ads validation is not implemented on this legacy endpoint")
 }
 
-// GetRollbackPlan generates a rollback plan for a bulk action
+// GetRollbackPlan does not invent a rollback from incomplete snapshots.
 func (h *OASImpl) GetRollbackPlan(w http.ResponseWriter, r *http.Request, id string) {
-	// This is a simplified implementation
-	// Full implementation would analyze audit logs and generate precise rollback actions
-
-	dbURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
-	if dbURL == "" {
-		apiErr := apierrors.InternalError("DATABASE_URL not set")
-		apiErr.WriteJSON(w, r)
-		return
-	}
-
-	db, err := openDB(dbURL)
-	if err != nil {
-		apiErr := apierrors.InternalError("db open failed")
-		apiErr.Details = map[string]interface{}{"error": err.Error()}
-		apiErr.WriteJSON(w, r)
-		return
-	}
-	defer db.Close()
-
-	// Check if operation exists
-	var exists bool
-	err = db.QueryRow(`SELECT EXISTS(SELECT 1 FROM "BulkActionOperation" WHERE id=$1)`, id).Scan(&exists)
-	if err != nil || !exists {
-		apiErr := apierrors.NotFound("operation not found", "")
-		apiErr.WriteJSON(w, r)
-		return
-	}
-
-	// Simplified rollback plan
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"operationId":  id,
-		"validateOnly": true,
-		"actions":      []interface{}{},
-		"message":      "Rollback plan generation (simplified implementation)",
-		"note":         "Full implementation would analyze audit logs to generate precise rollback actions",
-	})
+	writeExecutionUnavailable(w, r, "Verified rollback plan generation is not implemented")
 }
 
-// RollbackExecute executes a rollback operation
+// RollbackExecute fails closed until verified rollback execution exists.
 func (h *OASImpl) RollbackExecute(w http.ResponseWriter, r *http.Request, id string) {
-	uid, _ := r.Context().Value(middleware.UserIDKey).(string)
-	if uid == "" {
-		apiErr := apierrors.Unauthorized("Unauthorized")
-		apiErr.WriteJSON(w, r)
+	if uid, _ := r.Context().Value(middleware.UserIDKey).(string); uid == "" {
+		apierrors.Unauthorized("Unauthorized").WriteJSON(w, r)
 		return
 	}
-
-	dbURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
-	if dbURL == "" {
-		apiErr := apierrors.InternalError("DATABASE_URL not set")
-		apiErr.WriteJSON(w, r)
-		return
-	}
-
-	db, err := openDB(dbURL)
-	if err != nil {
-		apiErr := apierrors.InternalError("db open failed")
-		apiErr.Details = map[string]interface{}{"error": err.Error()}
-		apiErr.WriteJSON(w, r)
-		return
-	}
-	defer db.Close()
-
-	// Check if operation exists
-	var exists bool
-	err = db.QueryRow(`SELECT EXISTS(SELECT 1 FROM "BulkActionOperation" WHERE id=$1 AND user_id=$2)`, id, uid).Scan(&exists)
-	if err != nil || !exists {
-		apiErr := apierrors.NotFound("operation not found", "")
-		apiErr.WriteJSON(w, r)
-		return
-	}
-
-	// Simplified rollback execution
-	// Full implementation would execute actual rollback operations
-	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"operationId": id,
-		"status":      "rollback_initiated",
-		"message":     "Rollback execution (simplified implementation)",
-		"note":        "Full implementation would execute actual rollback operations based on audit logs",
-	})
+	writeExecutionUnavailable(w, r, "Verified rollback execution is not implemented")
 }
 
 // GetRollbackReport retrieves the rollback execution report

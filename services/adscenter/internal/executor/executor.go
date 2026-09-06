@@ -4,9 +4,8 @@ package executor
 
 import (
 	"context"
-	"errors"
 	httpx "github.com/ScientificInternet/Google-Monetize/pkg/http"
-	"strings"
+	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/ads"
 	"time"
 )
 
@@ -50,30 +49,12 @@ func New(cfg Config) *Executor {
 	return &Executor{cfg: cfg, http: httpx.New(cfg.Timeout)}
 }
 
-// ExecuteOne performs a single action. This is a minimal stub implementation:
-// - ADJUST_CPC / ADJUST_BUDGET: simulate success and echo parameters
+// ExecuteOne cannot validate or execute Google Ads operations in a stub build.
 func (e *Executor) ExecuteOne(ctx context.Context, a Action) (Result, error) {
-	t := strings.ToUpper(strings.TrimSpace(a.Type))
-	switch t {
-	case "ADJUST_CPC":
-		if e.cfg.ValidateOnly {
-			return Result{Success: true, Message: "validateOnly"}, nil
-		}
-		det := map[string]interface{}{}
-		for k, v := range a.Params {
-			det[k] = v
-		}
-		return Result{Success: true, Message: "cpc adjusted (stub)", Details: det}, nil
-	case "ADJUST_BUDGET":
-		if e.cfg.ValidateOnly {
-			return Result{Success: true, Message: "validateOnly"}, nil
-		}
-		det := map[string]interface{}{}
-		for k, v := range a.Params {
-			det[k] = v
-		}
-		return Result{Success: true, Message: "budget adjusted (stub)", Details: det}, nil
-	default:
-		return Result{Success: false, Message: "unsupported action"}, errors.New("unsupported action")
+	if err := ctx.Err(); err != nil {
+		return Result{Success: false, Message: err.Error()}, err
 	}
+	return Result{Success: false, Message: ads.ErrLiveUnavailable.Error(), Details: map[string]interface{}{
+		"mode": "unavailable", "executed": false, "googleValidated": false,
+	}}, ads.ErrLiveUnavailable
 }

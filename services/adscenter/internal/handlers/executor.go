@@ -44,13 +44,7 @@ func (h *ExecutorHandler) HandleExecuteNextShard(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// TODO: Implement shard execution logic
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"ok":      true,
-		"message": "Shard execution not yet implemented",
-		"opId":    opID,
-	})
+	apperr.Write(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED", "Shard execution is not implemented; no operation was executed", nil)
 }
 
 // HandleExecuteTick processes queued bulk operations
@@ -62,12 +56,7 @@ func (h *ExecutorHandler) HandleExecuteTick(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// TODO: Implement tick execution logic
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"ok":        true,
-		"processed": 0,
-	})
+	apperr.Write(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED", "Bulk execution worker is not implemented", nil)
 }
 
 // HandleListShards lists all shards for a bulk operation
@@ -241,12 +230,7 @@ func (h *ExecutorHandler) HandleRetryDeadLetter(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	// TODO: Implement retry logic
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"ok":      true,
-		"message": "Retry not yet implemented",
-	})
+	apperr.Write(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED", "Dead-letter retry is not implemented; no operation was retried", nil)
 }
 
 // HandleRetryDeadLetterBatch retries multiple dead letters
@@ -258,12 +242,7 @@ func (h *ExecutorHandler) HandleRetryDeadLetterBatch(w http.ResponseWriter, r *h
 		return
 	}
 
-	// TODO: Implement batch retry logic
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"ok":      true,
-		"retried": 0,
-	})
+	apperr.Write(w, r, http.StatusNotImplemented, "NOT_IMPLEMENTED", "Dead-letter batch retry is not implemented; no operation was retried", nil)
 }
 
 // HandleSnapshotAggregate provides aggregated snapshot statistics

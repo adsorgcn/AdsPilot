@@ -29,7 +29,7 @@ func TestBulkActionsHandler_HandleSubmitBulkActions(t *testing.T) {
 			name:           "empty actions with validateOnly",
 			method:         "POST",
 			payload:        map[string]interface{}{"actions": []interface{}{}, "validateOnly": true},
-			wantStatusCode: http.StatusOK,
+			wantStatusCode: http.StatusBadRequest,
 		},
 	}
 
@@ -102,4 +102,45 @@ func TestBulkActionsHandler_ValidateOnly(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, response, "summary")
 	})
+}
+func TestBulkExecutionNeverQueuesOrSimulates(t *testing.T) {
+	t.Setenv("SIMULATE_BULK_ACTION", "1")
+	t.Setenv("DATABASE_URL", "postgres://unreachable.invalid/database")
+	handler := NewBulkActionsHandler(nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/adscenter/bulk-actions",
+		bytes.NewBufferString(`{"actions":[{"type":"ADJUST_BUDGET","params":{"dailyBudget":100}}],"validateOnly":false}`))
+	req = withUserContext(req, "test-user")
+	w := httptest.NewRecorder()
+	handler.HandleSubmitBulkActions(w, req)
+	require.Equal(t, http.StatusNotImplemented, w.Code)
+	assert.NotContains(t, w.Body.String(), "operationId")
+	assert.NotContains(t, w.Body.String(), "queued")
+	assert.NotContains(t, w.Body.String(), "completed")
+}
+
+func TestBulkDefaultsToUnvalidatedPreview(t *testing.T) {
+	handler := NewBulkActionsHandler(nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/adscenter/bulk-actions",
+		bytes.NewBufferString(`{"actions":[{"type":"ADJUST_BUDGET"}]}`))
+	req = withUserContext(req, "test-user")
+	w := httptest.NewRecorder()
+	handler.HandleSubmitBulkActions(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+	var response map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+	assert.Equal(t, "preview", response["status"])
+	assert.Equal(t, false, response["googleValidated"])
+	assert.Equal(t, false, response["executed"])
+	assert.Equal(t, true, response["validateOnly"])
+	assert.NotContains(t, response, "operationId")
+}
+
+func TestBulkRejectsMalformedPlans(t *testing.T) {
+	for _, body := range []string{"{", "null", `{"actions":[{}]}`, `{"actions":[{"type":"ADJUST_CPC"}]}{}`} {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/adscenter/bulk-actions", bytes.NewBufferString(body))
+		req = withUserContext(req, "test-user")
+		w := httptest.NewRecorder()
+		NewBulkActionsHandler(nil).HandleSubmitBulkActions(w, req)
+		require.Equal(t, http.StatusBadRequest, w.Code, body)
+	}
 }

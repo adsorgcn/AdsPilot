@@ -1,142 +1,81 @@
 # AdsPilot
 
-*English version: [README.en.md](README.en.md).*
+[English](README.en.md)
 
-一个会投放的 AI,不是一个让你登录的系统。
+一个由 AI Agent 安装和使用的广告运营 Skill，遵循 [I-Lang](https://ilang.ai/spec/)。
 
-AdsPilot 不是一个让你登录的后台。你在本地装好、连上你自己的 Google Ads 账号,然后对一个
-AI 说话,它替你操作 Google Ads:选 offer 和关键词、建广告和调广告、过滤流量、管理多个账号。
+**用户不需要为 AdsPilot 准备电脑、服务器、Docker、Go、Node 或数据库。**
+Agent 加载指令包，使用所在平台已有的工具、连接器、授权、密钥保管和执行能力。
+这不等于“不需要计算环境”：计算由 Agent 宿主承担，不另建 AdsPilot 服务。
 
-> **凭证归你自己。** 授权在你本机的浏览器里完成(OAuth loopback 流程,和 Claude Code CLI
-> 登录用的是同一套)。你的 Google refresh token 存在你自己机器上,不发往任何服务器。
+## 安装和使用
 
-## AdsPilot 是什么
+让你的 Agent 从本仓库加载 [skills/adspilot](skills/adspilot/SKILL.md)，
+或导入版本化的 `adspilot-agent-v*.zip`。不同宿主的导入方式不同；
+这是可加载的 Skill 文件夹，不代表已经上架某个市场或通过平台认证。
 
-大多数广告工具是个 Web 控制台:你登录、点来点去、手工配置一切。AdsPilot 把它反过来。界面
-就是 AI。你用大白话说你要什么,AI 替你驱动 Google Ads API。
+例如对 Agent 说：
 
-- AI 就是操作者,没有要学的管理后台。
-- 它跑在你这边、你自己的机器上,不是一个替你拿着账号的托管服务。
-- 它设计成以 OpenClaw skill 的形式运行,让非技术用户能在引导下装好;他们遇到的 bug 会变成
-  对项目的改进。
+> 加载 AdsPilot Skill，检查你已有的 Google Ads 和联盟连接器。
+> 先确认可访问的账户和数据来源，给这个产品做关键词和暂停状态的广告计划。
 
-## 为什么没有登录系统
+包内只有 Markdown 指令、引用和 JSON 能力清单，没有安装脚本或后台进程。
+宿主没有连接器时，Agent 应报告缺少的能力并继续研究/起草，
+不能假装投放成功，也不能要求用户部署 AdsPilot 服务来补齐。
+账户所有者仍可能需要在宿主的连接流程中同意 Google/CJ 授权。
 
-传统广告 SaaS 需要登录系统、订阅计费、多租户权限、托管你的 token,因为它的架构是"平台替你
-干活"。AdsPilot 的架构是"AI 替你干活"。你在本地装好、在自己浏览器里完成 Google 授权,token
-归你自己。AI 直接操作 API,中间不需要一个 Web 后台。登录系统、计费、多租户、token 托管在这
-个范式下不需要存在,所以它们就不存在。
+## 当前能交付什么
 
-## 四块核心能力
+| 能力 | 当前状态 |
+| --- | --- |
+| Agent 安装包与能力发现 | 已有 v0.1.0 指令包、结构测试和 CI 打包 |
+| I-Lang 协议 | 固定官方版本；严格语法、判断函数及模式样例通过验证 |
+| 账户/关键词/广告计划 | 工作流已定义；真实执行依赖宿主已连接工具，尚未做实号验收 |
+| 广告变更 | 要求真实校验、范围授权、持久执行记录和回读；超时不盲重试 |
+| 联盟 offer/佣金/转化 | 已定义证据与对账流程；CJ 实际连接器及全链路验收仍待完成 |
+| 旧 Go AdsCenter | 可选开发适配层；未实现的执行明确失败，不再伪报成功 |
 
-**1. 联盟 API 对接。** 可插拔的 `AffiliateProvider` 接口。AI 从联盟的第一方结构化数据里选
-offer、写广告文案。接新联盟只需实现接口,不动主干。
+不要把指令包、单元测试或 HTTP 501 当成真实广告投放能力。
 
-**2. Google Ads 关键词数据。** `KeywordProvider` 接口抽象关键词来源。Google Ads API 是首发
-实现;API 还没批下来时,CSV 导入自动兜底,系统不停摆。
+## I-Lang 协议基线
 
-**3. 真实流量源 + 反作弊过滤。** 买来的真实流量经埋点入库,四层过滤假流量:
+- 官方规范：[ilang-ai/ilang-spec](https://github.com/ilang-ai/ilang-spec)，
+  固定提交 `f81e2bf1a952563ede3d45b814bb4a8482ba38cd`。
+- 执行安全基线：v4.0-FINAL；判断层：v5.0 merged document 2.0.1。
+- v5 使用 Part II 冻结序列化的 M1–M8 与 `ine` 维度，不混用旧展示名称。
+- 当前只声明 **L1 advisory**。权限隔离、预算限制和状态转换必须由宿主强制；
+  纯指令文本不能自称 L2/L3。v5 仍为 public preview，语法通过不是行为认证。
 
-| 层 | 机制 | 延迟 |
-|---|---|---|
-| 第一层 | 入口指纹(IP 情报、UA 异常、头一致性) | 毫秒级,同步 |
-| 第二层 | 频率窗口(同 IP/指纹在时间窗内的点击频次) | 毫秒级,Redis 计数 |
-| 第三层 | 行为信号(停留时间、交互、JS 执行) | 秒级,异步回填 |
-| 第四层 | 转化回溯(联盟回传拒付,反标到对应点击) | 天级,离线批处理 |
+详见 [协议适配](skills/adspilot/references/ilang.md)、
+[宿主能力契约](skills/adspilot/references/host.md) 和
+[计划、授权与执行证据](skills/adspilot/references/records.md)。
 
-IP 情报可插拔(`IPIntelProvider`,首发 IPQS)。实时规则引擎和离线 ML 模型双引擎并行:冷启动
-靠规则扛,样本够了模型接管。这里的"反作弊"是把假流量过滤掉,不是制造假流量。
+## 开发与验证
 
-**4. 多账户管理。** Google Ads MCC 管理多账户数据,`BrowserProvider` 接口对接指纹浏览器(首
-发 AdsPower),实现多账户会话隔离。
+以下是贡献者命令，不是产品安装步骤；无需先运行 `npm install`：
 
-## 怎么用
-
-1. **安装**:通过 OpenClaw(或克隆下来本地跑,用于开发)。
-2. **授权**:本机的浏览器流程连上你的 Google Ads 账号。token 只写到你的机器上。配置和完整流程见 [本地授权指南](docs/local-auth.md)。
-3. **操作**:告诉 AI 你要什么("给这个产品找关键词"、"给这个 offer 开个广告系列"、"这个广
-   告组为什么跑不动"),它用 Google Ads API 去做。
-
-## 可插拔架构
-
-每个第三方集成都走 provider 接口,新增同类只需实现接口,不改主干。
-
-| Provider | 接口 | 首发实现 |
-|---|---|---|
-| 联盟 | `AffiliateProvider` | CJ / Impact |
-| 关键词 | `KeywordProvider` | Google Ads API |
-| 流量源 | `TrafficProvider` | Native |
-| IP 情报 | `IPIntelProvider` | IPQS |
-| AI | `AIProvider` | Claude / DeepSeek |
-| 指纹浏览器 | `BrowserProvider` | AdsPower |
-
-## 模块
-
-能力层是一组独立的 Go 服务模块,通过 Go workspace(`go.work`)串起来。
-
-| 模块 | 职责 | 状态 |
-|---|---|---|
-| `adscenter` | Google Ads API:账户、关键词、广告系列、MCC | 已建 |
-| `aicore` | AI 抽象层(选 offer、设计广告、反作弊推理) | 已建 |
-| `siterank` | 站点和关键词排名信号 | 已建 |
-| `recommendations` | 优化建议 | 已建 |
-| `proxy-pool` | 中性 IP 路由基础设施 | 已建 |
-| `gateway-middleware` | 边缘鉴权和路由 | 已建 |
-| `bff` | 聚合层 | 已建 |
-| `projector` | 事件投影和读模型 | 已建 |
-| `useractivity` | 活动追踪 | 已建 |
-| `console` | 控制台后端 | 已建 |
-| `affiliate` | 联盟 API 对接 | 计划中 |
-| `traffic` | 真实流量接入和埋点 | 计划中 |
-| `antifraud` | 反作弊过滤 | 计划中 |
-| `browserpool` | 指纹浏览器 API | 计划中 |
-
-共享 Go 库放在 `pkg/`。
-
-## 状态
-
-本地授权(浏览器 loopback 流程、token 存用户本机)正在开发中。把能力打包成 OpenClaw skill、
-以及通过 ClawHub 分发,是接下来的事。
-
-## 铁律
-
-- 不做假流量、不模拟点击。"反作弊"是把假流量或垃圾流量过滤掉,绝不制造。
-- 不做 cloaking,给 Google 爬虫看的和真实用户看的没有任何不同。
-- 凭证不进代码。全走环境变量,加密入库。
-- 你的 OAuth token 存在你机器上,平台零留存。
-
-## 配置
-
-配置全走环境变量。从 `.env.example` 开始,填你自己的值。
-
-| 变量 | 说明 |
-|---|---|
-| `DATABASE_URL` | PostgreSQL 连接串 |
-| `REDIS_URL` | Redis 连接串 |
-| `CREDENTIAL_ENC_KEY` | 32 字节,加密存储凭证用 |
-| `GOOGLE_ADS_DEVELOPER_TOKEN` | 你自己的 Google Ads Developer Token |
-| `GOOGLE_ADS_OAUTH_CLIENT_ID` | 你自己的 OAuth Client ID(桌面类型客户端) |
-| `GOOGLE_ADS_OAUTH_CLIENT_SECRET` | 你自己的 OAuth Client Secret |
-
-## 开发
-
-后端(Go 1.25.1+):
-
-```bash
-go work sync
-go build ./...
+```sh
+node scripts/verify-agent-package.mjs
+node --test tests/agent-package/*.test.mjs scripts/verify-go.test.mjs
+node scripts/verify-go.mjs --inventory-only
+python scripts/verify-ilang.py
+python scripts/package-agent.py
 ```
 
-本地把服务跑起来(单用户模式,自带内嵌数据库,不需要 Docker):
+维护旧 Go 适配器时，再准备 Go 并运行 `node scripts/verify-go.mjs`。
+它按模块使用 `GOWORK=off` 和 `-mod=readonly`，不运行 tidy、不改依赖清单。
+范围覆盖 AdsCenter 默认/`ads_live` 与 Affiliate 库，不代表全仓 36 个模块都已验收。
+详情见 [开发验证说明](scripts/README.md)。
 
-```bash
-./scripts/dev-local.sh        # Windows 用 .\scripts\dev-local.ps1
-```
+## 目录与后续
 
-详见 [本地运行指南](docs/local-run.md)。
+- `skills/adspilot/`：唯一主产品安装包。
+- `tests/agent-package/`：指令包约束和协议样例。
+- `services/adscenter/`、`services/affiliate/`：可选历史适配层。
+- 其他服务、前端、旧本地授权/部署脚本：保留的历史资产，不是安装依赖。
 
-格式检查和分模块测试在 CI 里跑,见 `.github/workflows/ci.yml`。
+当前工作以 [Agent-native 路线图 v2](docs/AGENT_NATIVE_ROADMAP_v2_2026-09-06.md)
+为准；历史“本机单用户运行”描述已被 2026-09-06 的产品决定替代。
+未完成事项和恢复信息见 [项目记忆](docs/PROJECT_MEMORY_v1_2026-09-06.md)。
 
-## License
-
-MIT。
+[MIT License](LICENSE)

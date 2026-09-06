@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"strings"
@@ -11,10 +12,8 @@ import (
 
 	"github.com/ScientificInternet/Google-Monetize/pkg/apierrors"
 	"github.com/ScientificInternet/Google-Monetize/pkg/middleware"
-	adscfg "github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/config"
 	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/executor"
 	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/ratelimit"
-	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/storage"
 )
 
 // BulkRollbackHandler handles bulk operation rollback
@@ -30,6 +29,16 @@ func NewBulkRollbackHandler(db *sql.DB) *BulkRollbackHandler {
 // HandleRollback marks an operation as rolled_back and applies inverse actions
 // POST /api/v1/adscenter/bulk-actions/{id}/rollback
 func (h *BulkRollbackHandler) HandleRollback(w http.ResponseWriter, r *http.Request) {
+	if uid, _ := r.Context().Value(middleware.UserIDKey).(string); uid == "" {
+		apierrors.Unauthorized("Unauthorized").WriteJSON(w, r)
+		return
+	}
+	writeExecutionUnavailable(w, r, "This legacy Google Ads mutation is unavailable until a validated, approved and idempotent workflow is connected")
+}
+
+// handleLegacyRollbackDisabled preserves migration work but is deliberately not routed:
+// its audit replay does not yet prove an approved and verified Google Ads rollback.
+func (h *BulkRollbackHandler) handleLegacyRollbackDisabled(w http.ResponseWriter, r *http.Request) {
 	uid, _ := r.Context().Value(middleware.UserIDKey).(string)
 	if uid == "" {
 		apiErr := apierrors.Unauthorized("Unauthorized")
@@ -106,29 +115,12 @@ func (h *BulkRollbackHandler) HandleRollback(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Prepare executor with Ads credentials
-	cfgAds, _ := adscfg.LoadAdsCreds(r.Context())
-	rtEnc, loginCID, _, _ := storage.GetUserRefreshToken(r.Context(), db, uid)
-	rt := rtEnc
-	if pt, ok := DecryptWithRotation(rtEnc); ok {
-		rt = pt
+	cfgAds, err := loadUserAdsCredentials(r.Context(), db, uid)
+	if err != nil {
+		apiErr := apierrors.InvalidRequest("credentials", err.Error())
+		apiErr.WriteJSON(w, r)
+		return
 	}
-
-	exec := executor.New(executor.Config{
-		Timeout:           8 * time.Second,
-		ValidateOnly:      false,
-		LiveMutate:        strings.EqualFold(strings.TrimSpace(os.Getenv("ADS_MUTATE_LIVE")), "true"),
-		DeveloperToken:    cfgAds.DeveloperToken,
-		OAuthClientID:     cfgAds.OAuthClientID,
-		OAuthClientSecret: cfgAds.OAuthClientSecret,
-		RefreshToken:      rt,
-		LoginCustomerID: func() string {
-			if cfgAds.LoginCustomerID != "" {
-				return cfgAds.LoginCustomerID
-			}
-			return loginCID
-		}(),
-		CustomerID: loginCID,
-	})
 
 	// Read BEFORE snapshots and construct inverse actions
 	rows, err := db.QueryContext(r.Context(), `SELECT action_type, snapshot::text FROM "BulkActionSnapshot" WHERE op_id=$1 AND kind='before' ORDER BY id ASC`, id)
@@ -178,6 +170,30 @@ func (h *BulkRollbackHandler) HandleRollback(w http.ResponseWriter, r *http.Requ
 		writeJSON(w, http.StatusOK, map[string]any{"operationId": id, "status": "rolled_back", "mode": "noop_no_before"})
 		return
 	}
+
+	// The target belongs to the original resource snapshots. The manager/login
+	// CID is only an authorization header, never a fallback mutation target.
+	resources := make([]string, 0, len(snaps))
+	for _, snap := range snaps {
+		resources = append(resources, snap.Resource)
+	}
+	customerID, err := rollbackCustomerID(resources)
+	if err != nil {
+		apiErr := apierrors.InvalidRequest("customerId", err.Error())
+		apiErr.WriteJSON(w, r)
+		return
+	}
+	exec := executor.New(executor.Config{
+		Timeout:           8 * time.Second,
+		ValidateOnly:      false,
+		LiveMutate:        strings.EqualFold(strings.TrimSpace(os.Getenv("ADS_MUTATE_LIVE")), "true"),
+		DeveloperToken:    cfgAds.DeveloperToken,
+		OAuthClientID:     cfgAds.OAuthClientID,
+		OAuthClientSecret: cfgAds.OAuthClientSecret,
+		RefreshToken:      cfgAds.RefreshToken,
+		LoginCustomerID:   cfgAds.LoginCustomerID,
+		CustomerID:        customerID,
+	})
 
 	// Apply rollback actions one-by-one
 	applied := 0
@@ -385,6 +401,29 @@ func (h *BulkRollbackHandler) HandleAudits(w http.ResponseWriter, r *http.Reques
 }
 
 // --- Helper functions ---
+
+func rollbackCustomerID(resources []string) (string, error) {
+	if len(resources) == 0 {
+		return "", errors.New("rollback requires an explicit target customer in its resource snapshots")
+	}
+	customerID := ""
+	for _, resource := range resources {
+		parts := strings.Split(strings.TrimSpace(resource), "/")
+		if len(parts) != 4 || parts[0] != "customers" || len(parts[1]) != 10 || parts[2] == "" || parts[3] == "" {
+			return "", errors.New("rollback resource snapshot is missing a valid target customer ID")
+		}
+		for _, digit := range parts[1] {
+			if digit < '0' || digit > '9' {
+				return "", errors.New("rollback target customer ID must contain 10 digits")
+			}
+		}
+		if customerID != "" && customerID != parts[1] {
+			return "", errors.New("rollback snapshots span multiple target customers; split the operation by account")
+		}
+		customerID = parts[1]
+	}
+	return customerID, nil
+}
 
 // toString converts any value to string
 func toString(v any) string {

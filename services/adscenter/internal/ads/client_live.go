@@ -17,8 +17,8 @@ import (
 	"strings"
 )
 
-// Live client placeholder for future Google Ads SDK wiring.
-// Intentionally avoids importing the SDK to keep builds lightweight.
+// Optional legacy adapter. Reads and validate-only requests use Google Ads REST.
+// Live writes fail closed until an approved, idempotent workflow is implemented.
 
 type LiveConfig struct {
 	DeveloperToken    string
@@ -26,16 +26,21 @@ type LiveConfig struct {
 	OAuthClientSecret string
 	RefreshToken      string
 	LoginCustomerID   string
+	CustomerID        string
 }
 
 type LiveClient struct {
-	http     *http.Client
-	devToken string
-	loginCID string
-	ts       oauth2.TokenSource
+	http       *http.Client
+	devToken   string
+	loginCID   string
+	customerID string
+	ts         oauth2.TokenSource
 }
 
 func NewClient(ctx context.Context, cfg LiveConfig) (*LiveClient, error) {
+	if strings.TrimSpace(cfg.DeveloperToken) == "" || strings.TrimSpace(cfg.OAuthClientID) == "" || strings.TrimSpace(cfg.RefreshToken) == "" {
+		return nil, fmt.Errorf("Google Ads developer token, OAuth client ID and refresh token are required")
+	}
 	conf := &oauth2.Config{
 		ClientID:     cfg.OAuthClientID,
 		ClientSecret: cfg.OAuthClientSecret,
@@ -43,7 +48,7 @@ func NewClient(ctx context.Context, cfg LiveConfig) (*LiveClient, error) {
 		Scopes:       []string{"https://www.googleapis.com/auth/adwords"},
 	}
 	ts := conf.TokenSource(ctx, &oauth2.Token{RefreshToken: cfg.RefreshToken})
-	return &LiveClient{http: &http.Client{Timeout: 5 * time.Second}, devToken: cfg.DeveloperToken, loginCID: cfg.LoginCustomerID, ts: ts}, nil
+	return &LiveClient{http: &http.Client{Timeout: 5 * time.Second}, devToken: cfg.DeveloperToken, loginCID: cfg.LoginCustomerID, customerID: cfg.CustomerID, ts: ts}, nil
 }
 
 func (c *LiveClient) Close() error { return nil }
@@ -64,12 +69,24 @@ func (c *LiveClient) authHeaders(ctx context.Context) (http.Header, error) {
 }
 
 func (c *LiveClient) doJSON(ctx context.Context, method, url string, body any) ([]byte, int, error) {
+	if strings.HasSuffix(url, ":mutate") {
+		request, ok := body.(map[string]any)
+		if !ok || request["validateOnly"] != true {
+			return nil, 0, ErrLiveWriteUnavailable
+		}
+	}
 	var br io.Reader
 	if body != nil {
-		b, _ := json.Marshal(body)
+		b, err := json.Marshal(body)
+		if err != nil {
+			return nil, 0, fmt.Errorf("encode Google Ads request: %w", err)
+		}
 		br = bytes.NewReader(b)
 	}
-	req, _ := http.NewRequestWithContext(ctx, method, url, br)
+	req, err := http.NewRequestWithContext(ctx, method, url, br)
+	if err != nil {
+		return nil, 0, err
+	}
 	hdr, err := c.authHeaders(ctx)
 	if err != nil {
 		return nil, 0, err
@@ -80,15 +97,25 @@ func (c *LiveClient) doJSON(ctx context.Context, method, url string, body any) (
 		return nil, 0, err
 	}
 	defer resp.Body.Close()
-	data, _ := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, err
+	}
 	if resp.StatusCode >= 400 {
 		return data, resp.StatusCode, fmt.Errorf("google ads http %d: %s", resp.StatusCode, string(data))
+	}
+	if !json.Valid(data) {
+		return nil, resp.StatusCode, fmt.Errorf("invalid Google Ads JSON response")
+	}
+	var envelope map[string]any
+	if json.Unmarshal(data, &envelope) == nil && envelope["partialFailureError"] != nil {
+		return data, resp.StatusCode, fmt.Errorf("Google Ads returned partialFailureError")
 	}
 	return data, resp.StatusCode, nil
 }
 
 func (c *LiveClient) ListAccessibleCustomers(ctx context.Context) ([]string, error) {
-	url := "https://googleads.googleapis.com/v16/customers:listAccessibleCustomers"
+	url := APIBaseURL + "/customers:listAccessibleCustomers"
 	data, _, err := c.doJSON(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -96,7 +123,9 @@ func (c *LiveClient) ListAccessibleCustomers(ctx context.Context) ([]string, err
 	var resp struct {
 		ResourceNames []string `json:"resourceNames"`
 	}
-	_ = json.Unmarshal(data, &resp)
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("decode accessible customers: %w", err)
+	}
 	return resp.ResourceNames, nil
 }
 
@@ -108,7 +137,7 @@ func (c *LiveClient) AdsAPIPing(ctx context.Context) error {
 
 func (c *LiveClient) SendManagerLinkInvitation(ctx context.Context, clientCustomerID string) error {
 	// Create invitation from client perspective to link to manager (platform MCC)
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/customerManagerLinks:mutate", clientCustomerID)
+	url := fmt.Sprintf(APIBaseURL+"/customers/%s/customerManagerLinks:mutate", clientCustomerID)
 	body := map[string]any{
 		"operations": []any{
 			map[string]any{
@@ -124,7 +153,7 @@ func (c *LiveClient) SendManagerLinkInvitation(ctx context.Context, clientCustom
 
 func (c *LiveClient) GetManagerLinkStatus(ctx context.Context, clientCustomerID string) (string, error) {
 	// Query via GAQL: filter for platform MCC (loginCID)
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/googleAds:searchStream", clientCustomerID)
+	url := fmt.Sprintf(APIBaseURL+"/customers/%s/googleAds:searchStream", clientCustomerID)
 	q := "SELECT customer_manager_link.resource_name, customer_manager_link.status, customer_manager_link.manager_customer FROM customer_manager_link"
 	body := map[string]any{"query": q}
 	data, _, err := c.doJSON(ctx, http.MethodPost, url, body)
@@ -156,7 +185,7 @@ func (c *LiveClient) GetManagerLinkStatus(ctx context.Context, clientCustomerID 
 
 func (c *LiveClient) RemoveManagerLink(ctx context.Context, clientCustomerID string) error {
 	// Find resource name for manager link to platform MCC
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/googleAds:searchStream", clientCustomerID)
+	url := fmt.Sprintf(APIBaseURL+"/customers/%s/googleAds:searchStream", clientCustomerID)
 	q := "SELECT customer_manager_link.resource_name, customer_manager_link.status, customer_manager_link.manager_customer FROM customer_manager_link"
 	body := map[string]any{"query": q}
 	data, _, err := c.doJSON(ctx, http.MethodPost, url, body)
@@ -186,7 +215,7 @@ func (c *LiveClient) RemoveManagerLink(ctx context.Context, clientCustomerID str
 		return fmt.Errorf("manager link resource not found")
 	}
 	// Update status to INACTIVE
-	mutateURL := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/customerManagerLinks:mutate", clientCustomerID)
+	mutateURL := fmt.Sprintf(APIBaseURL+"/customers/%s/customerManagerLinks:mutate", clientCustomerID)
 	upd := map[string]any{
 		"resourceName": resourceName,
 		"status":       "INACTIVE",
@@ -203,7 +232,7 @@ func (c *LiveClient) ListKeywordCriteriaResourceNames(ctx context.Context, custo
 	if limit <= 0 {
 		limit = 50
 	}
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/googleAds:searchStream", customerID)
+	url := fmt.Sprintf(APIBaseURL+"/customers/%s/googleAds:searchStream", customerID)
 	q := fmt.Sprintf("SELECT ad_group_criterion.resource_name FROM ad_group_criterion WHERE ad_group.id = %s AND ad_group_criterion.type = KEYWORD AND ad_group_criterion.negative = FALSE LIMIT %d", adGroupID, limit)
 	data, _, err := c.doJSON(ctx, http.MethodPost, url, map[string]any{"query": q})
 	if err != nil {
@@ -232,7 +261,7 @@ func (c *LiveClient) ListKeywordCriteriaResourceNames(ctx context.Context, custo
 
 // GetCampaignBudgetResource returns the campaign_budget resource name for the given campaign resource.
 func (c *LiveClient) GetCampaignBudgetResource(ctx context.Context, customerID, campaignResource string) (string, error) {
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/googleAds:searchStream", customerID)
+	url := fmt.Sprintf(APIBaseURL+"/customers/%s/googleAds:searchStream", customerID)
 	q := fmt.Sprintf("SELECT campaign.campaign_budget FROM campaign WHERE campaign.resource_name = '%s'", campaignResource)
 	data, _, err := c.doJSON(ctx, http.MethodPost, url, map[string]any{"query": q})
 	if err != nil {
@@ -261,7 +290,7 @@ func (c *LiveClient) GetCampaignBudgetResource(ctx context.Context, customerID, 
 // GetCampaignsCount returns number of campaigns (last 7 days scope) for a given account.
 func (c *LiveClient) GetCampaignsCount(ctx context.Context, accountID string) (int, error) {
 	// Use GAQL over searchStream to count campaigns updated/visible; fallback to counting all campaigns.
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/googleAds:searchStream", accountID)
+	url := fmt.Sprintf(APIBaseURL+"/customers/%s/googleAds:searchStream", accountID)
 	// segments.date DURING LAST_7_DAYS may require permission; if fails, we still count results.
 	q := "SELECT campaign.id FROM campaign"
 	body := map[string]any{"query": q}
@@ -284,35 +313,64 @@ func (c *LiveClient) GetCampaignsCount(ctx context.Context, accountID string) (i
 }
 
 // HasActiveConversionTracking checks whether conversion tracking appears enabled.
-// Minimal heuristic: attempt to read conversion_tracking_status; success implies enabled.
+// A successful HTTP response alone does not prove that tracking is configured.
 func (c *LiveClient) HasActiveConversionTracking(ctx context.Context, accountID string) (bool, error) {
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/googleAds:searchStream", accountID)
-	q := "SELECT customer.conversion_tracking_setting.conversion_tracking_status FROM customer"
-	body := map[string]any{"query": q}
-	_, _, err := c.doJSON(ctx, http.MethodPost, url, body)
+	url := fmt.Sprintf(APIBaseURL+"/customers/%s/googleAds:searchStream", accountID)
+	data, _, err := c.doJSON(ctx, http.MethodPost, url, map[string]any{"query": "SELECT customer.conversion_tracking_setting.conversion_tracking_status FROM customer"})
 	if err != nil {
 		return false, err
 	}
-	return true, nil
+	var chunks []struct {
+		Results []struct {
+			Customer struct {
+				ConversionTrackingSetting struct {
+					Status string `json:"conversionTrackingStatus"`
+				} `json:"conversionTrackingSetting"`
+			} `json:"customer"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(data, &chunks); err != nil {
+		return false, err
+	}
+	for _, chunk := range chunks {
+		for _, result := range chunk.Results {
+			switch result.Customer.ConversionTrackingSetting.Status {
+			case "CONVERSION_TRACKING_MANAGED_BY_SELF", "CONVERSION_TRACKING_MANAGED_BY_THIS_MANAGER", "CONVERSION_TRACKING_MANAGED_BY_ANOTHER_MANAGER":
+				return true, nil
+			case "NOT_CONVERSION_TRACKED":
+				return false, nil
+			}
+		}
+	}
+	return false, fmt.Errorf("Google Ads returned no known conversion tracking status")
 }
 
-// HasSufficientBudget checks if any campaign budget exists (heuristic for non-zero budget configured).
+// HasSufficientBudget checks that a positive budget is configured; it does not forecast spend sufficiency.
 func (c *LiveClient) HasSufficientBudget(ctx context.Context, accountID string) (bool, error) {
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/googleAds:searchStream", accountID)
-	q := "SELECT campaign_budget.amount_micros FROM campaign_budget LIMIT 1"
-	body := map[string]any{"query": q}
-	data, _, err := c.doJSON(ctx, http.MethodPost, url, body)
+	url := fmt.Sprintf(APIBaseURL+"/customers/%s/googleAds:searchStream", accountID)
+	data, _, err := c.doJSON(ctx, http.MethodPost, url, map[string]any{"query": "SELECT campaign_budget.amount_micros FROM campaign_budget WHERE campaign_budget.amount_micros > 0 LIMIT 1"})
 	if err != nil {
 		return false, err
 	}
-	var arr []map[string]any
-	if json.Unmarshal(data, &arr) != nil {
-		return false, nil
+	var chunks []struct {
+		Results []struct {
+			Budget struct {
+				Amount string `json:"amountMicros"`
+			} `json:"campaignBudget"`
+		} `json:"results"`
 	}
-	// if any result chunk contains results, consider sufficient
-	for _, chunk := range arr {
-		if results, ok := chunk["results"].([]any); ok && len(results) > 0 {
-			return true, nil
+	if err := json.Unmarshal(data, &chunks); err != nil {
+		return false, err
+	}
+	for _, chunk := range chunks {
+		for _, result := range chunk.Results {
+			amount, err := strconv.ParseInt(result.Budget.Amount, 10, 64)
+			if err != nil {
+				return false, fmt.Errorf("invalid Google Ads budget amount: %w", err)
+			}
+			if amount > 0 {
+				return true, nil
+			}
 		}
 	}
 	return false, nil
@@ -325,7 +383,7 @@ func (c *LiveClient) CloneAdGroupKeywords(ctx context.Context, customerID, fromA
 		limit = 50
 	}
 	// 1) Query source keywords
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/googleAds:searchStream", customerID)
+	url := fmt.Sprintf(APIBaseURL+"/customers/%s/googleAds:searchStream", customerID)
 	q := fmt.Sprintf("SELECT ad_group_criterion.criterion_id, ad_group_criterion.negative, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type FROM ad_group_criterion WHERE ad_group.id = %s AND ad_group_criterion.type = KEYWORD AND ad_group_criterion.negative = FALSE LIMIT %d", fromAdGroupID, limit)
 	data, _, err := c.doJSON(ctx, http.MethodPost, url, map[string]any{"query": q})
 	if err != nil {
@@ -375,7 +433,7 @@ func (c *LiveClient) CloneAdGroupKeywords(ctx context.Context, customerID, fromA
 		}
 		ops = append(ops, map[string]any{"adGroupCriterionOperation": op})
 	}
-	mutateURL := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/googleAds:mutate", customerID)
+	mutateURL := fmt.Sprintf(APIBaseURL+"/customers/%s/googleAds:mutate", customerID)
 	body := map[string]any{"mutateOperations": ops}
 	if _, _, err := c.doJSON(ctx, http.MethodPost, mutateURL, body); err != nil {
 		return 0, err
@@ -390,7 +448,7 @@ func (c *LiveClient) CloneAdGroupAds(ctx context.Context, customerID, fromAdGrou
 		limit = 3
 	}
 	// 1) Query RSA ads from source ad group
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/googleAds:searchStream", customerID)
+	url := fmt.Sprintf(APIBaseURL+"/customers/%s/googleAds:searchStream", customerID)
 	q := fmt.Sprintf("SELECT ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.final_urls FROM ad_group_ad WHERE ad_group.id = %s AND ad_group_ad.status = ENABLED LIMIT %d", fromAdGroupID, limit)
 	data, _, err := c.doJSON(ctx, http.MethodPost, url, map[string]any{"query": q})
 	if err != nil {
@@ -505,7 +563,7 @@ func (c *LiveClient) CloneAdGroupAds(ctx context.Context, customerID, fromAdGrou
 		}
 		ops = append(ops, op)
 	}
-	mutateURL := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/googleAds:mutate", customerID)
+	mutateURL := fmt.Sprintf(APIBaseURL+"/customers/%s/googleAds:mutate", customerID)
 	body := map[string]any{"mutateOperations": ops}
 	if _, _, err := c.doJSON(ctx, http.MethodPost, mutateURL, body); err != nil {
 		return 0, err
@@ -515,7 +573,7 @@ func (c *LiveClient) CloneAdGroupAds(ctx context.Context, customerID, fromAdGrou
 
 // SetAdGroupStatus sets an ad group's status to PAUSED or ENABLED.
 func (c *LiveClient) SetAdGroupStatus(ctx context.Context, customerID, adGroupID string, paused bool) error {
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/googleAds:mutate", customerID)
+	url := fmt.Sprintf(APIBaseURL+"/customers/%s/googleAds:mutate", customerID)
 	rn := fmt.Sprintf("customers/%s/adGroups/%s", customerID, adGroupID)
 	status := "ENABLED"
 	if paused {
@@ -534,7 +592,7 @@ func (c *LiveClient) SetAdGroupStatus(ctx context.Context, customerID, adGroupID
 
 // GetExperiment fetches basic fields of an experiment by resource name under a customer.
 func (c *LiveClient) GetExperiment(ctx context.Context, customerID, experimentResource string) (map[string]any, error) {
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/googleAds:searchStream", customerID)
+	url := fmt.Sprintf(APIBaseURL+"/customers/%s/googleAds:searchStream", customerID)
 	// GAQL over experiment fields
 	q := fmt.Sprintf("SELECT experiment.resource_name, experiment.name, experiment.status FROM experiment WHERE experiment.resource_name = '%s'", experimentResource)
 	body := map[string]any{"query": q}
@@ -551,13 +609,15 @@ func (c *LiveClient) GetExperiment(ctx context.Context, customerID, experimentRe
 			for _, it := range results {
 				if m, ok := it.(map[string]any); ok {
 					if e, ok := m["experiment"].(map[string]any); ok {
-						return e, nil
+						if e["resourceName"] == experimentResource {
+							return e, nil
+						}
 					}
 				}
 			}
 		}
 	}
-	return map[string]any{}, nil
+	return nil, fmt.Errorf("experiment not found in Google Ads response")
 }
 
 // Keyword ideas via Google Ads REST (generateKeywordIdeas)
@@ -568,29 +628,33 @@ type KeywordIdea struct {
 }
 
 func (c *LiveClient) KeywordIdeas(ctx context.Context, seedDomain string, seeds []string) ([]KeywordIdea, error) {
-	cid := c.loginCID
+	cid := strings.TrimSpace(c.customerID)
 	if cid == "" {
-		return nil, fmt.Errorf("login customer id required")
+		return nil, fmt.Errorf("explicit target customer id required; login customer id is only a manager header")
 	}
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s:generateKeywordIdeas", cid)
-	body := map[string]any{
-		"keywordPlanNetwork": "GOOGLE_SEARCH_AND_PARTNERS",
+	for _, ch := range cid {
+		if ch < '0' || ch > '9' {
+			return nil, fmt.Errorf("target customer id must contain digits only")
+		}
 	}
-	if seedDomain != "" {
+	url := fmt.Sprintf(APIBaseURL+"/customers/%s:generateKeywordIdeas", cid)
+	body := map[string]any{"keywordPlanNetwork": "GOOGLE_SEARCH"}
+	keywords := make([]string, 0, len(seeds))
+	for _, seed := range seeds {
+		if seed = strings.TrimSpace(seed); seed != "" {
+			keywords = append(keywords, seed)
+		}
+	}
+	seedDomain = strings.TrimSpace(seedDomain)
+	switch {
+	case seedDomain != "" && len(keywords) > 0:
+		body["keywordAndUrlSeed"] = map[string]any{"url": seedDomain, "keywords": keywords}
+	case seedDomain != "":
 		body["urlSeed"] = map[string]any{"url": seedDomain}
-	}
-	if len(seeds) > 0 {
-		// Trim empties
-		arr := make([]string, 0, len(seeds))
-		for _, s := range seeds {
-			s = strings.TrimSpace(s)
-			if s != "" {
-				arr = append(arr, s)
-			}
-		}
-		if len(arr) > 0 {
-			body["keywordSeed"] = map[string]any{"keywords": arr}
-		}
+	case len(keywords) > 0:
+		body["keywordSeed"] = map[string]any{"keywords": keywords}
+	default:
+		return nil, fmt.Errorf("keyword or URL seed required")
 	}
 	data, _, err := c.doJSON(ctx, http.MethodPost, url, body)
 	if err != nil {
@@ -600,7 +664,9 @@ func (c *LiveClient) KeywordIdeas(ctx context.Context, seedDomain string, seeds 
 	var resp struct {
 		Results []map[string]any `json:"results"`
 	}
-	_ = json.Unmarshal(data, &resp)
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("decode keyword ideas: %w", err)
+	}
 	out := make([]KeywordIdea, 0, len(resp.Results))
 	for _, r := range resp.Results {
 		kw := ""
@@ -608,9 +674,16 @@ func (c *LiveClient) KeywordIdeas(ctx context.Context, seedDomain string, seeds 
 			kw = t
 		}
 		avg := 0
-		comp := "MEDIUM"
+		comp := "UNSPECIFIED"
 		if m, ok := r["keywordIdeaMetrics"].(map[string]any); ok {
-			if v, ok := m["avgMonthlySearches"].(float64); ok {
+			switch v := m["avgMonthlySearches"].(type) {
+			case string:
+				parsed, err := strconv.ParseInt(v, 10, 64)
+				if err != nil {
+					return nil, fmt.Errorf("invalid avgMonthlySearches: %w", err)
+				}
+				avg = int(parsed)
+			case float64:
 				avg = int(v)
 			}
 			if v2, ok := m["competition"].(string); ok && v2 != "" {
@@ -658,7 +731,7 @@ func (c *LiveClient) CopyAdGroupMinimal(ctx context.Context, customerID, srcAdGr
 }
 
 func (c *LiveClient) lookupAdGroup(ctx context.Context, customerID, adGroupID string) (campaignResource, name string, err error) {
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/googleAds:searchStream", customerID)
+	url := fmt.Sprintf(APIBaseURL+"/customers/%s/googleAds:searchStream", customerID)
 	q := fmt.Sprintf("SELECT ad_group.resource_name, ad_group.name, ad_group.campaign FROM ad_group WHERE ad_group.id = %s", adGroupID)
 	data, _, err := c.doJSON(ctx, http.MethodPost, url, map[string]any{"query": q})
 	if err != nil {
@@ -687,7 +760,7 @@ func (c *LiveClient) lookupAdGroup(ctx context.Context, customerID, adGroupID st
 }
 
 func (c *LiveClient) createAdGroup(ctx context.Context, customerID, campaignResource, name string) (resourceName string, err error) {
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/adGroups:mutate", customerID)
+	url := fmt.Sprintf(APIBaseURL+"/customers/%s/adGroups:mutate", customerID)
 	body := map[string]any{
 		"operations": []any{
 			map[string]any{
@@ -724,15 +797,31 @@ func (c *LiveClient) RefreshAdGroupMetrics(ctx context.Context, customerID strin
 	if dateRange == "" {
 		dateRange = "LAST_7_DAYS"
 	}
-	// Build IN clause for GAQL
+	if len(adGroupIDs) == 0 {
+		return nil, fmt.Errorf("at least one ad group ID required")
+	}
+	switch dateRange {
+	case "TODAY", "YESTERDAY", "LAST_7_DAYS", "LAST_14_DAYS", "LAST_30_DAYS", "THIS_MONTH", "LAST_MONTH":
+	default:
+		return nil, fmt.Errorf("unsupported metrics date range")
+	}
+	// IDs are numeric GAQL literals; never interpolate arbitrary query fragments.
 	in := make([]string, 0, len(adGroupIDs))
 	for _, id := range adGroupIDs {
+		if id == "" {
+			return nil, fmt.Errorf("ad group ID required")
+		}
+		for _, ch := range id {
+			if ch < '0' || ch > '9' {
+				return nil, fmt.Errorf("ad group IDs must contain digits only")
+			}
+		}
 		in = append(in, id)
 	}
 	// Note: GAQL IN for id fields expects numeric list
 	cond := strings.Join(in, ",")
-	q := fmt.Sprintf("SELECT ad_group.id, metrics.impressions, metrics.clicks, metrics.cost_micros FROM ad_group WHERE ad_group.id IN (%s) DURING %s", cond, dateRange)
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/googleAds:searchStream", customerID)
+	q := fmt.Sprintf("SELECT ad_group.id, metrics.impressions, metrics.clicks, metrics.cost_micros FROM ad_group WHERE ad_group.id IN (%s) AND segments.date DURING %s", cond, dateRange)
+	url := fmt.Sprintf(APIBaseURL+"/customers/%s/googleAds:searchStream", customerID)
 	data, _, err := c.doJSON(ctx, http.MethodPost, url, map[string]any{"query": q})
 	if err != nil {
 		return nil, err
@@ -791,7 +880,7 @@ func (c *LiveClient) RefreshAdGroupMetrics(ctx context.Context, customerID strin
 // CreateExperiment creates a minimal Experiment resource and returns its resource name.
 // Note: This is a best-effort minimal REST call. Fields may vary across API versions.
 func (c *LiveClient) CreateExperiment(ctx context.Context, customerID, name string) (string, error) {
-	url := "https://googleads.googleapis.com/v16/customers/" + customerID + "/experiments:mutate"
+	url := APIBaseURL + "/customers/" + customerID + "/experiments:mutate"
 	body := map[string]any{
 		"operations": []any{
 			map[string]any{
@@ -831,7 +920,7 @@ func (c *LiveClient) CreateExperimentArms(ctx context.Context, customerID, exper
 	if splitA+splitB == 0 {
 		splitA, splitB = 50, 50
 	}
-	url := "https://googleads.googleapis.com/v16/customers/" + customerID + "/experimentArms:mutate"
+	url := APIBaseURL + "/customers/" + customerID + "/experimentArms:mutate"
 	// NOTE: Some fields (e.g., control, trafficSplit, name, experiment) are commonly used in GA.
 	ops := []any{
 		map[string]any{"create": map[string]any{

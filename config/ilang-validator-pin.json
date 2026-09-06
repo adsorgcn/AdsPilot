@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "repository": "ilang-ai/ilang-spec",
+  "revision": "f81e2bf1a952563ede3d45b814bb4a8482ba38cd",
+  "validators": {
+    "ilang_grammar_validator.py": "8cefba8aa8d0f9e08d23fcbb6d8303e1bd3cd299500282765ba23cbf37a68a3a",
+    "ilang_judge_validator.py": "23c804084cc223e495d83146b8090ebfa127e37eea956381a4ba2c71c6095ded"
+  }
+}

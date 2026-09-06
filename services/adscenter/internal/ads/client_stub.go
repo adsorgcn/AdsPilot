@@ -4,7 +4,6 @@ package ads
 
 import (
 	"context"
-	"strings"
 )
 
 // Client is the interface used by preflight to perform optional live checks.
@@ -17,7 +16,7 @@ type Client interface {
 	// AB test helpers (MVP): minimal live ops
 	CopyAdGroupMinimal(ctx context.Context, customerID, srcAdGroupID, nameSuffix string) (newAdGroupID string, err error)
 	RefreshAdGroupMetrics(ctx context.Context, customerID string, adGroupIDs []string, dateRange string) (map[string]AdGroupMetrics, error)
-	// Experiments (optional, no-op in stub)
+	// Experiments (unavailable in this build)
 	CreateExperiment(ctx context.Context, customerID, name string) (string, error)
 	CreateExperimentArms(ctx context.Context, customerID, experimentResource string, splitA, splitB int) (armA, armB string, err error)
 	GetExperiment(ctx context.Context, customerID, experimentResource string) (map[string]interface{}, error)
@@ -36,7 +35,7 @@ func NewClientStub() *StubClient   { return &StubClient{} }
 func (c *StubClient) Close() error { return nil }
 
 func (c *StubClient) ListAccessibleCustomers(ctx context.Context) ([]string, error) {
-	return nil, nil
+	return nil, ErrLiveUnavailable
 }
 
 type LiveConfig struct {
@@ -45,32 +44,33 @@ type LiveConfig struct {
 	OAuthClientSecret string
 	RefreshToken      string
 	LoginCustomerID   string
+	CustomerID        string
 }
 
 func NewClient(ctx context.Context, cfg LiveConfig) (*StubClient, error) {
-	return &StubClient{}, nil
+	return nil, ErrLiveUnavailable
 }
 
 func (c *StubClient) SendManagerLinkInvitation(ctx context.Context, clientCustomerID string) error {
-	return nil
+	return ErrLiveUnavailable
 }
 func (c *StubClient) GetManagerLinkStatus(ctx context.Context, clientCustomerID string) (string, error) {
-	return "pending", nil
+	return "pending", ErrLiveUnavailable
 }
 func (c *StubClient) RemoveManagerLink(ctx context.Context, clientCustomerID string) error {
-	return nil
+	return ErrLiveUnavailable
 }
 
 // Additional methods to satisfy preflight.LiveClient
-func (c *StubClient) AdsAPIPing(ctx context.Context) error { return nil }
+func (c *StubClient) AdsAPIPing(ctx context.Context) error { return ErrLiveUnavailable }
 func (c *StubClient) GetCampaignsCount(ctx context.Context, accountID string) (int, error) {
-	return 0, nil
+	return 0, ErrLiveUnavailable
 }
 func (c *StubClient) HasActiveConversionTracking(ctx context.Context, accountID string) (bool, error) {
-	return false, nil
+	return false, ErrLiveUnavailable
 }
 func (c *StubClient) HasSufficientBudget(ctx context.Context, accountID string) (bool, error) {
-	return false, nil
+	return false, ErrLiveUnavailable
 }
 
 type KeywordIdea struct {
@@ -85,90 +85,42 @@ type AdGroupMetrics struct {
 }
 
 func (c *StubClient) KeywordIdeas(ctx context.Context, seedDomain string, seeds []string) ([]KeywordIdea, error) {
-	// Simple stub: derive few ideas per seed
-	base := []string{"best", "cheap", "buy", "review", "discount", "top", "near me"}
-	out := make([]KeywordIdea, 0, len(seeds)*len(base))
-	for _, s := range seeds {
-		s = strings.TrimSpace(s)
-		if s == "" {
-			continue
-		}
-		for i, b := range base {
-			k := strings.TrimSpace(s + " " + b)
-			vol := 500 + (i+1)*700 // 1200, 1900, ...
-			comp := "MEDIUM"
-			if i%5 == 0 {
-				comp = "LOW"
-			}
-			if i%7 == 0 {
-				comp = "HIGH"
-			}
-			out = append(out, KeywordIdea{Text: k, AvgMonthlySearches: vol, Competition: comp})
-		}
-	}
-	if len(out) == 0 && seedDomain != "" {
-		// derive from domain
-		parts := strings.Split(seedDomain, ".")
-		if len(parts) > 0 {
-			root := parts[0]
-			for i, b := range base {
-				k := root + " " + b
-				vol := 800 + (i+1)*600
-				comp := "MEDIUM"
-				if i%3 == 0 {
-					comp = "LOW"
-				}
-				if i%4 == 0 {
-					comp = "HIGH"
-				}
-				out = append(out, KeywordIdea{Text: k, AvgMonthlySearches: vol, Competition: comp})
-			}
-		}
-	}
-	return out, nil
+	return nil, ErrLiveUnavailable
 }
 
 func (c *StubClient) CopyAdGroupMinimal(ctx context.Context, customerID, srcAdGroupID, nameSuffix string) (string, error) {
-	// Stub: return synthetic id
-	if nameSuffix == "" {
-		nameSuffix = "_B"
-	}
-	return srcAdGroupID + nameSuffix, nil
+	return "", ErrLiveUnavailable
 }
 
 func (c *StubClient) RefreshAdGroupMetrics(ctx context.Context, customerID string, adGroupIDs []string, dateRange string) (map[string]AdGroupMetrics, error) {
-	out := make(map[string]AdGroupMetrics, len(adGroupIDs))
-	for _, id := range adGroupIDs {
-		out[id] = AdGroupMetrics{}
-	}
-	return out, nil
+	return nil, ErrLiveUnavailable
 }
 
-// --- Experiments (stub no-op) ---
+// --- Experiments (unavailable) ---
 func (c *StubClient) CreateExperiment(ctx context.Context, customerID, name string) (string, error) {
-	return "", nil
+	return "", ErrLiveUnavailable
 }
 func (c *StubClient) CreateExperimentArms(ctx context.Context, customerID, experimentResource string, splitA, splitB int) (string, string, error) {
-	return "", "", nil
+	return "", "", ErrLiveUnavailable
 }
 func (c *StubClient) GetExperiment(ctx context.Context, customerID, experimentResource string) (map[string]interface{}, error) {
-	return map[string]interface{}{}, nil
+	return map[string]interface{}{}, ErrLiveUnavailable
 }
 func (c *StubClient) CloneAdGroupKeywords(ctx context.Context, customerID, fromAdGroupID, toAdGroupID string, limit int) (int, error) {
-	return 0, nil
+	return 0, ErrLiveUnavailable
 }
 func (c *StubClient) CloneAdGroupAds(ctx context.Context, customerID, fromAdGroupID, toAdGroupID string, limit int) (int, error) {
-	return 0, nil
+	return 0, ErrLiveUnavailable
 }
 func (c *StubClient) SetAdGroupStatus(ctx context.Context, customerID, adGroupID string, paused bool) error {
-	return nil
+	return ErrLiveUnavailable
 }
 func (c *StubClient) ListKeywordCriteriaResourceNames(ctx context.Context, customerID, adGroupID string, limit int) ([]string, error) {
-	return []string{}, nil
+	return []string{}, ErrLiveUnavailable
 }
 func (c *StubClient) GetCampaignBudgetResource(ctx context.Context, customerID, campaignResource string) (string, error) {
-	return "", nil
+	return "", ErrLiveUnavailable
 }
 func (c *StubClient) LookupAdGroupCampaign(ctx context.Context, customerID, adGroupID string) (string, string, error) {
-	return "", "", nil
+	return "", "", ErrLiveUnavailable
 }

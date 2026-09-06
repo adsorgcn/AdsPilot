@@ -1,38 +1,50 @@
 # AdsPilot — Project Context
 
-AI-driven Google Ads automation. Single-user local-first model: an AI agent and
-a human operate it together on one machine. No gateway, no login, no Docker.
+Primary product: an instruction-only, I-Lang-governed AI Agent Skill.
+The owner corrected the previous local-first design on 2026-09-06.
+Users must not need their own computer/server, Go/Node, daemon, or database.
+The agent host provides tools, connectors, permission enforcement, secret
+storage, durable execution records, and optional scheduling.
 
-## Paradigm
-- `ADSPILOT_LOCAL=1` puts every service in local mode: bind 127.0.0.1 only,
-  loopback requests get the fixed `local` user identity, and adscenter boots an
-  embedded PostgreSQL (data in `~/.adspilot/pg`) when `DATABASE_URL` is unset.
-- Google Ads auth is a loopback OAuth flow (Desktop client + PKCE); the refresh
-  token lives only in `~/.adspilot/credentials.json`. See `docs/local-auth.md`.
-- Credentials go in the repo-root `.env` (gitignored, template `.env.example`);
-  `scripts/dev-local.ps1` / `.sh` load it on start.
+Read `AGENTS.md`, `docs/AGENT_NATIVE_ROADMAP_v2_2026-09-06.md`, and
+`docs/PROJECT_MEMORY_v1_2026-09-06.md` before work.
 
-## Layout
-- `services/*` — independent Go modules: adscenter (Google Ads ops, the core),
-  aicore, affiliate, bff, console, gateway-middleware, projector, proxy-pool,
-  recommendations, siterank, useractivity
-- `pkg/*` — shared Go libraries (cache, config, database, events, middleware, ...)
-- `apps/frontend` — Next.js UI (npm, NOT pnpm); `packages/*` — shared TS types
-- `specs/openapi/*.yaml` — canonical OpenAPI specs; `services/*/openapi.yaml`
-  are mirrors; generated code in `services/*/internal/oapi` via
-  `scripts/openapi/gen-go-stubs.sh` (oapi-codegen)
+## Layout and status
 
-## Build & verify
-- Services build standalone, matching CI/Dockerfiles: per module
-  `GOWORK=off go mod tidy && go build ./...`. Run it all:
-  `bash scripts/verify-build.sh` (expect 11/11).
-- Root `go build ./...` does NOT work (modules resolve via per-module replace
-  directives). `go work sync` and standalone tidy can disagree; standalone wins.
-- Run locally: `.\scripts\dev-local.ps1` (Windows) / `./scripts/dev-local.sh`.
+- `skills/adspilot/`: the product. Text and manifest only, no install commands.
+- `scripts/verify-agent-package.mjs`, `scripts/verify-ilang.py`,
+  `tests/agent-package/`: developer checks, not host runtime dependencies.
+- `services/adscenter`: optional legacy Google Ads adapter, default and live
+  compile/unit gates. Unsupported writes are explicitly disabled.
+- `services/affiliate`: optional provider library, not a runnable server.
+- Other Go modules, frontend, local OAuth and deployment scripts: frozen
+  historical assets, retained without claiming production readiness.
+- `specs/openapi/*.yaml`: canonical legacy OpenAPI schemas;
+  `services/*/internal/oapi`: generated code.
 
-## Traps (learned the hard way)
-- `.gitignore` anchors `/secrets/` deliberately: an unanchored `secrets/` rule
-  swallowed `services/adscenter/internal/secrets` twice. Committing anything
-  under a dir named `secrets` requires care (`git status` before push).
-- All config via environment variables. No project IDs, domains, or credentials
-  in source.
+## Verification
+
+Primary checks need Node 22+ and Python 3.12+ only for contributors:
+`node scripts/verify-agent-package.mjs`,
+`node --test tests/agent-package/*.test.mjs scripts/verify-go.test.mjs`,
+`python scripts/verify-ilang.py`.
+
+Optional adapters: `node scripts/verify-go.mjs` (Go 1.25.14 in CI).
+Complete inventory: `node scripts/verify-go.mjs --inventory-only`.
+Modules use `GOWORK=off`, `GOTOOLCHAIN=local`, `-mod=readonly`.
+Never run `go mod tidy` as verification or claim root `go build ./...` proves
+the monorepo works. Node/Go/Python here are developer tools only.
+
+## Safety and traps
+
+- Existing module imports retain `github.com/ScientificInternet/Google-Monetize`.
+  Do not rename them merely to match the GitHub repository owner.
+- Never serialize credentials into shared Redis/Valkey caches, logs, prompts,
+  artifacts, or source. Prefer opaque host-held grants for the agent product.
+- Target customer CID and manager/login CID are different.
+- Reuse valid scoped authorization; don't confuse repository access with Ads
+  account mutation authority.
+- Validation, planning, queued state and HTTP 501 are not live completion.
+- A create timeout is unknown outcome, not permission to retry.
+- Follow pinned official I-Lang; custom domain data is not a new verb.
+- Preserve unrelated changes, record verified milestones and recovery state.

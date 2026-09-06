@@ -24,6 +24,9 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -31,6 +34,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ScientificInternet/Google-Monetize/pkg/middleware"
 	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/config"
 	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/localcreds"
 )
@@ -43,7 +47,60 @@ const (
 	pendingAuthTTL       = 10 * time.Minute
 )
 
-var googleHTTPClient = &http.Client{Timeout: 30 * time.Second}
+var googleHTTPClient = &http.Client{
+	Timeout: 30 * time.Second,
+	// An unexpected redirect must not forward authorization codes, client
+	// secrets, or refresh tokens to another endpoint.
+	CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
+}
+
+// RequireLocalOAuthRequest is shared by the router and handlers so alternate
+// mounting paths cannot expose the process credential store. Host validation
+// blocks DNS rebinding; Origin/Fetch Metadata block browser-driven local CSRF.
+// A top-level callback GET may originate at Google: state+PKCE validates it.
+func RequireLocalOAuthRequest(w http.ResponseWriter, r *http.Request) bool {
+	if !middleware.LocalMode() {
+		http.Error(w, "Local OAuth is unavailable outside local adapter mode", http.StatusNotFound)
+		return false
+	}
+	peer, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		peer = r.RemoteAddr
+	}
+	peerIP := net.ParseIP(peer)
+	host, err := url.Parse("http://" + r.Host)
+	if peerIP == nil || !peerIP.IsLoopback() || err != nil || host.User != nil || host.Path != "" || host.RawQuery != "" || host.Fragment != "" || !isOAuthLoopbackHost(host.Hostname()) {
+		http.Error(w, "Local OAuth requires a loopback connection and Host", http.StatusForbidden)
+		return false
+	}
+	isCallback := r.Method == http.MethodGet && r.URL.Path == "/api/v1/adscenter/oauth/callback"
+	if !isCallback {
+		if site := strings.ToLower(r.Header.Get("Sec-Fetch-Site")); site != "" && site != "same-origin" && site != "none" {
+			http.Error(w, "Cross-origin local OAuth request rejected", http.StatusForbidden)
+			return false
+		}
+		if origin := r.Header.Get("Origin"); origin != "" {
+			u, err := url.Parse(origin)
+			scheme := "http"
+			if r.TLS != nil {
+				scheme = "https"
+			}
+			if err != nil || u.Scheme != scheme || !strings.EqualFold(u.Host, r.Host) || u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
+				http.Error(w, "Cross-origin local OAuth request rejected", http.StatusForbidden)
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func isOAuthLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
 
 // pendingAuthEntry holds the short-lived PKCE verifier and redirect URI between
 // the /oauth/url call and the /oauth/callback call, keyed by the state value.
@@ -109,6 +166,13 @@ func randomURLSafe(n int) (string, error) {
 // HandleOAuthURL generates the Google consent URL for the loopback + PKCE flow
 // and returns it as JSON. The caller opens the URL in the user's browser.
 func (h *OAuthHandler) HandleOAuthURL(w http.ResponseWriter, r *http.Request) {
+	if !RequireLocalOAuthRequest(w, r) {
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	creds, err := config.LoadAdsCreds(r.Context())
 	if err != nil || creds == nil || strings.TrimSpace(creds.OAuthClientID) == "" {
 		http.Error(w, "OAuth client not configured (set GOOGLE_ADS_OAUTH_CLIENT_ID; the client must be a Desktop-type client)", http.StatusInternalServerError)
@@ -151,6 +215,13 @@ func (h *OAuthHandler) HandleOAuthURL(w http.ResponseWriter, r *http.Request) {
 // authorization code (with the PKCE verifier) for tokens, and stores the
 // refresh token on the user's machine. Nothing is retained server-side.
 func (h *OAuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Request) {
+	if !RequireLocalOAuthRequest(w, r) {
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	q := r.URL.Query()
 	if e := q.Get("error"); e != "" {
 		writeCallbackPage(w, http.StatusBadRequest, "Authorization was denied or failed: "+e)
@@ -202,12 +273,20 @@ func (h *OAuthHandler) HandleOAuthCallback(w http.ResponseWriter, r *http.Reques
 	writeCallbackPage(w, http.StatusOK, "Authorization successful. The refresh token has been saved on this machine. You can close this page.")
 }
 
-// HandleOAuthRevoke revokes the stored refresh token at Google (best effort) and
-// deletes the local credential file.
+// HandleOAuthRevoke deletes local credentials and reports provider revocation
+// separately. A network failure or provider rejection is never called revoked.
 func (h *OAuthHandler) HandleOAuthRevoke(w http.ResponseWriter, r *http.Request) {
+	if !RequireLocalOAuthRequest(w, r) {
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	cred, err := localcreds.Load()
 	if err == localcreds.ErrNotFound {
-		writeJSONStatus(w, http.StatusOK, map[string]bool{"revoked": false})
+		config.InvalidateAdsCredsCache(r.Context())
+		writeJSONStatus(w, http.StatusOK, map[string]any{"revoked": false, "localDeleted": true, "providerStatus": "not_attempted"})
 		return
 	}
 	if err != nil {
@@ -215,15 +294,22 @@ func (h *OAuthHandler) HandleOAuthRevoke(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	revokeToken(r.Context(), cred.RefreshToken)
-
-	if err := localcreds.Delete(); err != nil {
-		http.Error(w, "revoked at provider but failed to delete local credential: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	// Drop the cached creds bundle so handlers stop using the revoked token.
+	revokeErr := revokeToken(r.Context(), cred.RefreshToken)
+	deleteErr := localcreds.Delete()
+	// Invalidate even if disk deletion failed: a cached revoked token is stale.
 	config.InvalidateAdsCredsCache(r.Context())
-	writeJSONStatus(w, http.StatusOK, map[string]bool{"revoked": true})
+	result := map[string]any{"revoked": revokeErr == nil, "localDeleted": deleteErr == nil, "providerStatus": "revoked"}
+	status := http.StatusOK
+	if revokeErr != nil {
+		status = http.StatusBadGateway
+		result["providerStatus"] = "unconfirmed"
+		result["message"] = "Provider revocation was not confirmed; review or revoke this grant in the Google account permissions page"
+	}
+	if deleteErr != nil {
+		status = http.StatusInternalServerError
+		result["localError"] = "Failed to delete the stored local credential"
+	}
+	writeJSONStatus(w, status, result)
 }
 
 type oauthTokenResponse struct {
@@ -256,6 +342,9 @@ func exchangeAuthCode(ctx context.Context, clientID, clientSecret, code, verifie
 		return tr, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return tr, fmt.Errorf("Google OAuth token exchange returned HTTP %d", resp.StatusCode)
+	}
 	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
 		return tr, err
 	}
@@ -265,18 +354,25 @@ func exchangeAuthCode(ctx context.Context, clientID, clientSecret, code, verifie
 	return tr, nil
 }
 
-func revokeToken(ctx context.Context, token string) {
+func revokeToken(ctx context.Context, token string) error {
+	if strings.TrimSpace(token) == "" {
+		return errors.New("missing token to revoke")
+	}
 	form := url.Values{"token": {token}}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, googleRevokeEndpoint, strings.NewReader(form.Encode()))
 	if err != nil {
-		return
+		return errors.New("failed to construct provider revocation request")
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := googleHTTPClient.Do(req)
 	if err != nil {
-		return
+		return errors.New("provider revocation request failed")
 	}
-	_ = resp.Body.Close()
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("provider revocation returned HTTP %d", resp.StatusCode)
+	}
+	return nil
 }
 
 type oauthError struct {

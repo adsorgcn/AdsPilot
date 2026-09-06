@@ -1,0 +1,106 @@
+# AdsPilot project memory v1 — 2026-09-06
+
+## Current state
+
+- 2026-09-06 owner correction: agent-native, instruction-only installation and
+  use; no user-managed computer/server/runtime. Follow I-Lang at ilang.ai.
+- P0 and P1 implementation authorized. Active branch:
+  `codex/agent-native-p0-p1-2026-09-06`. Prior install/implementation permission
+  questions are superseded for normal development work in this scope.
+- Recovery: read this file and `git status`; implementation is split into
+  isolated credential/success fixes, verification/CI, and agent skill/protocol.
+  Any developer-only runtime downloads are separate from product dependencies.
+
+- Repository: `https://github.com/adsorgcn/AdsPilot`
+- Local checkout: `C:\Users\Administrator\Documents\AdsPilot`
+- Default branch: `main`
+- Intake commit: `c52cbfdf1f7f843cdfbd7e40f960140f7e269229`
+- GitHub access verified through the connected `adsorgcn` account with repository `admin` and `push` permission.
+- Checkout completed successfully; working tree was clean immediately after clone.
+- The current Codex task is renamed `AdsPilot 主力项目接管` and pinned for ongoing work.
+- Repository-level Codex guidance was added in `AGENTS.md`.
+- The verified intake and prioritized backlog were recorded in
+  `docs/TAKEOVER_ROADMAP_v1_2026-09-06.md`.
+- Intake found no open GitHub issues or pull requests; the existing remote topic
+  branches are already merged into `main`.
+- P0 intake findings include an implicit stub execution path, sunset Google Ads
+  API v16 endpoints, queued or write-shaped paths that can report success
+  without verified execution, broken/incomplete verification gates, and
+  refresh-token serialization into a Redis-capable shared cache. See the
+  takeover roadmap for remediation and acceptance criteria.
+
+## Recovery
+
+Resume from the local checkout above. Before changing code, read `CLAUDE.md`, the root README, package manifests, and any task-specific instructions. Re-run `git status --short --branch` and compare `HEAD` with the intake commit.
+
+## Intake completed
+
+- Architecture, unfinished-work, quality, and live Google Ads path reviews were
+  completed as read-only audits.
+- `git diff --check` and syntax checks for the tracked JavaScript entry files
+  passed. Go tests/builds, npm install/typecheck/lint/build/tests, Docker build,
+  and Gitleaks were not run because their local tooling or dependencies are
+  absent.
+- No repository `.env`, local AdsPilot credential file, or relevant Google Ads
+  environment variables were present. Presence was checked without reading any
+  secret value.
+- No background audit process remains to recover. Resume with P0.1 in the
+  takeover roadmap; the first recommended change is a truthful developer and CI
+  baseline that requires no production credentials.
+
+## Pending decisions
+
+- Current roadmap is `docs/AGENT_NATIVE_ROADMAP_v2_2026-09-06.md`; v1 is historical.
+- Normal development/tooling work is authorized. Deliver on the active review
+  branch; do not merge unverified changes to main.
+- Whether the legacy SaaS frontend/services should be archived or retained as a
+  separately supported product surface. Current default: retain frozen assets.
+- Authorization and safe account scope for any future live Google Ads test.
+
+## Implementation milestones
+
+- Agent instruction package v0.1.0 created, no executable/dependency/service
+  payload. Host tools supply all production execution and secret storage.
+- Official I-Lang specification pinned to
+  `f81e2bf1a952563ede3d45b814bb4a8482ba38cd`; v5 merged document 2.0.1,
+  frozen M1-M8/ine serialization, L1 advisory boundary explicitly documented.
+- Official strict syntax check passed with zero errors/warnings; judgment
+  selftest 14/14 and mode fixtures 6/6. Skill-creator quick validation passed.
+- Primary structure/regression suite and module verifier tests passed 14/14.
+- Go module inventory maps 36 modules and seven explicit orphan-source
+  exclusions. Verification is readonly and does not run tidy/sync.
+- Credential cache uses process-local memory, never shared Redis/Valkey;
+  credential config tests passed, including no network connection to cache.
+- AdsCenter focused default/live tests passed. Full final checks are tracked in
+  `IMPLEMENTATION_STATE_v1_2026-09-06.md`; no real provider claim is made.
+- Affiliate library tests/build passed; it is not a runnable service or a
+  completed CJ connector. No live advertising requests were performed.
+- Three independent Skill scenario reviews passed expected boundaries;
+  clarified standing grants vs plan approvals and missing host capability rows.
+- Current session tool discovery found no Google Ads/CJ execution connector;
+  plugin search tools are not exposed either. This is a current-host dependency,
+  not proof no compatible integrations exist. Live account acceptance remains
+  pending; do not request plaintext tokens or a user-hosted replacement server.
+- README/README.en/CLAUDE/AGENTS now describe agent-native use; old local-first
+  roadmap and handoff carry superseded notices.
+- Final protocol pin review added a single approved revision/hash configuration,
+  rejecting profile drift and empty fixtures: Node 16/16, Python 4/4 passed;
+  upstream grammar/judge checks passed again.
+- Versioned instruction-only ZIP built and integrity checked (8 files):
+  `dist/adspilot-agent-v0.1.0-2026-09-06.zip`, SHA256
+  `cf45c645a89457cb71781e6d3513119d8df366eeba2e7bb1443871f11df7b710`.
+  This ignored local delivery file must not be silently overwritten; CI packages
+  the same versioned source as a workflow artifact.
+- OAuth routes are now restricted to validated local-loopback requests with
+  Host/Origin/Fetch-Metadata checks; callback retains state+PKCE protections.
+  Provider revocation and local credential deletion now have separate results;
+  network/rejection cannot claim revocation. Final full tests cover this patch.
+- Local account snapshots bypass shared cache to avoid fixed `local` identity
+  collisions or stale account lists after OAuth changes. Non-local historical
+  cache invalidation, token encryption-variable naming, and tenant ownership
+  remain audit items before any separately authorized legacy deployment.
+- Final stable AdsCenter verification passed: default and ads_live, each 19
+  packages (9 with tests, 10 without), plus both builds. The final two-line
+  local-cache guard received API retests and both builds. No Go manifest drift.
+- All local development/test sessions ended; no application/background server
+  was started. Review branch publication and remote CI are separate milestones.

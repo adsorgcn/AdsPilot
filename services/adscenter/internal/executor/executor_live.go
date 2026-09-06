@@ -14,6 +14,7 @@ import (
 	"time"
 
 	httpx "github.com/ScientificInternet/Google-Monetize/pkg/http"
+	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/ads"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -44,7 +45,10 @@ type Config struct {
 
 type Executor struct {
 	cfg  Config
-	http *httpx.Client
+	http interface {
+		DoRaw(*http.Request) (*http.Response, error)
+	}
+	ts oauth2.TokenSource
 }
 
 func New(cfg Config) *Executor {
@@ -55,6 +59,12 @@ func New(cfg Config) *Executor {
 }
 
 func (e *Executor) ExecuteOne(ctx context.Context, a Action) (Result, error) {
+	if err := ctx.Err(); err != nil {
+		return Result{Success: false, Message: err.Error()}, err
+	}
+	if e.cfg.LiveMutate && !e.cfg.ValidateOnly {
+		return Result{Success: false, Message: ads.ErrLiveWriteUnavailable.Error(), Details: map[string]any{"executed": false}}, ads.ErrLiveWriteUnavailable
+	}
 	t := strings.ToUpper(strings.TrimSpace(a.Type))
 	switch t {
 	case "ADJUST_CPC":
@@ -123,10 +133,13 @@ func (e *Executor) addNegativeKeywords(ctx context.Context, a Action) (Result, e
 		matchType = "PHRASE"
 	}
 	if len(adGroups) == 0 || len(keywords) == 0 {
-		return Result{Success: true, Message: "validateOnly mutate skipped: missing adGroups/keywords"}, nil
+		return Result{Success: false, Message: "missing adGroups/keywords"}, errors.New("missing required action targets or parameters")
 	}
 	// Fetch existing negatives to avoid duplicates
-	existing, _ := e.fetchNegKeywords(ctx, adGroups)
+	existing, err := e.fetchNegKeywords(ctx, adGroups)
+	if err != nil {
+		return Result{Success: false, Message: "read existing negative keywords failed"}, err
+	}
 	ops := make([]map[string]any, 0)
 	applied, skipped := 0, 0
 	for _, ag := range adGroups {
@@ -149,7 +162,7 @@ func (e *Executor) addNegativeKeywords(ctx context.Context, a Action) (Result, e
 			applied++
 		}
 	}
-	details := map[string]any{"targets": adGroups, "keywords": keywords, "matchType": matchType, "applied": applied, "skipped": skipped}
+	details := map[string]any{"targets": adGroups, "keywords": keywords, "matchType": matchType, "plannedOperations": applied, "skipped": skipped}
 	validateOnly := !e.cfg.LiveMutate || e.cfg.ValidateOnly
 	res, err := e.mutate(ctx, ops, validateOnly)
 	if res.Details == nil {
@@ -159,7 +172,7 @@ func (e *Executor) addNegativeKeywords(ctx context.Context, a Action) (Result, e
 		res.Details[k] = v
 	}
 	if len(ops) == 0 {
-		res.Success = true
+		res.Success = false
 		if res.Message == "" {
 			res.Message = "no-op"
 		}
@@ -195,9 +208,12 @@ func (e *Executor) removeNegativeKeywords(ctx context.Context, a Action) (Result
 	}
 	matchType := strings.ToUpper(strings.TrimSpace(toString(a.Params["matchType"]))) // optional
 	if len(adGroups) == 0 || len(keywords) == 0 {
-		return Result{Success: true, Message: "no-op: missing adGroups/keywords"}, nil
+		return Result{Success: false, Message: "missing adGroups/keywords"}, errors.New("missing required action targets or parameters")
 	}
-	existing, _ := e.fetchNegKeywords(ctx, adGroups)
+	existing, err := e.fetchNegKeywords(ctx, adGroups)
+	if err != nil {
+		return Result{Success: false, Message: "read existing negative keywords failed"}, err
+	}
 	ops := make([]map[string]any, 0)
 	applied, skipped := 0, 0
 	for _, ag := range adGroups {
@@ -224,7 +240,7 @@ func (e *Executor) removeNegativeKeywords(ctx context.Context, a Action) (Result
 			}
 		}
 	}
-	details := map[string]any{"targets": adGroups, "keywords": keywords, "matchType": matchType, "applied": applied, "skipped": skipped}
+	details := map[string]any{"targets": adGroups, "keywords": keywords, "matchType": matchType, "plannedOperations": applied, "skipped": skipped}
 	validateOnly := !e.cfg.LiveMutate || e.cfg.ValidateOnly
 	res, err := e.mutate(ctx, ops, validateOnly)
 	if res.Details == nil {
@@ -234,7 +250,7 @@ func (e *Executor) removeNegativeKeywords(ctx context.Context, a Action) (Result
 		res.Details[k] = v
 	}
 	if len(ops) == 0 {
-		res.Success = true
+		res.Success = false
 		if res.Message == "" {
 			res.Message = "no-op"
 		}
@@ -486,7 +502,7 @@ func (e *Executor) setAdSchedules(ctx context.Context, a Action) (Result, error)
 	}
 	desired := parseSchedules(a.Params["schedules"])
 	if len(camps) == 0 {
-		return Result{Success: true, Message: "no campaigns"}, nil
+		return Result{Success: false, Message: "no campaigns"}, errors.New("missing required action targets or parameters")
 	}
 	// Fetch existing
 	cur, rnByCamp, _ := e.fetchCampaignSchedules(ctx, camps)
@@ -519,7 +535,7 @@ func (e *Executor) setAdSchedules(ctx context.Context, a Action) (Result, error)
 		}
 		applied++
 	}
-	details := map[string]any{"targets": camps, "applied": applied, "skipped": skipped, "desired": desired}
+	details := map[string]any{"targets": camps, "plannedOperations": applied, "skipped": skipped, "desired": desired}
 	validateOnly := !e.cfg.LiveMutate || e.cfg.ValidateOnly
 	if !validateOnly {
 		details["before"] = before
@@ -536,7 +552,7 @@ func (e *Executor) setAdSchedules(ctx context.Context, a Action) (Result, error)
 		res.Details[k] = v
 	}
 	if len(ops) == 0 {
-		res.Success = true
+		res.Success = false
 		if res.Message == "" {
 			res.Message = "no-op"
 		}
@@ -545,6 +561,9 @@ func (e *Executor) setAdSchedules(ctx context.Context, a Action) (Result, error)
 }
 
 func (e *Executor) tokenSource(ctx context.Context) oauth2.TokenSource {
+	if e.ts != nil {
+		return e.ts
+	}
 	conf := &oauth2.Config{ClientID: e.cfg.OAuthClientID, ClientSecret: e.cfg.OAuthClientSecret, Endpoint: google.Endpoint, Scopes: []string{"https://www.googleapis.com/auth/adwords"}}
 	return conf.TokenSource(ctx, &oauth2.Token{RefreshToken: e.cfg.RefreshToken})
 }
@@ -581,7 +600,7 @@ func (e *Executor) adjustCPC(ctx context.Context, a Action) (Result, error) {
 		}
 	}
 	if len(targets) == 0 {
-		return Result{Success: true, Message: "validateOnly mutate skipped: no targets"}, nil
+		return Result{Success: false, Message: "no targets"}, errors.New("missing required action targets or parameters")
 	}
 	cpcMicros := int64(0)
 	percent := 0.0
@@ -598,7 +617,7 @@ func (e *Executor) adjustCPC(ctx context.Context, a Action) (Result, error) {
 	}
 	if cpcMicros <= 0 {
 		if percent == 0 {
-			return Result{Success: true, Message: "validateOnly mutate skipped: cpcMicros missing/<=0"}, nil
+			return Result{Success: false, Message: "cpcMicros missing/<=0"}, errors.New("missing required action targets or parameters")
 		}
 	}
 	ops := make([]map[string]any, 0, len(targets))
@@ -606,7 +625,10 @@ func (e *Executor) adjustCPC(ctx context.Context, a Action) (Result, error) {
 	var _ = before
 	// If percent provided, compute per-target new CPC based on current values
 	if percent != 0 {
-		bm, _ := e.fetchCriterionCPC(ctx, targets)
+		bm, err := e.fetchCriterionCPC(ctx, targets)
+		if err != nil {
+			return Result{Success: false, Message: "read current CPC failed"}, err
+		}
 		before = bm
 		for _, rn := range targets {
 			cur := bm[rn]
@@ -638,7 +660,7 @@ func (e *Executor) adjustCPC(ctx context.Context, a Action) (Result, error) {
 	}
 	// validateOnly unless LiveMutate 且未显式 ValidateOnly
 	validateOnly := !e.cfg.LiveMutate || e.cfg.ValidateOnly
-	details := map[string]any{"targets": targets, "cpcMicros": cpcMicros, "applied": len(ops), "skipped": len(targets) - len(ops)}
+	details := map[string]any{"targets": targets, "cpcMicros": cpcMicros, "plannedOperations": len(ops), "skipped": len(targets) - len(ops)}
 	if percent != 0 {
 		details["percent"] = percent
 	}
@@ -661,7 +683,12 @@ func (e *Executor) adjustCPC(ctx context.Context, a Action) (Result, error) {
 		return Result{Success: true, Message: "mutate ok", Details: details}, nil
 	}
 	res, err := e.mutate(ctx, ops, true)
-	res.Details = details
+	if res.Details == nil {
+		res.Details = map[string]any{}
+	}
+	for k, v := range details {
+		res.Details[k] = v
+	}
 	return res, err
 }
 
@@ -679,7 +706,7 @@ func (e *Executor) adjustBudget(ctx context.Context, a Action) (Result, error) {
 		}
 	}
 	if len(targets) == 0 {
-		return Result{Success: true, Message: "validateOnly mutate skipped: no budgets"}, nil
+		return Result{Success: false, Message: "no budgets"}, errors.New("missing required action targets or parameters")
 	}
 	amt := int64(0)
 	percent := 0.0
@@ -706,13 +733,16 @@ func (e *Executor) adjustBudget(ctx context.Context, a Action) (Result, error) {
 		percent = p
 	}
 	if amt <= 0 && percent == 0 {
-		return Result{Success: true, Message: "validateOnly mutate skipped: amountMicros/percent missing"}, nil
+		return Result{Success: false, Message: "amountMicros/percent missing"}, errors.New("missing required action targets or parameters")
 	}
 	ops := make([]map[string]any, 0, len(targets))
 	var before map[string]int64
 	var _ = before
 	if percent != 0 {
-		bm, _ := e.fetchBudgetAmounts(ctx, targets)
+		bm, err := e.fetchBudgetAmounts(ctx, targets)
+		if err != nil {
+			return Result{Success: false, Message: "read current budgets failed"}, err
+		}
 		before = bm
 		for _, rn := range targets {
 			cur := bm[rn]
@@ -742,7 +772,7 @@ func (e *Executor) adjustBudget(ctx context.Context, a Action) (Result, error) {
 		}
 	}
 	validateOnly := !e.cfg.LiveMutate || e.cfg.ValidateOnly
-	details := map[string]any{"targets": targets, "amountMicros": amt, "applied": len(ops), "skipped": len(targets) - len(ops)}
+	details := map[string]any{"targets": targets, "amountMicros": amt, "plannedOperations": len(ops), "skipped": len(targets) - len(ops)}
 	if percent != 0 {
 		details["percent"] = percent
 	}
@@ -764,16 +794,24 @@ func (e *Executor) adjustBudget(ctx context.Context, a Action) (Result, error) {
 		return Result{Success: true, Message: "mutate ok", Details: details}, nil
 	}
 	res, err := e.mutate(ctx, ops, true)
-	res.Details = details
+	if res.Details == nil {
+		res.Details = map[string]any{}
+	}
+	for k, v := range details {
+		res.Details[k] = v
+	}
 	return res, err
 }
 
 func (e *Executor) mutate(ctx context.Context, ops []map[string]any, validateOnly bool) (Result, error) {
-	if len(ops) == 0 {
-		return Result{Success: true, Message: "no-op"}, nil
+	if !validateOnly {
+		return Result{Success: false, Message: ads.ErrLiveWriteUnavailable.Error()}, ads.ErrLiveWriteUnavailable
 	}
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/googleAds:mutate", e.cfg.CustomerID)
-	body := map[string]any{"validateOnly": validateOnly, "mutateOperations": ops}
+	if len(ops) == 0 {
+		return Result{Success: false, Message: "no mutation operations; Google Ads validation was not performed", Details: map[string]any{"executed": false, "googleValidated": false}}, errors.New("no mutation operations")
+	}
+	url := fmt.Sprintf(ads.APIBaseURL+"/customers/%s/googleAds:mutate", e.cfg.CustomerID)
+	body := map[string]any{"validateOnly": validateOnly, "partialFailure": false, "mutateOperations": ops}
 	b, _ := json.Marshal(body)
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(b))
 	hdr, err := e.authHeaders(ctx)
@@ -787,11 +825,19 @@ func (e *Executor) mutate(ctx context.Context, ops []map[string]any, validateOnl
 	}
 	defer resp.Body.Close()
 	var out map[string]any
-	_ = json.NewDecoder(resp.Body).Decode(&out)
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return Result{Success: false, Message: "invalid Google Ads mutate response"}, err
+	}
 	if resp.StatusCode >= 400 {
 		return Result{Success: false, Message: fmt.Sprintf("mutate http %d", resp.StatusCode), Details: out}, errors.New("mutate failed")
 	}
-	return Result{Success: true, Message: "validateOnly mutate ok", Details: out}, nil
+	if out == nil || out["partialFailureError"] != nil {
+		return Result{Success: false, Message: "Google Ads validation failed", Details: out}, errors.New("Google Ads returned empty or partial-failure response")
+	}
+	out["executed"] = false
+	out["googleValidated"] = true
+	out["validateOnly"] = true
+	return Result{Success: true, Message: "Google Ads validate-only passed; no changes executed", Details: out}, nil
 }
 
 func (e *Executor) fetchCriterionCPC(ctx context.Context, rns []string) (map[string]int64, error) {
@@ -862,7 +908,7 @@ func (e *Executor) fetchBudgetAmounts(ctx context.Context, rns []string) (map[st
 }
 
 func (e *Executor) searchStream(ctx context.Context, query string) ([]map[string]any, error) {
-	url := fmt.Sprintf("https://googleads.googleapis.com/v16/customers/%s/googleAds:searchStream", e.cfg.CustomerID)
+	url := fmt.Sprintf(ads.APIBaseURL+"/customers/%s/googleAds:searchStream", e.cfg.CustomerID)
 	body := map[string]any{"query": query}
 	b, _ := json.Marshal(body)
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(b))
@@ -1075,7 +1121,7 @@ func (e *Executor) setTargetCPA(ctx context.Context, a Action) (Result, error) {
 		}
 	}
 	if len(targets) == 0 {
-		return Result{Success: true, Message: "no campaigns"}, nil
+		return Result{Success: false, Message: "no campaigns"}, errors.New("missing required action targets or parameters")
 	}
 	amt := int64(0)
 	switch vv := a.Params["targetCpaMicros"].(type) {
@@ -1108,7 +1154,7 @@ func (e *Executor) setTargetCPA(ctx context.Context, a Action) (Result, error) {
 		upd := map[string]any{"resourceName": rn, "targetCpa": map[string]any{"targetCpaMicros": newv}}
 		ops = append(ops, map[string]any{"campaignOperation": map[string]any{"update": upd, "updateMask": "target_cpa.target_cpa_micros"}})
 	}
-	details := map[string]any{"targets": targets, "applied": len(ops), "skipped": len(targets) - len(ops)}
+	details := map[string]any{"targets": targets, "plannedOperations": len(ops), "skipped": len(targets) - len(ops)}
 	validateOnly := !e.cfg.LiveMutate || e.cfg.ValidateOnly
 	if !validateOnly {
 		details["before"] = cur
@@ -1125,7 +1171,7 @@ func (e *Executor) setTargetCPA(ctx context.Context, a Action) (Result, error) {
 		res.Details[k] = v
 	}
 	if len(ops) == 0 {
-		res.Success = true
+		res.Success = false
 		if res.Message == "" {
 			res.Message = "no-op"
 		}
@@ -1147,7 +1193,7 @@ func (e *Executor) setTargetROAS(ctx context.Context, a Action) (Result, error) 
 		}
 	}
 	if len(targets) == 0 {
-		return Result{Success: true, Message: "no campaigns"}, nil
+		return Result{Success: false, Message: "no campaigns"}, errors.New("missing required action targets or parameters")
 	}
 	roas := 0.0
 	if p, ok := a.Params["targetRoas"].(float64); ok {
@@ -1175,7 +1221,7 @@ func (e *Executor) setTargetROAS(ctx context.Context, a Action) (Result, error) 
 		upd := map[string]any{"resourceName": rn, "targetRoas": newv}
 		ops = append(ops, map[string]any{"campaignOperation": map[string]any{"update": upd, "updateMask": "target_roas"}})
 	}
-	details := map[string]any{"targets": targets, "applied": len(ops), "skipped": len(targets) - len(ops)}
+	details := map[string]any{"targets": targets, "plannedOperations": len(ops), "skipped": len(targets) - len(ops)}
 	validateOnly := !e.cfg.LiveMutate || e.cfg.ValidateOnly
 	if !validateOnly {
 		details["before"] = cur
@@ -1192,7 +1238,7 @@ func (e *Executor) setTargetROAS(ctx context.Context, a Action) (Result, error) 
 		res.Details[k] = v
 	}
 	if len(ops) == 0 {
-		res.Success = true
+		res.Success = false
 		if res.Message == "" {
 			res.Message = "no-op"
 		}
@@ -1213,7 +1259,7 @@ func (e *Executor) setAdsStatus(ctx context.Context, a Action, status string) (R
 		}
 	}
 	if len(targets) == 0 {
-		return Result{Success: true, Message: "no targets"}, nil
+		return Result{Success: false, Message: "no targets"}, errors.New("missing required action targets or parameters")
 	}
 	ops := make([]map[string]any, 0, len(targets))
 	// Skip no-op updates
@@ -1227,7 +1273,7 @@ func (e *Executor) setAdsStatus(ctx context.Context, a Action, status string) (R
 		upd := map[string]any{"resourceName": rn, "status": status}
 		ops = append(ops, map[string]any{"adGroupAdOperation": map[string]any{"update": upd, "updateMask": "status"}})
 	}
-	details := map[string]any{"targets": targets, "status": status, "applied": len(ops), "skipped": len(targets) - len(ops)}
+	details := map[string]any{"targets": targets, "status": status, "plannedOperations": len(ops), "skipped": len(targets) - len(ops)}
 	validateOnly := !e.cfg.LiveMutate || e.cfg.ValidateOnly
 	if !validateOnly {
 		if before, _ := e.fetchAdStatus(ctx, targets); before != nil {
@@ -1240,7 +1286,12 @@ func (e *Executor) setAdsStatus(ctx context.Context, a Action, status string) (R
 			details["after"] = after
 		}
 	}
-	res.Details = details
+	if res.Details == nil {
+		res.Details = map[string]any{}
+	}
+	for k, v := range details {
+		res.Details[k] = v
+	}
 	return res, err
 }
 
@@ -1257,7 +1308,7 @@ func (e *Executor) setAdGroupsStatus(ctx context.Context, a Action, status strin
 		}
 	}
 	if len(targets) == 0 {
-		return Result{Success: true, Message: "no targets"}, nil
+		return Result{Success: false, Message: "no targets"}, errors.New("missing required action targets or parameters")
 	}
 	ops := make([]map[string]any, 0, len(targets))
 	curMap, _ := e.fetchAdGroupStatus(ctx, targets)
@@ -1270,7 +1321,7 @@ func (e *Executor) setAdGroupsStatus(ctx context.Context, a Action, status strin
 		upd := map[string]any{"resourceName": rn, "status": status}
 		ops = append(ops, map[string]any{"adGroupOperation": map[string]any{"update": upd, "updateMask": "status"}})
 	}
-	details := map[string]any{"targets": targets, "status": status, "applied": len(ops), "skipped": len(targets) - len(ops)}
+	details := map[string]any{"targets": targets, "status": status, "plannedOperations": len(ops), "skipped": len(targets) - len(ops)}
 	validateOnly := !e.cfg.LiveMutate || e.cfg.ValidateOnly
 	if !validateOnly {
 		if before, _ := e.fetchAdGroupStatus(ctx, targets); before != nil {
@@ -1283,7 +1334,12 @@ func (e *Executor) setAdGroupsStatus(ctx context.Context, a Action, status strin
 			details["after"] = after
 		}
 	}
-	res.Details = details
+	if res.Details == nil {
+		res.Details = map[string]any{}
+	}
+	for k, v := range details {
+		res.Details[k] = v
+	}
 	return res, err
 }
 
@@ -1300,7 +1356,7 @@ func (e *Executor) setCampaignsStatus(ctx context.Context, a Action, status stri
 		}
 	}
 	if len(targets) == 0 {
-		return Result{Success: true, Message: "no targets"}, nil
+		return Result{Success: false, Message: "no targets"}, errors.New("missing required action targets or parameters")
 	}
 	ops := make([]map[string]any, 0, len(targets))
 	curMap, _ := e.fetchCampaignStatus(ctx, targets)
@@ -1313,7 +1369,7 @@ func (e *Executor) setCampaignsStatus(ctx context.Context, a Action, status stri
 		upd := map[string]any{"resourceName": rn, "status": status}
 		ops = append(ops, map[string]any{"campaignOperation": map[string]any{"update": upd, "updateMask": "status"}})
 	}
-	details := map[string]any{"targets": targets, "status": status, "applied": len(ops), "skipped": len(targets) - len(ops)}
+	details := map[string]any{"targets": targets, "status": status, "plannedOperations": len(ops), "skipped": len(targets) - len(ops)}
 	validateOnly := !e.cfg.LiveMutate || e.cfg.ValidateOnly
 	if !validateOnly {
 		if before, _ := e.fetchCampaignStatus(ctx, targets); before != nil {
@@ -1326,7 +1382,12 @@ func (e *Executor) setCampaignsStatus(ctx context.Context, a Action, status stri
 			details["after"] = after
 		}
 	}
-	res.Details = details
+	if res.Details == nil {
+		res.Details = map[string]any{}
+	}
+	for k, v := range details {
+		res.Details[k] = v
+	}
 	return res, err
 }
 
@@ -1345,7 +1406,7 @@ func (e *Executor) setKeywordsStatus(ctx context.Context, a Action, status strin
 		}
 	}
 	if len(targets) == 0 {
-		return Result{Success: true, Message: "no targets"}, nil
+		return Result{Success: false, Message: "no targets"}, errors.New("missing required action targets or parameters")
 	}
 	ops := make([]map[string]any, 0, len(targets))
 	curMap, _ := e.fetchKeywordStatus(ctx, targets)
@@ -1358,7 +1419,7 @@ func (e *Executor) setKeywordsStatus(ctx context.Context, a Action, status strin
 		upd := map[string]any{"resourceName": rn, "status": status}
 		ops = append(ops, map[string]any{"adGroupCriterionOperation": map[string]any{"update": upd, "updateMask": "status"}})
 	}
-	details := map[string]any{"targets": targets, "status": status, "applied": len(ops), "skipped": len(targets) - len(ops)}
+	details := map[string]any{"targets": targets, "status": status, "plannedOperations": len(ops), "skipped": len(targets) - len(ops)}
 	validateOnly := !e.cfg.LiveMutate || e.cfg.ValidateOnly
 	if !validateOnly {
 		if before, _ := e.fetchKeywordStatus(ctx, targets); before != nil {
@@ -1371,7 +1432,12 @@ func (e *Executor) setKeywordsStatus(ctx context.Context, a Action, status strin
 			details["after"] = after
 		}
 	}
-	res.Details = details
+	if res.Details == nil {
+		res.Details = map[string]any{}
+	}
+	for k, v := range details {
+		res.Details[k] = v
+	}
 	return res, err
 }
 

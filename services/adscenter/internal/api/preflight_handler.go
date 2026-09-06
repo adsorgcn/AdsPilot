@@ -22,7 +22,6 @@ import (
 	adscfg "github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/config"
 	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/preflight"
 	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/ratelimit"
-	"github.com/ScientificInternet/Google-Monetize/services/adscenter/internal/storage"
 )
 
 // PreflightRequest represents the request for preflight checks
@@ -41,8 +40,10 @@ type PreflightCheck struct {
 
 // PreflightResponse is the legacy response format
 type PreflightResponse struct {
-	Summary string           `json:"summary"`
-	Checks  []PreflightCheck `json:"checks"`
+	Summary         string           `json:"summary"`
+	Checks          []PreflightCheck `json:"checks"`
+	Mode            string           `json:"mode"`
+	GoogleValidated bool             `json:"googleValidated"`
 }
 
 type preflightCache struct {
@@ -94,64 +95,49 @@ func (h *PreflightHandler) HandlePreflight(w http.ResponseWriter, r *http.Reques
 	}
 
 	ctx := r.Context()
-	creds, _ := adscfg.LoadAdsCreds(ctx)
+	creds, credsErr := adscfg.LoadAdsCreds(ctx)
 	flags := adscfg.LoadPrecheckFlags()
-
-	// validate-only: skip token requirement and live calls
-	var tokenEnc string
-	var loginCID string
 	if !req.ValidateOnly {
-		// Strong requirement: user-level refresh token must exist for live checks
-		var err error
-		tokenEnc, loginCID, _, err = storage.GetUserRefreshToken(ctx, h.DB, uid)
-		if err != nil || tokenEnc == "" {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
-				"error":   "missing_user_refresh_token",
-				"message": "No Google Ads refresh token found. Please connect your Google Ads account.",
-			})
+		if !flags.EnableLive {
+			writeExecutionUnavailable(w, r, "Live Google Ads preflight is disabled; use validateOnly for local configuration checks")
 			return
 		}
-
-		// Decrypt with key rotation support
-		if pt, ok := DecryptWithRotation(tokenEnc); ok {
-			creds.RefreshToken = pt
-		} else {
-			// If we cannot decrypt and key(s) set, treat as error
-			if os.Getenv("REFRESH_TOKEN_ENC_KEY_B64") != "" || os.Getenv("REFRESH_TOKEN_ENC_KEY_B64_OLD") != "" {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusInternalServerError)
-				_ = json.NewEncoder(w).Encode(map[string]interface{}{
-					"error":   "failed_to_decrypt_refresh_token",
-					"message": "Refresh token decryption failed. Please contact support or reconnect your Google Ads account.",
-				})
-				return
-			}
-			// No keys provided: assume plaintext stored
-			creds.RefreshToken = tokenEnc
+		creds, credsErr = loadUserAdsCredentials(ctx, h.DB, uid)
+		if credsErr != nil {
+			apierrors.InvalidRequest("credentials", "Google Ads credentials unavailable").WriteJSON(w, r)
+			return
 		}
-
-		if creds.LoginCustomerID == "" && loginCID != "" {
-			creds.LoginCustomerID = loginCID
+		if strings.TrimSpace(req.AccountID) == "" {
+			apierrors.InvalidRequest("accountId", "explicit target account is required").WriteJSON(w, r)
+			return
 		}
+	}
+
+	if credsErr != nil || creds == nil {
+		apierrors.InternalError("Google Ads configuration could not be loaded").WriteJSON(w, r)
+		return
 	}
 
 	// Optional live client
 	var client preflight.LiveClient
 	if flags.EnableLive && !req.ValidateOnly {
-		baseClient, _ := adsstub.NewClient(r.Context(), adsstub.LiveConfig{
+		baseClient, err := adsstub.NewClient(r.Context(), adsstub.LiveConfig{
 			DeveloperToken:    creds.DeveloperToken,
 			OAuthClientID:     creds.OAuthClientID,
 			OAuthClientSecret: creds.OAuthClientSecret,
 			RefreshToken:      creds.RefreshToken,
 			LoginCustomerID:   creds.LoginCustomerID,
+			CustomerID:        req.AccountID,
 		})
+		if err != nil {
+			writeExecutionUnavailable(w, r, "Live Google Ads preflight client is unavailable")
+			return
+		}
 		client = preflight.WrapWithThrottle(baseClient)
 	}
 
 	// Short cache by user + account
-	cacheKey := uid + ":" + req.AccountID + ":vo=" + func() string {
+	cacheKey := "truthful-v1:" + uid + ":" + req.AccountID + ":vo=" + func() string {
 		if req.ValidateOnly {
 			return "1"
 		}
@@ -163,7 +149,7 @@ func (h *PreflightHandler) HandlePreflight(w http.ResponseWriter, r *http.Reques
 		if txt, ok := h.RC.Get(ctx, "ac:preflight:"+cacheKey); ok {
 			var legacy PreflightResponse
 			if err := json.Unmarshal([]byte(txt), &legacy); err == nil {
-				writeJSON(w, http.StatusOK, map[string]any{"summary": legacy.Summary, "checks": legacy.Checks})
+				writeJSON(w, http.StatusOK, legacy)
 				return
 			}
 		}
@@ -256,8 +242,12 @@ func (h *PreflightHandler) HandlePreflight(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	resp := map[string]any{"summary": sm, "checks": outChecks}
-	legacy := PreflightResponse{Summary: sm, Checks: legacyChecks}
+	mode := "local_checks"
+	if client != nil {
+		mode = "live_reads"
+	}
+	resp := map[string]any{"summary": sm, "checks": outChecks, "mode": mode, "googleValidated": false}
+	legacy := PreflightResponse{Summary: sm, Checks: legacyChecks, Mode: mode, GoogleValidated: false}
 
 	writeJSON(w, http.StatusOK, resp)
 
