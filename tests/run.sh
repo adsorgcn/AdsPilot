@@ -22,12 +22,17 @@ run python3 plugins/affiliate/cj/link.py --selftest
 run python3 plugins/judgment/llm/provider.py --selftest
 run python3 plugins/judgment/jev/provider.py --selftest
 run python3 plugins/judgment/soul-api/provider.py --selftest
+run python3 plugins/deploy/cloudflare/cf_api.py --selftest
+run python3 plugins/deploy/cloudflare/setup.py --selftest
+run python3 plugins/deploy/cloudflare/publish.py --selftest
+run python3 plugins/deploy/cloudflare/status.py --selftest
+run python3 core/launch/launch.py --selftest
 run python3 core/loop/daily.py --selftest
 run python3 reference/ilang/ilang_judge_validator.py --selftest
 # 判断块与正典校验器一致
 python3 core/judge/judge.py --node campaign.adjust --state tests/fixtures/state.adjust.json --choices tests/fixtures/choices.adjust.json --evidence x >/dev/null 2>tests/.judge.txt
 run python3 reference/ilang/ilang_judge_validator.py --check tests/.judge.txt
 rm -f tests/.judge.txt
-if command -v node >/dev/null 2>&1; then run node --check plugins/deploy/cloudflare-worker/worker.js; fi
+if command -v node >/dev/null 2>&1; then run node --check plugins/deploy/cloudflare/worker.js; fi
 echo; if [ $fail -eq 0 ]; then echo "ALL OK"; else echo "SOME FAILED"; fi
 exit $fail

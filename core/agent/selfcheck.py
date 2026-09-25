@@ -108,11 +108,11 @@ def check_long_run():
 
 
 def check_deploy_tools():
-    tools = [t for t in ("npx", "wrangler", "git", "curl") if shutil.which(t)]
+    tools = [t for t in ("git", "curl") if shutil.which(t)]
     missing = [t for t in ("git", "curl") if t not in tools]
     if missing:
-        return _res("deploy_tools", "warn", "have: %s" % ", ".join(tools), "缺 %s；部署插件需要" % ", ".join(missing))
-    return _res("deploy_tools", "pass", ", ".join(tools))
+        return _res("deploy_tools", "warn", "have: %s" % ", ".join(tools), "缺 %s" % ", ".join(missing))
+    return _res("deploy_tools", "pass", ", ".join(tools) + "（落地位走 Cloudflare API，不需要 node）")
 
 
 def check_ilang_runtime():

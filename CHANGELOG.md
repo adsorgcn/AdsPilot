@@ -2,6 +2,12 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。本文件记细节，README 的「进度记录」记叙事，每版两处都写。
 
+## 2.0.9（2026-09-25）开局
+
+接入改成「交钥匙」：用户把 Cloudflare 全写钥匙、Google Ads、CJ 三把钥匙放进环境变量，其余全是 Agent。新增主干部件 `core/launch`（开局）：deploy 建落地位、offers 选 offer、page 写页发页、campaign 建系列、verify 真点一次、go 启用、teardown 拆，每步幂等，状态在 `runs/launch/launch.json`。`plugins/deploy/cloudflare-worker` 改为 `plugins/deploy/cloudflare`：不再用 wrangler 与 node，`cf_api.py` 用标准库直接调 Cloudflare API，`setup.py` 一次建好 KV、Worker（带绑定与 secret）、自定义域名（DNS 与证书自动），`publish.py` 推页面与 offer 表（只是 KV 写入，不重新部署），`status.py --roundtrip` 真点一次；Worker 同时服务落地页、/go、/export、/health；隐私与条款页模板；`data/deploy.json` 记落地位在哪，主干循环与 `subid.py pull` 从这里读。Google Ads 插件加 `--enable-campaign` / `--pause-campaign`。选品 `ppc_allowed` 为 null 时 SOUL 不放行，Agent 读 Program Terms 后填 policy 或 `--pick`。
+
+真实世界：用我们自己的钥匙在 `reviews.aixray.dev` 从零到一条系列全程无人跑通并拆净（见 `core/launch/使用方法.md` 实测记录）。自测 26 项。
+
 ## 2.0.8（2026-09-25）
 
 README 改成叙事版：这是什么、为什么这么做、一个学员的一天、骨架、「走到哪了」逐部件状态表（有没有碰过真实世界）、「进度记录」按版本叙事、还没做的两块。英文版同步。入口文件与本文件加一条规则：每发一版，CHANGELOG 记细节，README 进度记录记叙事。

@@ -25,8 +25,8 @@ AdsPilot 反过来，是「你的 Agent 替你干活」。仓库里没有一个�
 ## 骨架一眼看
 
 ```
-core/       主干：agent 适配与自检 · lp 落地页 · judge 判断（f_v5 冻结） · ledger 归因对账 · loop 无人值守循环 · selfcheck
-plugins/    插件：traffic/google-ads · affiliate/cj · judgment/{llm,jev,soul-api} · deploy/cloudflare-worker · keywords · ipintel
+core/       主干：agent 适配与自检 · launch 开局 · lp 落地页 · judge 判断（f_v5 冻结） · ledger 归因对账 · loop 无人值守循环 · selfcheck
+plugins/    插件：traffic/google-ads · affiliate/cj · judgment/{llm,jev,soul-api} · deploy/cloudflare · keywords · ipintel
 soul/       默认 SOUL、SOUL 接口、SOUL API 接口说明
 schemas/    manifest · judgment · report · traffic-spec · traffic-report · commissions
 reference/  iLang runtime（钉版本）· affiliate-design · v1 交接
@@ -36,12 +36,13 @@ reference/  iLang runtime（钉版本）· affiliate-design · v1 交接
 
 ## 走到哪了
 
-截至 2026-09-25，版本 2.0.8。下面每一块都有代码、有使用方法、有自测，区别只在有没有碰过真实世界。
+截至 2026-09-25，版本 2.0.9。下面每一块都有代码、有使用方法、有自测，区别只在有没有碰过真实世界。
 
 | 部件 | 状态 | 真实世界 |
 |---|---|---|
 | Agent 适配与能力自检 | 完成 | 三份入口文件同内容，十一项自检，iLang runtime 钉版本校验 |
-| 落地页 | 完成 | 模板与合规检查通过自测，没在真域名上部署过 |
+| 开局（三把钥匙进，一条系列出） | **真实账号实测通过** | 在 reviews.aixray.dev 从零建落地位、发页、建系列、真点一次进账本，全程无人，然后拆净 |
+| 落地页 | 完成 | 模板与合规检查通过自测，开局时在真域名上发过一页 |
 | 判断（f_v5 冻结） | 完成 | 判断块用 iLang 正典校验器核过；提供者只做感知层 |
 | 归因与对账 | 完成 | 只跑过样例数据 |
 | 无人值守循环 | 完成 | 只跑过样例数据；七天验收未做 |
@@ -49,12 +50,14 @@ reference/  iLang runtime（钉版本）· affiliate-design · v1 交接
 | 插件 Google Ads | **真实账号实测通过** | 建系列、改预算改出价暂停词加否定词、删系列、拉报表、Data Manager 转化上传（validate-only），全通 |
 | 插件 CJ | **真实账号实测通过** | offers 187 家分页取齐、link 装 sid、commissions 切段查询、chargebacks，全通（只读） |
 | 插件 判断 llm / jev / soul-api | 代码齐 | 没连过真端点；jev 等接入文档；soul-api 服务端未建 |
-| 插件 Cloudflare Worker 中转 | 代码齐 | 语法过，没真部署过 |
+| 插件 Cloudflare 落地位 | **真实账号实测通过** | 一把钥匙建 KV、Worker、域名证书；页面 200、/go 302 带 sid、/export 进账本，全通 |
 | 插件 关键词 / IP 情报 | 只有契约 | 待首发 |
 
-一句话：Google Ads 和 CJ 两端都在真实账号上钉过了，主干在样例数据上闭环。真实世界还没碰过的只剩两块，中转在真域名上跑一遍点击到映射到账本，和 SOUL 阈值对着真数据校。这两块凑齐就能找第一个学员环境装上跑七天，验收后把插件从 alpha 改 stable。
+一句话：接入只剩一个动作，交三把钥匙（Cloudflare、Google Ads、CJ），然后跑开局，出一条真系列。从落地位到系列到账本整条链已在真实世界闭合过一次。真实世界还没碰过的只剩 SOUL 阈值对着真数据校，那只能靠跑起来慢慢校。下一步是找第一个学员环境装上跑七天，验收后把插件从 alpha 改 stable。
 
 ## 进度记录
+
+**2026-09-25，2.0.9**。接入改成交钥匙：三把钥匙放进环境变量，其余全是 Agent。新增主干「开局」七步（建落地位、选 offer、写页发页、建系列、真点一次、启用、拆），Cloudflare 插件改成一把钥匙建全部（不再要 wrangler、不再要人在控制台点任何东西）。用我们自己的钥匙在真域名上从零到一条系列全程无人跑通并拆净，整条链第一次在真实世界闭合。
 
 **2026-09-25，2.0.8**。README 改成这份叙事版，加「走到哪了」状态表与「进度记录」；此后每版两处都写，细节在 `CHANGELOG.md`，叙事在这里。
 

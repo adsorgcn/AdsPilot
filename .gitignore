@@ -6,9 +6,7 @@ runs/
 *.sqlite
 .env
 .env.*
-plugins/deploy/cloudflare-worker/wrangler.toml
-plugins/deploy/cloudflare-worker/node_modules/
-plugins/deploy/cloudflare-worker/.wrangler/
+site/
 
 # 语言与系统
 __pycache__/

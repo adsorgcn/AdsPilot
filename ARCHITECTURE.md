@@ -25,6 +25,7 @@
 |---|---|---|
 | Agent 适配 | 干 | 入口文件（CLAUDE.md、AGENTS.md、.cursor/rules）、iLang runtime 加载与校验、能力自检（能执行命令、读写文件、访问网络、跑长任务、部署、常驻运营；不满足即判不适用） |
 | 落地页（LP） | 干 | 模板、Google 目的地要求合规检查、第一方标签把 gclid 交给自有域名的中转、CTA 出站带 sub-id |
+| 开局 | 干 | 接入之后跑的第一件事：三把钥匙进，自有域名上的落地页加一条系列出，中间没有人。七步：建落地位、选 offer、写页发页、建系列、真点一次、启用、交给日常循环 |
 | 判断 | 干 | 判断接口按 iLang v5 冻结 schema 定义；本地规则与阈值兜底；f_v5 决策层在本地算，不信任何提供者报的模式；四步核验（EXTC→AUDT→VALD→CHEK） |
 | 归因与对账 | 干 | sub-id token（32 位内纯字母数字）、映射表（token→gclid、campaign、adgroup、keyword、page、时间、network、offer）、佣金明细 join、离线转化文件生成、拒付反标、证据账本 |
 | 无人值守循环 | 干 | 调度模板（systemd timer、cron）、非交互、幂等、dry-run 默认、日志、退出码、哨兵与升级预案 |
@@ -37,7 +38,7 @@
 
 **联盟与广告主**（`plugins/affiliate/<网络>/`）：CJ 首发；后续 Impact、Awin、Rakuten、ShareASale，以及带 postback 的直客广告主。契约四个动作：`offers` offer 发现与尽调数据、`link` 带 sub-id 的链接生成、`commissions` 佣金明细拉取、`chargebacks` 拒付解析。
 
-**同样按判据归为插件的**：判断引擎的外部提供者（`plugins/judgment/`：便宜模型、Jev、iLang 托管的 SOUL API，对用户环境而言都是外部 API，走同一口子）、部署目标（`plugins/deploy/`：Cloudflare Worker）、关键词数据源（`plugins/keywords/`）、IP 情报（`plugins/ipintel/`）。
+**同样按判据归为插件的**：判断引擎的外部提供者（`plugins/judgment/`：便宜模型、Jev、iLang 托管的 SOUL API，对用户环境而言都是外部 API，走同一口子）、落地位（`plugins/deploy/`：Cloudflare，一把全写钥匙，Agent 把域名下的落地页、中转、存储全建出来）、关键词数据源（`plugins/keywords/`）、IP 情报（`plugins/ipintel/`）。
 
 每个插件一个目录：一份使用方法、一个 manifest（能力、需要用户自己持有的凭据、限额、版本、状态）、脚本、自测。加一家只加一个目录，主干不改。
 
@@ -51,7 +52,7 @@
 
 ## 7. 自动化验收（硬标准）
 
-每个插件必须交付无人值守的日常循环：定时触发、非交互、幂等、有日志与退出码、自带哨兵。人只在三处出现：证件与 KYC、付款与绑卡、平台要求本人申诉。**在一台干净的用户环境里连续七天无人干预跑完日常循环，账本连续、告警可达、无人工介入记录，插件状态才能从 alpha 改成 stable。**
+每个插件必须交付无人值守的日常循环：定时触发、非交互、幂等、有日志与退出码、自带哨兵。接入只有一个动作：交钥匙（Cloudflare 全写钥匙、Google Ads、CJ），其余全是 Agent；用户不需要知道 zone、KV、scope 是什么。人只在三处出现：证件与 KYC、付款与绑卡、平台要求本人申诉。凡是 by:human 而不是这三处加交钥匙的步骤，都是设计错误。**在一台干净的用户环境里连续七天无人干预跑完日常循环，账本连续、告警可达、无人工介入记录，插件状态才能从 alpha 改成 stable。**
 
 ## 8. 合规姿态（README 第一屏，与「开源免费」并排）
 
@@ -64,9 +65,9 @@
 ## 10. 目录结构
 
 ```
-core/            agent 适配与自检、lp、judge、ledger、loop、selfcheck
+core/            agent 适配与自检、lp、judge、ledger、loop、launch（开局）、selfcheck
 plugins/         traffic/google-ads  affiliate/cj  judgment/{llm,jev,soul-api}
-                 deploy/cloudflare-worker  keywords/  ipintel/  _template/
+                 deploy/cloudflare  keywords/  ipintel/  _template/
 schemas/         report、manifest、judgment、traffic-spec、traffic-report、commissions
 soul/            SOUL 接口说明、默认 SOUL、SOUL API 接口说明
 config/          配置模板

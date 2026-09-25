@@ -1,0 +1,19 @@
+{
+  "manifest_version": 1,
+  "id": "deploy/cloudflare",
+  "kind": "deploy",
+  "name": "Cloudflare 落地位（交钥匙：落地页、/go 中转、/export 一个 Worker 全包）",
+  "version": "2.1.0",
+  "status": "alpha",
+  "usage": "使用方法.md",
+  "actions": { "setup": "setup.py", "publish": "publish.py", "status": "status.py" },
+  "credentials": [
+    { "env": "CF_API_TOKEN", "required": false, "note": "账号级全写 API Token；与下面二选一" },
+    { "env": "CF_EMAIL", "required": false, "note": "与 CF_GLOBAL_API_KEY 一起用" },
+    { "env": "CF_GLOBAL_API_KEY", "required": false, "note": "个人资料页 Global API Key，零配置" },
+    { "env": "CF_ACCOUNT_ID", "required": false, "note": "不给就取账号列表第一个" }
+  ],
+  "external_apis": [ "Cloudflare API v4（Workers Scripts、Workers KV、Workers Custom Domains、Zones）", "用户自有域名上的 /<slug> /go /export /health" ],
+  "limits": { "kv_ttl_days": 100, "export_pages": 20, "free_tier_requests_per_day": 100000 },
+  "unattended": { "accepted": false, "days": 0, "note": "setup 一次即常驻；页面与 offer 表只是 KV put；主干每轮 /export 拉回映射" }
+}

@@ -93,7 +93,7 @@ class Run:
 
     def step_pull_mappings(self):
         dep = self.cfg.get("deploy") or {}
-        url = dep.get("export_url")
+        url = dep.get("export_url") or subid.deploy_info().get("export_url")
         if not url:
             self.log("mappings: no export_url, skip (映射由本地 record 或 import 进账本)")
             return

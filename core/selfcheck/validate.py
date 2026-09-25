@@ -40,7 +40,7 @@ REQUIRED_ACTIONS = {
     "traffic": {"spec", "deploy", "report", "convert"},
     "affiliate": {"offers", "link", "commissions", "chargebacks"},
     "judgment": {"judge"},
-    "deploy": {"deploy", "status"},
+    "deploy": {"setup", "publish", "status"},
     "keywords": {"suggest", "volume"},
     "ipintel": {"lookup"},
 }

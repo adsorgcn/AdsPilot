@@ -25,8 +25,8 @@ At half past six the scheduler starts `core/loop/daily.py`. It self-checks, pull
 ## The skeleton at a glance
 
 ```
-core/       agent adaptation & self-check · lp · judge (f_v5 frozen) · ledger (sub-id attribution & reconciliation) · loop · selfcheck
-plugins/    traffic/google-ads · affiliate/cj · judgment/{llm,jev,soul-api} · deploy/cloudflare-worker · keywords · ipintel
+core/       agent adaptation & self-check · launch · lp · judge (f_v5 frozen) · ledger (sub-id attribution & reconciliation) · loop · selfcheck
+plugins/    traffic/google-ads · affiliate/cj · judgment/{llm,jev,soul-api} · deploy/cloudflare · keywords · ipintel
 soul/       default SOUL, SOUL interface, SOUL API interface
 schemas/    manifest · judgment · report · traffic-spec · traffic-report · commissions
 reference/  pinned iLang runtime · affiliate-design · v1 handoff
@@ -36,12 +36,13 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-09-25, version 2.0.8. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-09-25, version 2.0.9. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
 | Agent adaptation & self-check | done | three identical entry files, eleven checks, pinned iLang runtime verification |
-| Landing page | done | template and compliance check pass self-test; never deployed on a real domain |
+| Launch (three keys in, one campaign out) | **live-tested on a real account** | on reviews.aixray.dev: landing site built from nothing, page published, campaign created, one real click into the ledger, no human in between, then torn down |
+| Landing page | done | template and compliance check pass self-test; one page published on a real domain during launch |
 | Judgment (f_v5 frozen) | done | judgment blocks verified by the canonical iLang validator; providers are perception only |
 | Attribution & reconciliation | done | sample data only |
 | Unattended loop | done | sample data only; seven-day acceptance not run |
@@ -49,12 +50,14 @@ As of 2026-09-25, version 2.0.8. Every part below has code, a usage method and a
 | Plugin Google Ads | **live-tested on a real account** | create campaign, adjust budget and bids, pause keyword, add negative, remove campaign, pull report, Data Manager conversion upload (validate-only): all pass |
 | Plugin CJ | **live-tested on a real account** | offers (187 advertisers, paged), link with sid, commissions in windows, chargebacks: all pass (read-only) |
 | Plugin judgment llm / jev / soul-api | code complete | never connected to real endpoints; jev waits for docs; soul-api server not built |
-| Plugin Cloudflare Worker relay | code complete | syntax passes; never deployed |
+| Plugin Cloudflare landing site | **live-tested on a real account** | one key builds KV, Worker, domain and certificate; page 200, /go 302 with sid, /export into the ledger: all pass |
 | Plugin keywords / ipintel | contract only | first release pending |
 
-In one sentence: both ends, Google Ads and CJ, are pinned on real accounts, and the core closes the loop on sample data. Two things have not touched the real world yet: the relay on a real domain, click to mapping to ledger, and the SOUL thresholds against real data. With those two done, the first student environment can run seven unattended days, after which the plugins move from alpha to stable.
+In one sentence: onboarding is now one action, hand over three keys (Cloudflare, Google Ads, CJ), then run launch and get a real campaign. The whole chain from landing site to campaign to ledger has closed once in the real world. The only part not yet touched by real data is the SOUL thresholds, which can only be calibrated by running. Next is the first student environment running seven unattended days, after which the plugins move from alpha to stable.
 
 ## Progress log
+
+**2026-09-25, 2.0.9.** Onboarding becomes key handover: three keys in environment variables, everything else is the agent. New core part "launch", seven steps (build landing site, pick offer, write and publish page, create campaign, one real click, enable, teardown). Cloudflare plugin rebuilt so one key builds everything (no wrangler, nothing to click in a console). With our own keys, on a real domain, from nothing to a campaign with no human in between, then torn down: the whole chain closed in the real world for the first time.
 
 **2026-09-25, 2.0.8.** README rewritten as this narrative, with the "where things stand" table and this progress log; from now on every version is written in both places, details in `CHANGELOG.md`, the story here.
 

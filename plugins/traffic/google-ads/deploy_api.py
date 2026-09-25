@@ -7,6 +7,7 @@ Google Ads 插件 · deploy 动作的 API 路（用户自有凭据）
   --spec spec.json            按 schemas/traffic-spec 建搜索系列：预算 → 系列（建好即 PAUSED）→ 地理与语言 → 否定词 → 广告组 → 关键词 → 响应式搜索广告
                               --enable 才把系列置为 ENABLED；不带就留在 PAUSED，让本人在后台看一眼再开
   --actions actions-todo.json 执行主干判断出的动作：campaign.adjust 的 pause / bid_down / budget_up / budget_down，keyword.action 的 pause / bid_down / negative
+  --enable-campaign <id>      把系列置为 ENABLED（开局 verify 通过后启用）；--pause-campaign <id> 反之
   --remove-campaign <id>      删掉系列（含它独占的预算），测试收尾用
 输出：JSON 到 stdout，含 campaign_id、adgroup_ids、applied、mode。
 退出码：0 成功；1 输入错误；3 API 失败；4 凭据缺失。
@@ -252,6 +253,21 @@ def remove_campaign(client, campaign_id, mode):
     return out
 
 
+def set_campaign_status(client, campaign_id, status, mode):
+    camp = campaign_by_id(client, campaign_id)
+    if not camp:
+        return {"error": "campaign not found"}
+    out = {"campaign": redact_id(campaign_id), "name": camp.get("name"), "from": camp.get("status"), "to": status}
+    if mode == "dry":
+        out["plan"] = "update campaign status"; return out
+    try:
+        client.mutate("campaigns", [{"update": {"resourceName": camp["resourceName"], "status": status}, "updateMask": "status"}], validate_only=(mode == "validate"))
+        out["applied"] = (mode == "apply")
+    except GadsError as e:
+        out["error"] = client.error_summary(e)
+    return out
+
+
 # ------------------------------------------------------------------ selftest（离线）
 def selftest():
     from validate import load_schema, validate
@@ -316,6 +332,11 @@ def main(argv):
         out = remove_campaign(client, kv["remove-campaign"], mode)
         print(json.dumps(out, ensure_ascii=False, indent=2))
         return 3 if "error" in out else 0
+    for flag, status in (("enable-campaign", "ENABLED"), ("pause-campaign", "PAUSED")):
+        if flag in kv:
+            out = set_campaign_status(client, kv[flag], status, mode)
+            print(json.dumps(out, ensure_ascii=False, indent=2))
+            return 3 if "error" in out else 0
     print(__doc__); return 1
 
 

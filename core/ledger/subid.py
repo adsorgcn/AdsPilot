@@ -125,8 +125,23 @@ def import_jsonl(con, fp, source="worker"):
     return n_new, n_dup, n_bad
 
 
+def deploy_info():
+    """落地位在哪、钥匙是什么：plugins/deploy/*/setup.py 写的 data/deploy.json。没有就空。"""
+    p = os.path.join(ROOT, "data", "deploy.json")
+    if os.path.exists(p):
+        try:
+            return json.load(open(p, encoding="utf-8"))
+        except ValueError:
+            return {}
+    return {}
+
+
 def pull(con, url, key_env, since=None):
-    key = os.environ.get(key_env or "", "")
+    dep = deploy_info()
+    url = url or dep.get("export_url", "")
+    key = os.environ.get(key_env or "", "") or dep.get("export_key", "")
+    if not url:
+        print("no export_url (config.deploy.export_url 或 data/deploy.json)"); return 4
     if not key:
         print("export key env %s not set" % key_env); return 4
     q = url + ("&" if "?" in url else "?") + "since=" + (since or "1970-01-01T00:00:00Z")

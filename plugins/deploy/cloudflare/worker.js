@@ -1,20 +1,21 @@
 /*
- * AdsPilot 中转（Cloudflare Worker）· 部署在用户自有域名下
+ * AdsPilot 落地位（Cloudflare Worker）· 部署在用户自有域名下，一个 Worker 包全部
  *
- * 三个路由，不多不少：
+ *   GET /<slug>                       落地页，从 KV 取 page:<slug>（/ 取 page:index；/privacy /terms 同样是 KV 里的页）
  *   GET /go?o=<offer_ref>&gclid=..&gbraid=..&wbraid=..&c=..&a=..&k=..&n=..&p=..
  *       铸一个 20 位 token，把映射（token -> gclid、campaign、adgroup、keyword、network、page、ts、offer）存进 KV，
  *       然后 302 到该 offer 的联盟链接并带上 <param>=<token>（CJ 是 sid）。对所有访客一视同仁，不看 UA，不看 IP，不改去向。
- *   GET /export?since=<ISO>            Authorization: Bearer <EXPORT_KEY>，返回 JSONL，主干 subid.py pull 拉回本地账本
- *   GET /health                        {"ok":true,"version":"2.0.0"}
+ *   GET /export?since=<ISO>           Authorization: Bearer <EXPORT_KEY>，返回 JSONL，主干 subid.py pull 拉回本地账本
+ *   GET /health                       {"ok":true,"version":"2.1","pages":n,"offers":n}
  *
- * 绑定（wrangler.toml）：KV 命名空间 MAPPINGS；变量 OFFERS（JSON 字符串）；secret EXPORT_KEY。
- * OFFERS 形如 {"cj:100001:12345":{"url":"https://www.anrdoezrs.net/click-PID-LINKID?url=https%3A%2F%2Fbrand.example","param":"sid"}}
+ * 绑定（setup.py 上传时带上）：KV 命名空间 MAPPINGS；secret EXPORT_KEY。
+ * offers 存在 KV 的 offers 键：{"cj:100001:12345":{"url":"https://www.anrdoezrs.net/click-PID-LINKID?url=...","param":"sid"}}
+ * 加 offer、改页面都只是 KV put，不重新部署。
  */
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const TOKEN_LEN = 20;
 const TTL_SECONDS = 100 * 86400;
-const VERSION = "2.0.0";
+const VERSION = "2.1";
 
 function mint() {
   const buf = new Uint8Array(TOKEN_LEN);
@@ -34,12 +35,25 @@ function withParam(url, param, value) {
   return u.toString();
 }
 
+async function offers(env) {
+  const raw = await env.MAPPINGS.get("offers");
+  if (raw) { try { return JSON.parse(raw); } catch (e) { return {}; } }
+  try { return JSON.parse(env.OFFERS || "{}"); } catch (e) { return {}; }
+}
+
+async function handlePage(path, env) {
+  const slug = path === "/" ? "index" : path.replace(/^\/+/, "").replace(/\/+$/, "");
+  if (!/^[a-z0-9][a-z0-9-]{0,80}$/.test(slug)) return json({ error: "not found" }, 404);
+  const html = await env.MAPPINGS.get("page:" + slug);
+  if (!html) return json({ error: "not found" }, 404);
+  return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300" } });
+}
+
 async function handleGo(req, env) {
   const q = new URL(req.url).searchParams;
   const offer = q.get("o") || "";
-  let offers = {};
-  try { offers = JSON.parse(env.OFFERS || "{}"); } catch (e) { return json({ error: "OFFERS not valid JSON" }, 500); }
-  const target = offers[offer];
+  const table = await offers(env);
+  const target = table[offer];
   if (!target || !target.url) return json({ error: "unknown offer" }, 404);
   const token = mint();
   const ts = new Date().toISOString();
@@ -77,13 +91,20 @@ async function handleExport(req, env) {
   return new Response(lines.join("\n") + (lines.length ? "\n" : ""), { headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" } });
 }
 
+async function handleHealth(env) {
+  const pages = await env.MAPPINGS.list({ prefix: "page:", limit: 100 });
+  const table = await offers(env);
+  return json({ ok: true, version: VERSION, pages: pages.keys.length, offers: Object.keys(table).length });
+}
+
 export default {
   async fetch(req, env) {
     const path = new URL(req.url).pathname;
-    if (req.method !== "GET") return json({ error: "method" }, 405);
+    if (req.method !== "GET" && req.method !== "HEAD") return json({ error: "method" }, 405);
     if (path === "/go") return handleGo(req, env);
     if (path === "/export") return handleExport(req, env);
-    if (path === "/health") return json({ ok: true, version: VERSION });
-    return json({ error: "not found" }, 404);
+    if (path === "/health") return handleHealth(env);
+    if (path === "/robots.txt") return new Response("User-agent: *\nDisallow: /go\nDisallow: /export\n", { headers: { "content-type": "text/plain" } });
+    return handlePage(path, env);
   },
 };
