@@ -18,6 +18,7 @@
   "traffic": {
     "plugin": "google-ads",
     "account": "",
+    "deploy_mode": "api",
     "report_source": "csv_export",
     "report_csv": "data/inbox/google-ads-report.csv",
     "conversion_name": "affiliate_commission",

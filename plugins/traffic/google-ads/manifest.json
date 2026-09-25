@@ -8,16 +8,17 @@
   "usage": "使用方法.md",
   "actions": {
     "spec": "spec.py",
-    "deploy": "manual",
+    "deploy": "deploy_api.py",
     "report": "report_import.py",
     "report_api": "report_api.py",
-    "convert": "convert_export.py"
+    "convert": "convert_export.py",
+    "convert_api": "convert_api.py"
   },
   "credentials": [
     { "env": "GOOGLE_ADS_DEVELOPER_TOKEN", "required": false, "note": "过渡期可带；2026-09-09 起已废弃，权限级别看 OAuth 所属的 Google Cloud 项目" },
     { "env": "GOOGLE_ADS_CLIENT_ID", "required": false, "note": "api 路：用户自己的 OAuth 桌面客户端" },
     { "env": "GOOGLE_ADS_CLIENT_SECRET", "required": false, "note": "api 路" },
-    { "env": "GOOGLE_ADS_REFRESH_TOKEN", "required": false, "note": "api 路：新 refresh token 需 passkey 授权" },
+    { "env": "GOOGLE_ADS_REFRESH_TOKEN", "required": false, "note": "api 路：授权时同时勾 adwords 与 datamanager 两个 scope（转化上传走 Data Manager API）；新 refresh token 需 passkey 授权" },
     { "env": "GOOGLE_ADS_CUSTOMER_ID", "required": false, "note": "api 路：不带横线" },
     { "env": "GOOGLE_ADS_LOGIN_CUSTOMER_ID", "required": false, "note": "api 路：经理账号时" },
     { "env": "GOOGLE_ADS_API_VERSION", "required": false, "note": "api 路：默认 v25，每季度按 Google 公告改" }
@@ -25,8 +26,10 @@
   "external_apis": [
     "Google Ads 后台（manual 路，Agent 在用户浏览器里操作）",
     "googleads.googleapis.com searchStream（api 路，用户自有凭据）",
+    "googleads.googleapis.com campaignBudgets/campaigns/campaignCriteria/adGroups/adGroupCriteria/adGroupAds/conversionActions:mutate、uploadConversionAdjustments（api 路）",
+    "datamanager.googleapis.com events:ingest（api 路的转化上传，新接入必走）",
     "oauth2.googleapis.com token"
   ],
   "limits": { "max_cpc_default": 0.25, "first_day_budget_default": 5, "conversion_upload_window_days": 90 },
-  "unattended": { "accepted": false, "days": 0, "note": "manual 路需要 Agent 操作后台；api 路的 deploy 与 convert 上传在 2.0.x 补" }
+  "unattended": { "accepted": false, "days": 0, "note": "api 路四个动作齐（2.0.3 在真实账号实测）；没有凭据自动退回 manual 路" }
 }

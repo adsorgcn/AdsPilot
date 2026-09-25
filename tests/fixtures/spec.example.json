@@ -1,0 +1,73 @@
+{
+  "type": "adspilot.traffic_spec",
+  "schema_version": 1,
+  "platform": "google-ads",
+  "campaign": {
+    "name": "Widget X Review",
+    "objective": "search",
+    "networks": {
+      "search_partners": false,
+      "display": false
+    },
+    "geo": {
+      "countries": [
+        "US"
+      ],
+      "presence": "living_in"
+    },
+    "language": "en",
+    "bidding": {
+      "strategy": "manual_cpc",
+      "max_cpc": 0.25
+    },
+    "daily_budget": 5.0,
+    "currency": "USD",
+    "final_url_domain": "example.com",
+    "start_date": "2026-09-25",
+    "tracking_template": "{lpurl}?c={campaignid}&a={adgroupid}&k={targetid}&n={network}",
+    "negatives": [
+      "free",
+      "download",
+      "torrent"
+    ]
+  },
+  "adgroups": [
+    {
+      "name": "Widget X Review AG1",
+      "max_cpc": 0.25,
+      "final_url": "https://example.com/widget-x-review",
+      "keywords": [
+        {
+          "text": "widget x review",
+          "match": "phrase"
+        },
+        {
+          "text": "buy widget x",
+          "match": "exact"
+        }
+      ],
+      "ads": [
+        {
+          "headlines": [
+            "Widget X Review 2026",
+            "Is Widget X Worth It",
+            "Widget X Pros And Cons"
+          ],
+          "descriptions": [
+            "Hands-on review of Widget X with pricing and alternatives.",
+            "See who it fits and who should skip it."
+          ],
+          "path1": "review",
+          "path2": "widget-x"
+        }
+      ]
+    }
+  ],
+  "hard_limits": {
+    "max_cpc_cap": 0.25,
+    "daily_budget_cap": 10.0,
+    "stop_loss_spend": 300.0
+  },
+  "offer_ref": "cj:100001:12345",
+  "sub_id_form": "landing_first_party"
+}

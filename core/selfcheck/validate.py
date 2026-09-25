@@ -240,7 +240,7 @@ CONFIG_SCHEMA = {
                      "properties": {"provider": {"enum": ["local", "llm", "jev", "soul-api"]},
                                     "timeout_s": {"type": "number", "exclusiveMinimum": 0, "maximum": 60}}},
         "traffic": {"type": "object", "required": ["plugin"], "properties": {"plugin": {"type": "string"},
-                    "report_source": {"enum": ["csv_export", "api"]}, "conversion_window_days": {"type": "integer", "minimum": 1, "maximum": 90}}},
+                    "report_source": {"enum": ["csv_export", "api"]}, "deploy_mode": {"enum": ["api", "manual"]}, "conversion_window_days": {"type": "integer", "minimum": 1, "maximum": 90}}},
         "affiliate": {"type": "object", "required": ["plugin"], "properties": {"plugin": {"type": "string"},
                       "commissions_source": {"enum": ["api", "csv_export", "json"]}}},
         "deploy": {"type": "object"},

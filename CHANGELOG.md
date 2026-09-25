@@ -2,6 +2,10 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。
 
+## 2.0.3（2026-09-25）
+
+Google Ads 插件 api 路补齐并在真实账号实测（建一条日预算 1 港币、建好即暂停的系列，改预算改出价暂停词加否定词，最后连预算一起删净）：`deploy_api.py`（`--spec` 建系列，`--actions` 执行主干动作，`--remove-campaign` 删；默认 dry-run，`--validate-only`，中途失败回滚，出价按计费单位取整重试）；`convert_api.py`（自动建「点击上传」转化操作；上传按 Google 2026-09 口径走 Data Manager API，refresh token 缺 datamanager scope 时退出码 2 报 needs_reauth；拒付撤回走转化调整）；`gads_api.py` 公用客户端。主干循环在 `deploy_mode:api` 且凭据齐时自动执行动作与上传，凭据缺失自动退回 manual。实测发现两条平台口径写进使用方法：v25 建系列不认 startDate；新接入的 uploadClickConversions 已被限制。
+
 ## 2.0.2（2026-09-25）
 
 Google Ads api 路对齐 Google 新政策：developer token 2026-09-09 起废弃，权限级别由 OAuth 所属的 Google Cloud 项目决定；`report_api.py` 不再强制要 developer token（过渡期有就带），REST 版本默认 v25。契约、使用方法、manifest 同步改。

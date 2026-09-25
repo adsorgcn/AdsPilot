@@ -286,9 +286,12 @@ class Run:
         d, m = self.plugin("traffic", t.get("plugin", "google-ads"))
         if todo:
             json.dump({"run_id": self.run_id, "actions": todo}, open(self.path("actions-todo.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
-            self.log("actions-todo: %d 项（%s 模式）" % (len(todo), "api" if m["actions"].get("deploy") != "manual" else "manual"))
-            if m["actions"].get("deploy") != "manual" and self.apply:
+            api_mode = m["actions"].get("deploy") != "manual" and (self.cfg.get("traffic") or {}).get("deploy_mode", "api") == "api"
+            self.log("actions-todo: %d 项（%s 模式）" % (len(todo), "api" if api_mode else "manual"))
+            if api_mode and self.apply:
                 rc, _ = self.run_script(os.path.join(d, m["actions"]["deploy"]), ["--actions", self.path("actions-todo.json"), "--apply"])
+                if rc == 4:
+                    self.log("deploy api: 凭据缺失，动作留在 actions-todo 由 Agent 在后台做")
                 if rc == 0:
                     self.con.execute("UPDATE actions SET applied=1, applied_at=? WHERE run_id=? AND applied=0 AND node IN ('campaign.adjust','keyword.action')", (subid.now_iso(), self.run_id))
                     for a in self.actions:
@@ -301,10 +304,14 @@ class Run:
             if rc == 0:
                 self.log("conversions csv: %s（Agent 在后台上传，或 api 模式自动）" % os.path.relpath(out, ROOT))
                 self.evidence.append({"id": "e-convert", "deliverable": "conversion_upload_file", "kind": "file", "ref": os.path.relpath(out, ROOT), "result": "pass"})
-                if m["actions"].get("convert_api") and self.apply:
-                    rc2, _ = self.run_script(os.path.join(d, m["actions"]["convert_api"]), ["--csv", out, "--apply"])
+                if m["actions"].get("convert_api") and self.apply and (self.cfg.get("traffic") or {}).get("deploy_mode", "api") == "api":
+                    rc2, _ = self.run_script(os.path.join(d, m["actions"]["convert_api"]), ["--conversions", self.path("conversions.json"), "--conversion-name", t.get("conversion_name", "affiliate_commission"),
+                                                                                            "--timezone", self.cfg.get("timezone", "UTC"), "--apply"])
                     if rc2 == 0:
                         R.mark_uploaded(self.con, self.run_id, [r["event_id"] for r in rec["rows"]])
+                        self.log("conversions uploaded via api")
+                    elif rc2 == 4:
+                        self.log("convert api: 凭据缺失，Agent 在后台上传 outbox 文件")
         self.con.commit()
 
     # ---------------------------------------------------------------- 报告

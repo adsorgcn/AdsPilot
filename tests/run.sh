@@ -13,6 +13,8 @@ run python3 core/lp/lp_check.py --selftest
 run python3 plugins/traffic/google-ads/report_import.py --selftest
 run python3 plugins/traffic/google-ads/spec.py --selftest
 run python3 plugins/traffic/google-ads/convert_export.py --selftest
+run python3 plugins/traffic/google-ads/deploy_api.py --selftest
+run python3 plugins/traffic/google-ads/convert_api.py --selftest
 run python3 plugins/affiliate/cj/commissions.py --selftest
 run python3 plugins/affiliate/cj/chargebacks.py --selftest
 run python3 plugins/affiliate/cj/offers.py --selftest
