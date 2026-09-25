@@ -3,12 +3,12 @@
 """
 无人值守日常循环（主干，循环部件）
 
-一轮做九件事：自检 → 拉映射 → 拉投放报表 → 拉佣金明细 → 对账 → 逐节点判断 → 生成动作与上传文件 → 回流报告 → 记账。
+一轮做八件事：自检 → 拉映射 → 拉投放报表 → 拉佣金明细 → 对账 → 逐节点判断 → 生成动作与上传文件 → 写本轮报告与记账。
 每一步都幂等，都有日志；默认 dry-run，只有 config.apply 为 true 或 --apply 才对外部产生写操作。
 执行 Agent 按 core/loop/使用方法.md 装到调度器里，每天跑一次。
 
 用法：
-  python3 core/loop/daily.py [--dry-run | --apply] [--config config/adspilot.json] [--run-id ID] [--no-report]
+  python3 core/loop/daily.py [--dry-run | --apply] [--config config/adspilot.json] [--run-id ID]
   python3 core/loop/daily.py --ack <run_id>          # Agent 手动做完 actions-todo 后回填 applied
   python3 core/loop/daily.py --selftest              # 用 tests/fixtures 跑一轮 dry-run
 
@@ -37,8 +37,8 @@ VERSION = open(os.path.join(ROOT, "VERSION"), encoding="utf-8").read().strip()
 
 
 class Run:
-    def __init__(self, cfg, run_id, apply, no_report):
-        self.cfg, self.run_id, self.apply, self.no_report = cfg, run_id, apply, no_report
+    def __init__(self, cfg, run_id, apply):
+        self.cfg, self.run_id, self.apply = cfg, run_id, apply
         self.runs_dir = self._abs(cfg.get("runs_dir", "runs"))
         self.data_dir = self._abs(cfg.get("data_dir", "data"))
         self.dir = os.path.join(self.runs_dir, run_id)
@@ -333,15 +333,6 @@ class Run:
         json.dump(report, open(self.path("report.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
         return report, not errs
 
-    def step_post_report(self, ok):
-        rc_ = self.cfg.get("report") or {}
-        if self.no_report or not rc_.get("enabled") or not ok:
-            self.log("report: 未启用回流或不合格，只留在 %s" % os.path.relpath(self.path("report.json"), ROOT))
-            return
-        d, m = self.plugin("report", rc_.get("plugin", "feishu"))
-        rc, _ = self.run_script(os.path.join(d, m["actions"]["post"]), ["--report", self.path("report.json")] + (["--apply"] if self.apply else []))
-        self.log("report post rc=%d" % rc)
-
     def finish(self, exit_code, summary):
         self.con.execute("INSERT OR REPLACE INTO runs(run_id,started_at,finished_at,exit_code,summary) VALUES(?,?,?,?,?)",
                          (self.run_id, self.started, subid.now_iso(), exit_code, json.dumps(summary, ensure_ascii=False)))
@@ -357,9 +348,9 @@ def load_cfg(path):
     return json.load(open(p, encoding="utf-8"))
 
 
-def run_once(cfg, run_id=None, apply=False, no_report=False):
+def run_once(cfg, run_id=None, apply=False):
     run_id = run_id or time.strftime("run-%Y%m%d-%H%M%S")
-    run = Run(cfg, run_id, apply, no_report)
+    run = Run(cfg, run_id, apply)
     run.log("adspilot %s run %s mode=%s soul=%s provider=%s" % (VERSION, run_id, "APPLY" if apply else "dry-run", run.soul["id"], (cfg.get("judgment") or {}).get("provider")))
     try:
         if not run.step_selfcheck():
@@ -373,7 +364,7 @@ def run_once(cfg, run_id=None, apply=False, no_report=False):
         hard = [n for n in run.needs_human if not n.get("soft")]
         exit_code = 2 if hard else 0
         report, ok = run.build_report(rep, rec, exit_code)
-        run.step_post_report(ok)
+        run.log("report: %s（教练要看就把这个文件贴过去）" % os.path.relpath(run.path("report.json"), ROOT))
         run.finish(exit_code, report["summary"])
         return exit_code
     except Exception as e:  # noqa: BLE001
@@ -399,12 +390,11 @@ def selftest():
     cfg["traffic"]["report_csv"] = os.path.join(ROOT, "tests", "fixtures", "google-ads-report.csv")
     cfg["affiliate"]["commissions_source"] = "json"
     cfg["affiliate"]["commissions_json"] = os.path.join(ROOT, "tests", "fixtures", "commissions.cj.json")
-    cfg["report"]["enabled"] = False
     con = subid.open_db(os.path.join(cfg["data_dir"], "ledger.db"))
     for row in json.load(open(os.path.join(ROOT, "tests", "fixtures", "mappings.json"), encoding="utf-8")):
         subid.record(con, row)
     con.commit(); con.close()
-    rc = run_once(cfg, run_id="selftest", apply=False, no_report=True)
+    rc = run_once(cfg, run_id="selftest", apply=False)
     rep = json.load(open(os.path.join(cfg["runs_dir"], "selftest", "report.json"), encoding="utf-8"))
     errs = validate(load_schema("report.schema.json"), rep)
     ok = rc in (0, 2) and not errs and rep["summary"]["conversions"] >= 1 and any(a["node"] == "campaign.adjust" for a in rep["actions"])
@@ -425,7 +415,7 @@ def main(argv):
         return ack(cfg, argv[argv.index("--ack") + 1])
     apply = "--apply" in argv or (bool(cfg.get("apply")) and "--dry-run" not in argv)
     run_id = argv[argv.index("--run-id") + 1] if "--run-id" in argv else None
-    return run_once(cfg, run_id, apply, "--no-report" in argv)
+    return run_once(cfg, run_id, apply)
 
 
 if __name__ == "__main__":

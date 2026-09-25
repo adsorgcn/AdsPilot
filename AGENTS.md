@@ -14,7 +14,7 @@
 
 ::OBJECTIVE{id:g0|owner:user|trust:untrusted|version:1|status:active}
   target: 按 core/loop/使用方法.md 把日常循环跑起来并保持无人值守
-  ACCEPT: selfcheck 全过 AND 首轮 dry-run 退出码 0 AND 回流报告过 schema
+  ACCEPT: selfcheck 全过 AND 首轮 dry-run 退出码 0 AND runs/<id>/report.json 生成
   NON_GOALS: 改协议、改判断决策层、绕平台任何规则
 
 ## 顺序

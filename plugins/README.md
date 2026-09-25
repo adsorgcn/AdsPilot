@@ -8,14 +8,13 @@
 
 一个插件就是一个目录。目录里固定四样：`manifest.json`（主干只读这份决定怎么调用）、`使用方法.md`（给执行 Agent 看的，iLang 形状）、脚本（标准库 Python 3.9 以上，或平台自带的 shell）、自测（`selftest.sh` 或 `--selftest` 开关）。加一家只加一个目录，主干一行不改。
 
-## 七类口子
+## 六类口子
 
 | 目录 | 管什么 | 必备动作 | 首发 |
 |---|---|---|---|
 | `traffic/<平台>/` | 流量平台 | `spec` `deploy` `report` `convert` | google-ads |
 | `affiliate/<网络>/` | 联盟与广告主 | `offers` `link` `commissions` `chargebacks` | cj |
 | `judgment/<提供者>/` | 判断引擎的感知层 | `judge` | llm、jev、soul-api |
-| `report/<通道>/` | 回流通道 | `post` | feishu |
 | `deploy/<目标>/` | 部署目标 | `deploy` `status` | cloudflare-worker |
 | `keywords/<来源>/` | 关键词数据源 | `suggest` `volume` | 待首发 |
 | `ipintel/<来源>/` | IP 情报 | `lookup` | 待首发 |

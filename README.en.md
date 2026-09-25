@@ -18,7 +18,7 @@ This is also the first sizeable commercial application of the [iLang protocol](h
 
 ```
 core/       agent adaptation & self-check · lp · judge (f_v5 frozen) · ledger (sub-id attribution & reconciliation) · loop · selfcheck
-plugins/    traffic/google-ads · affiliate/cj · judgment/{llm,jev,soul-api} · report/feishu · deploy/cloudflare-worker · keywords · ipintel
+plugins/    traffic/google-ads · affiliate/cj · judgment/{llm,jev,soul-api} · deploy/cloudflare-worker · keywords · ipintel
 soul/       default SOUL, SOUL interface, SOUL API interface
 schemas/    manifest · judgment · report · traffic-spec · traffic-report · commissions
 ```

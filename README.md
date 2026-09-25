@@ -20,7 +20,7 @@
 
 ```
 core/       主干：agent 适配与自检 · lp 落地页 · judge 判断（f_v5 冻结） · ledger 归因对账 · loop 无人值守循环 · selfcheck
-plugins/    插件：traffic/google-ads · affiliate/cj · judgment/{llm,jev,soul-api} · report/feishu · deploy/cloudflare-worker · keywords · ipintel
+plugins/    插件：traffic/google-ads · affiliate/cj · judgment/{llm,jev,soul-api} · deploy/cloudflare-worker · keywords · ipintel
 soul/       默认 SOUL、SOUL 接口、SOUL API 接口说明
 schemas/    manifest · judgment · report · traffic-spec · traffic-report · commissions
 reference/  iLang runtime（钉版本）· affiliate-design · v1 交接
@@ -41,9 +41,9 @@ Claude Code 读 `CLAUDE.md`，Codex 与其他读 `AGENTS.md`，Cursor 读 `.curs
 
 证件与 KYC、付款与绑卡、平台要求本人申诉。其余全是 Agent 与脚本。每个插件要在一台干净的用户环境里连续七天无人干预跑完日常循环，才能从 alpha 标成 stable。
 
-## 数据回流
+## 每轮留下什么
 
-方向只有一个：从用户回到社区。你的 Agent 每轮用固定 schema 回报（花费、点击、转化、判断与置信度、证据引用，不含凭据与 gclid 原文），社区机器人校验、审计、记进度；聚合数据回填阈值与资格表，用来校验判断引擎。
+每轮在 `runs/<id>/` 留一份 `report.json`（花费、点击、转化、每个判断的向量与模式、证据引用，不含凭据与 gclid 原文）和 `run.log`。有人要看你跑得怎么样，贴这两个文件就行；没有任何东西自动往外发。
 
 ## 版本
 

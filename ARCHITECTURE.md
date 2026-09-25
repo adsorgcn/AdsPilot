@@ -29,7 +29,7 @@
 | 归因与对账 | 干 | sub-id token（32 位内纯字母数字）、映射表（token→gclid、campaign、adgroup、keyword、page、时间、network、offer）、佣金明细 join、离线转化文件生成、拒付反标、证据账本 |
 | 无人值守循环 | 干 | 调度模板（systemd timer、cron）、非交互、幂等、dry-run 默认、日志、退出码、哨兵与升级预案 |
 | 默认 SOUL | 干 | 本地、开源、通用的判断与策略默认值，含所有数值阈值 |
-| schema 与自检 | 干 | 回流 report schema、插件 manifest 格式、判断请求与响应、一致性自检脚本 |
+| schema 与自检 | 干 | 本轮 report schema、插件 manifest 格式、判断请求与响应、一致性自检脚本 |
 
 ## 4. 插件（plugins）：两块主口子，各一个固定契约
 
@@ -37,7 +37,7 @@
 
 **联盟与广告主**（`plugins/affiliate/<网络>/`）：CJ 首发；后续 Impact、Awin、Rakuten、ShareASale，以及带 postback 的直客广告主。契约四个动作：`offers` offer 发现与尽调数据、`link` 带 sub-id 的链接生成、`commissions` 佣金明细拉取、`chargebacks` 拒付解析。
 
-**同样按判据归为插件的**：判断引擎的外部提供者（`plugins/judgment/`：便宜模型、Jev、iLang 托管的 SOUL API，对用户环境而言都是外部 API，走同一口子）、部署目标（`plugins/deploy/`：Cloudflare Worker）、回流通道（`plugins/report/`：飞书机器人）、关键词数据源（`plugins/keywords/`）、IP 情报（`plugins/ipintel/`）。
+**同样按判据归为插件的**：判断引擎的外部提供者（`plugins/judgment/`：便宜模型、Jev、iLang 托管的 SOUL API，对用户环境而言都是外部 API，走同一口子）、部署目标（`plugins/deploy/`：Cloudflare Worker）、关键词数据源（`plugins/keywords/`）、IP 情报（`plugins/ipintel/`）。
 
 每个插件一个目录：一份使用方法、一个 manifest（能力、需要用户自己持有的凭据、限额、版本、状态）、脚本、自测。加一家只加一个目录，主干不改。
 
@@ -45,9 +45,9 @@
 
 基座在每个需要判断的节点通过同一个接口问 SOUL：状态进，决策出，带置信度，形状即 iLang v5 判断向量与冻结输出 schema。感知层（场景到 11 维向量）可以是本地规则、便宜模型、Jev 或托管的 SOUL API；决策层（向量到模式 M1 到 M8）永远在本地按 f_v5 算，可审计。用户改一个配置项切换提供者，基座与插件一行不改。托管服务端代码不进本仓库，本仓库只放接口说明。
 
-## 6. 数据回流
+## 6. 真实数据从哪来
 
-方向只有一个：从用户回到社区。用户的 Agent 每完成一段或跑完一轮，用固定 schema 的 JSON 回报（线、段、时间、动作、关键数字、判断与置信度、证据引用），社区机器人校验、审计、记进度、落账本。个人数据只有本人与管理者可见；聚合数据回填尽调库、判断阈值、平台资格表，并作为校验 Jev 与 SOUL 的真实标签。iLang Inc. 自己的 Google Ads API 与判断引擎的服务端不进仓库，不向用户免费开放接口凭据。
+不做回流通道。学员会不会用、卡在哪，看社区机器人的对话日志就知道；教练要看某个人跑得怎么样，让他贴 `runs/<id>/report.json` 与 `run.log`（固定 schema，不含凭据与 gclid 原文），机器人按证据审、记进度。仓库里没有任何东西自动往外发。iLang Inc. 自己的 Google Ads API 与判断引擎的服务端不进仓库，不向用户免费开放接口凭据。
 
 ## 7. 自动化验收（硬标准）
 
@@ -66,7 +66,7 @@
 ```
 core/            agent 适配与自检、lp、judge、ledger、loop、selfcheck
 plugins/         traffic/google-ads  affiliate/cj  judgment/{llm,jev,soul-api}
-                 report/feishu  deploy/cloudflare-worker  keywords/  ipintel/  _template/
+                 deploy/cloudflare-worker  keywords/  ipintel/  _template/
 schemas/         report、manifest、judgment、traffic-spec、traffic-report、commissions
 soul/            SOUL 接口说明、默认 SOUL、SOUL API 接口说明
 config/          配置模板
@@ -77,4 +77,4 @@ CLAUDE.md  AGENTS.md  .cursor/rules/  README.md  VERSION  CHANGELOG.md
 
 ## 11. 分层推进顺序
 
-第一层 本页 → 第二层 契约（适配、判断、两块插件的四个动作、report schema）→ 第三层 骨架（目录、入口文件、能力自检、默认 SOUL、插件模板）→ 第四层 首发插件（Google Ads、CJ）→ 第五层 使用方法与脚本（sub-id 归因第一个）。上一层未定，不写下一层。
+第一层 本页 → 第二层 契约（适配、判断、两块插件的四个动作、本轮 report schema）→ 第三层 骨架（目录、入口文件、能力自检、默认 SOUL、插件模板）→ 第四层 首发插件（Google Ads、CJ）→ 第五层 使用方法与脚本（sub-id 归因第一个）。上一层未定，不写下一层。

@@ -20,7 +20,6 @@ run python3 plugins/affiliate/cj/link.py --selftest
 run python3 plugins/judgment/llm/provider.py --selftest
 run python3 plugins/judgment/jev/provider.py --selftest
 run python3 plugins/judgment/soul-api/provider.py --selftest
-run python3 plugins/report/feishu/post.py --selftest
 run python3 core/loop/daily.py --selftest
 run python3 reference/ilang/ilang_judge_validator.py --selftest
 # 判断块与正典校验器一致

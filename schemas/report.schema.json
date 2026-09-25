@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/adsorgcn/AdsPilot/schemas/report.schema.json",
-  "title": "AdsPilot 回流报告",
-  "description": "用户的 Agent 每跑完一轮或做完一段，用这份 schema 回报社区。方向只有一个：从用户回到社区。不含凭据，不含 gclid 原文，不含他人数据。",
+  "title": "AdsPilot 本轮报告（runs/<id>/report.json）",
+  "description": "每轮循环写在本地的报告。教练要看就贴这个文件；不含凭据，不含 gclid 原文。",
   "type": "object",
   "required": ["type", "schema_version", "adspilot_version", "reported_at", "run_id", "line", "seg", "summary", "actions", "judgments", "evidence", "needs_human"],
   "additionalProperties": false,

@@ -11,9 +11,9 @@
     "id": {
       "description": "插件唯一 id，形如 traffic/google-ads、affiliate/cj、judgment/llm。",
       "type": "string",
-      "pattern": "^(traffic|affiliate|judgment|report|deploy|keywords|ipintel)/[a-z0-9][a-z0-9-]*$"
+      "pattern": "^(traffic|affiliate|judgment|deploy|keywords|ipintel)/[a-z0-9][a-z0-9-]*$"
     },
-    "kind": { "enum": ["traffic", "affiliate", "judgment", "report", "deploy", "keywords", "ipintel"] },
+    "kind": { "enum": ["traffic", "affiliate", "judgment", "deploy", "keywords", "ipintel"] },
     "name": { "type": "string", "minLength": 1, "maxLength": 80 },
     "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
     "status": {
@@ -21,7 +21,7 @@
       "enum": ["alpha", "stable", "deprecated"]
     },
     "actions": {
-      "description": "契约动作到脚本的映射。流量插件必须有 spec、deploy、report、convert；联盟插件必须有 offers、link、commissions、chargebacks；判断插件必须有 judge；回流插件必须有 post；部署插件必须有 deploy、status。值为相对插件目录的脚本路径，或 manual 表示该动作由 Agent 按使用方法操作后台完成。",
+      "description": "契约动作到脚本的映射。流量插件必须有 spec、deploy、report、convert；联盟插件必须有 offers、link、commissions、chargebacks；判断插件必须有 judge；部署插件必须有 deploy、status。值为相对插件目录的脚本路径，或 manual 表示该动作由 Agent 按使用方法操作后台完成。",
       "type": "object",
       "minProperties": 1,
       "additionalProperties": { "type": "string", "minLength": 1 }

@@ -37,12 +37,6 @@
     "export_url": "",
     "export_key_env": "ADSPILOT_EXPORT_KEY"
   },
-  "report": {
-    "plugin": "feishu",
-    "enabled": false,
-    "webhook_env": "ADSPILOT_REPORT_WEBHOOK",
-    "secret_env": "ADSPILOT_REPORT_SECRET"
-  },
   "caps": {
     "max_cpc": 0.25,
     "daily_budget": 10.0,

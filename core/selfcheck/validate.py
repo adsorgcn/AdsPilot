@@ -10,7 +10,7 @@ AdsPilot schema 自检（主干，schema 与自检部件）
   python3 core/selfcheck/validate.py --manifests                 # 校验所有插件 manifest
   python3 core/selfcheck/validate.py --config                    # 校验 config/adspilot.json
   python3 core/selfcheck/validate.py --file <schema.json> <doc.json>
-  python3 core/selfcheck/validate.py --report <doc.json>         # 回流报告
+  python3 core/selfcheck/validate.py --report <doc.json>         # 本轮报告
   python3 core/selfcheck/validate.py --judgment <doc.json>       # 判断请求或响应
   python3 core/selfcheck/validate.py --spec <doc.json>           # 投放规格
   python3 core/selfcheck/validate.py --traffic-report <doc.json>
@@ -40,7 +40,6 @@ REQUIRED_ACTIONS = {
     "traffic": {"spec", "deploy", "report", "convert"},
     "affiliate": {"offers", "link", "commissions", "chargebacks"},
     "judgment": {"judge"},
-    "report": {"post"},
     "deploy": {"deploy", "status"},
     "keywords": {"suggest", "volume"},
     "ipintel": {"lookup"},
@@ -245,7 +244,6 @@ CONFIG_SCHEMA = {
         "affiliate": {"type": "object", "required": ["plugin"], "properties": {"plugin": {"type": "string"},
                       "commissions_source": {"enum": ["api", "csv_export", "json"]}}},
         "deploy": {"type": "object"},
-        "report": {"type": "object", "properties": {"enabled": {"type": "boolean"}}},
         "caps": {"type": "object", "required": ["max_cpc", "daily_budget", "stop_loss_spend"],
                  "properties": {"max_cpc": {"type": "number", "exclusiveMinimum": 0},
                                 "daily_budget": {"type": "number", "exclusiveMinimum": 0},
@@ -264,7 +262,7 @@ def check_config(path=None):
         return 1
     cfg = load_json(p)
     errs = validate(CONFIG_SCHEMA, cfg)
-    for k in ("traffic", "affiliate", "judgment", "report", "deploy"):
+    for k in ("traffic", "affiliate", "judgment", "deploy"):
         sub = cfg.get(k) or {}
         for kk, vv in sub.items():
             if kk.endswith("_env") and isinstance(vv, str) and not re.match(r"^[A-Z][A-Z0-9_]*$", vv):
