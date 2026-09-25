@@ -36,7 +36,7 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-09-25, version 2.0.9. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-09-26, version 2.0.10. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
@@ -51,11 +51,15 @@ As of 2026-09-25, version 2.0.9. Every part below has code, a usage method and a
 | Plugin CJ | **live-tested on a real account** | offers (187 advertisers, paged), link with sid, commissions in windows, chargebacks: all pass (read-only) |
 | Plugin judgment llm / jev / soul-api | code complete | never connected to real endpoints; jev waits for docs; soul-api server not built |
 | Plugin Cloudflare landing site | **live-tested on a real account** | one key builds KV, Worker, domain and certificate; page 200, /go 302 with sid, /export into the ledger: all pass |
-| Plugin keywords / ipintel | contract only | first release pending |
+| Offer rule 1 (keyword bid < earnings per click) | **live-tested on a real account** | top 10 CJ offers checked against real bids: 3 pass, 7 out; passing keywords go straight to campaign creation |
+| Plugin keywords (Google Ads Keyword Planner) | **live-tested on a real account** | homepage URL as seed yields category keywords with monthly searches and top-of-page bids |
+| Plugin ipintel | contract only | first release pending |
 
 In one sentence: onboarding is now one action, hand over three keys (Cloudflare, Google Ads, CJ), then run launch and get a real campaign. The whole chain from landing site to campaign to ledger has closed once in the real world. The only part not yet touched by real data is the SOUL thresholds, which can only be calibrated by running. Next is the first student environment running seven unattended days, after which the plugins move from alpha to stable.
 
 ## Progress log
+
+**2026-09-26, 2.0.10.** Offer rule 1: an offer can run only if at least one keyword's bid is below what one click earns. Earnings per click is EPC÷100 in the ad account's currency; the bid is Keyword Planner's low top-of-page bid; brand terms count only if the program allows brand bidding. First keywords plugin. On our account against the top 10 CJ offers: Roborock earns HK$4.56 per click and 6 category keywords bid below that (lowest: vacuum mop at 3.79), so it passes; ContactsDirect earns 12.52 but its cheapest non-brand keyword costs 18.96, so it is out. 3 of 10 pass.
 
 **2026-09-25, 2.0.9.** Onboarding becomes key handover: three keys in environment variables, everything else is the agent. New core part "launch", seven steps (build landing site, pick offer, write and publish page, create campaign, one real click, enable, teardown). Cloudflare plugin rebuilt so one key builds everything (no wrangler, nothing to click in a console). With our own keys, on a real domain, from nothing to a campaign with no human in between, then torn down: the whole chain closed in the real world for the first time.
 

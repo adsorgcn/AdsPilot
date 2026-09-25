@@ -125,6 +125,34 @@ def _within_caps(node, state, choice, caps, p):
     return True
 
 
+def offer_economics(d, p):
+    """offer.select 第一条：词的出价 < 每次点击赚的钱。
+    d：offer 的 data，含 epc、epc_3m（联盟给的每百次点击收益，联盟币种）、fx（广告账户币种每 1 联盟币种）、
+       keywords（关键词插件的行：text、volume、cpc_low、cpc_high，广告账户币种）。
+    返回 {epc_per_click, passing:[词], checked, best, ok, why}。"""
+    o = p["offer"]
+    e7, e3 = d.get("epc"), d.get("epc_3m")
+    vals = [float(x) for x in (e7, e3) if x is not None]
+    if not vals:
+        return {"ok": False, "why": "no_epc", "passing": [], "checked": 0}
+    basis = o.get("epc_basis", "min_7d_3m")
+    epc = min(vals) if basis == "min_7d_3m" else (float(e3) if basis == "3m" and e3 is not None else float(vals[0]))
+    epc_per_click = epc / 100.0 * float(d.get("fx") or 1.0)
+    kws = d.get("keywords")
+    if not kws:
+        return {"ok": False, "why": "no_keyword_data", "epc_per_click": round(epc_per_click, 2), "passing": [], "checked": 0}
+    metric = o.get("bid_metric", "cpc_low")
+    min_vol = int(o.get("min_keyword_searches", 50))
+    brand_ok = d.get("brand_bidding_allowed") is True
+    checked = [k for k in kws if float(k.get(metric) or 0) > 0 and int(k.get("volume") or 0) >= min_vol and (brand_ok or not k.get("brand"))]
+    passing = sorted([k for k in checked if float(k[metric]) < epc_per_click], key=lambda k: (-int(k.get("volume") or 0), float(k[metric])))
+    best = passing[0] if passing else (min(checked, key=lambda k: float(k[metric])) if checked else None)
+    why = "bid_below_epc_%d_of_%d" % (len(passing), len(checked)) if passing else ("cheapest_bid_%.2f_over_epc_%.2f" % (float(best[metric]), epc_per_click) if best else "no_keyword_with_bid_and_volume")
+    return {"ok": bool(passing), "why": why, "epc_per_click": round(epc_per_click, 2), "metric": metric, "checked": len(checked),
+            "passing": [{"text": k["text"], "volume": k.get("volume"), metric: k[metric], "brand": k.get("brand", False)} for k in passing],
+            "best": {"text": best["text"], metric: best[metric], "volume": best.get("volume")} if best else None}
+
+
 def local_choice(node, state, choices, soul):
     """默认 SOUL 的规则，按 soul/default.soul.md 节点一节的顺序。返回 (choice_id, reason)。"""
     p = soul["params"]
@@ -139,6 +167,8 @@ def local_choice(node, state, choices, soul):
         for c in choices:
             d = c.get("data") or {}
             if c["id"] == "none":
+                continue
+            if not offer_economics(d, p)["ok"]:
                 continue
             if p["offer"]["require_ppc_allowed"] and not d.get("ppc_allowed"):
                 continue
@@ -360,7 +390,10 @@ def selftest(soul_path="soul/default.soul.md"):
         ("anomaly.escalate", {"account_status": "ok", "disapprovals": 1, "spend_today": 1, "spend_avg_7d": 1}, ["continue", "pause_all", "escalate"], "escalate", ("M1", "M2")),
         ("conversion.upload", {"rows_in_window": 3, "rows_out_of_window": 0, "gclid_all_valid": True, "reconciled": True}, ["upload", "hold"], "upload", ("M1", "M2")),
         ("conversion.upload", {"rows_in_window": 3, "rows_out_of_window": 0, "gclid_all_valid": True, "reconciled": False}, ["upload", "hold"], "hold", ("M1", "M2")),
-        ("offer.select", {}, [{"id": "none"}, {"id": "a", "data": {"epc": 8, "ppc_allowed": True, "category": "software", "reversal_rate": 0.1, "cookie_days": 30}},
+        ("offer.select", {}, [{"id": "none"}, {"id": "a", "data": {"epc": 8, "ppc_allowed": True, "category": "software", "reversal_rate": 0.1, "cookie_days": 30,
+                                                                  "keywords": [{"text": "a review", "volume": 500, "cpc_low": 0.05, "cpc_high": 0.2}]}},
+                             {"id": "d", "data": {"epc": 90, "epc_3m": 60, "ppc_allowed": True, "category": "software", "fx": 7.8,
+                                                  "keywords": [{"text": "d brand", "volume": 9000, "cpc_low": 7.84, "cpc_high": 20.9}]}},
                              {"id": "b", "data": {"epc": 20, "ppc_allowed": False, "category": "software"}},
                              {"id": "c", "data": {"epc": 50, "ppc_allowed": True, "category": "gambling"}}], "a", ("M1", "M2")),
     ]

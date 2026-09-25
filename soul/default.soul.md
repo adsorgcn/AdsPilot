@@ -20,6 +20,7 @@
   "budget": { "first_day": 5.0, "daily_cap": 10.0, "step_pct": 20, "ramp_min_days": 3, "min_days_between_changes": 2 },
   "stop_loss": { "spend_no_conversion": 100.0, "test_spend_total": 300.0, "days_before_budget_down": 7, "roi_floor": 0.5 },
   "offer": {
+    "bid_metric": "cpc_low", "epc_basis": "min_7d_3m", "min_keyword_searches": 50,
     "min_epc": 5.0, "max_reversal_rate": 0.20, "min_cookie_days": 7, "require_ppc_allowed": true,
     "blocked_categories": ["adult", "gambling", "crypto", "loans", "pharma", "weapons", "tobacco"]
   },
@@ -42,12 +43,19 @@
 
 ### offer.select
 
+第一条是账算得过来：买一次点击的钱，要小于一次点击能赚的钱。
+
+::RULE{第一条：有一个词的出价<每次点击赚的钱⇒这个offer能投|一个这样的词都没有⇒出局}
+::RULE{每次点击赚的钱=EPC÷100（联盟的EPC是每百次点击）epc_basis为min_7d_3m时取7天与3个月里小的那个 按汇率换成广告账户币种}
+::RULE{词的出价=关键词插件给的bid_metric（cpc_low是首页出价低位 cpc_high是高位）出价为0或月搜索<min_keyword_searches的词不算}
+::RULE{brand_bidding_allowed不是true⇒品牌词不算 联盟多数不许竞价品牌词 投了佣金会被撤}
+::RULE{没有关键词数据⇒没法算账 出局}
 ::RULE{ppc_allowed为null或false⇒该offer出局 联盟不许PPC就不投}
 ::RULE{品类在blocked_categories⇒出局}
 ::RULE{reversal_rate>max_reversal_rate⇒出局}
 ::RULE{cookie_days<min_cookie_days⇒降权 不出局}
 ::RULE{epc为null⇒可选但按min_epc的一半计分}
-::RULE{余下按 epc×(1−reversal_rate) 加 cookie 加分排序 取最高⇒choice}
+::RULE{余下按 epc×(1−reversal_rate) 加 cookie 加分排序 取最高⇒choice 能投的词随结果带出 给建系列用}
 ::RULE{没有一个过筛⇒choice:none 模式M7 让联盟插件换条件再拉一批}
 
 ### lp.publish

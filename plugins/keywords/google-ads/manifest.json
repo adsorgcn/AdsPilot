@@ -1,0 +1,19 @@
+{
+  "manifest_version": 1,
+  "id": "keywords/google-ads",
+  "kind": "keywords",
+  "name": "Google Ads Keyword Planner（用户自己的凭据）",
+  "version": "2.0.10",
+  "status": "alpha",
+  "usage": "使用方法.md",
+  "actions": { "suggest": "planner.py", "volume": "planner.py" },
+  "credentials": [
+    { "env": "GOOGLE_ADS_CLIENT_ID", "required": true, "note": "与 traffic/google-ads 同一套" },
+    { "env": "GOOGLE_ADS_CLIENT_SECRET", "required": true, "note": "" },
+    { "env": "GOOGLE_ADS_REFRESH_TOKEN", "required": true, "note": "" },
+    { "env": "GOOGLE_ADS_CUSTOMER_ID", "required": true, "note": "" }
+  ],
+  "external_apis": [ "Google Ads API KeywordPlanIdeaService（generateKeywordIdeas、generateKeywordHistoricalMetrics）" ],
+  "limits": { "seeds_per_call": 20, "sleep_between_batch_items_s": 1 },
+  "unattended": { "accepted": false, "days": 0, "note": "开局选品时调；日常循环不调" }
+}

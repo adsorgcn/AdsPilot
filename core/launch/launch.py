@@ -77,7 +77,7 @@ def run(script, args, timeout=300):
 
 
 def plugin(cfg, kind):
-    name = (cfg.get(kind) or {}).get("plugin") or {"deploy": "cloudflare", "traffic": "google-ads", "affiliate": "cj"}[kind]
+    name = (cfg.get(kind) or {}).get("plugin") or {"deploy": "cloudflare", "traffic": "google-ads", "affiliate": "cj", "keywords": "google-ads"}[kind]
     d = os.path.join("plugins", kind, name)
     m = json.load(open(os.path.join(ROOT, d, "manifest.json"), encoding="utf-8"))
     return d, m
@@ -121,9 +121,27 @@ def step_deploy(cfg, kv, apply):
     return out(res, 0)
 
 
+def keyword_data(cfg, rows, kv):
+    """给候选 offer 查词：种子是商家名（去掉 Affiliate Program 之类），加商家网址。返回 (currency, {offer_ref: rows}, errors)。"""
+    sys.path.insert(0, os.path.join(ROOT, "plugins", "keywords", "google-ads"))
+    import planner  # noqa: E402
+    d, m = plugin(cfg, "keywords")
+    batch = [{"id": r["offer_ref"], "seed": [planner.clean_brand(r.get("advertiser", ""))], "url": r.get("program_url") or None} for r in rows]
+    bp = os.path.join(ROOT, "runs", "launch", "kw-seeds.json")
+    op = os.path.join(ROOT, "runs", "launch", "keywords.json")
+    json.dump(batch, open(bp, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+    rc, j, txt, err = run(os.path.join(d, m["actions"]["suggest"]), ["suggest", "--batch", bp, "--country", kv.get("country", "US"), "--language", kv.get("language", "en"),
+                                                                     "--limit", kv.get("kw-limit", "100"), "--out", op], timeout=600)
+    if rc:
+        return None, {}, {"_": "keywords 动作退出码 %d: %s %s" % (rc, txt[-200:], err[-200:])}
+    k = json.load(open(op, encoding="utf-8"))
+    return k.get("currency"), k.get("results") or {}, k.get("errors") or {}
+
+
 def step_offers(cfg, kv, apply):
     st = state()
     soul = J.load_soul(cfg.get("soul", "soul/default.soul.md"))
+    p = soul["params"]
     os.makedirs(os.path.join(ROOT, "runs", "launch"), exist_ok=True)
     d, m = plugin(cfg, "affiliate")
     offers_path = os.path.join(ROOT, "runs", "launch", "offers.json")
@@ -135,22 +153,50 @@ def step_offers(cfg, kv, apply):
             return out({"step": "offers", "error": "offers 动作退出码 %d: %s %s" % (rc, txt[-200:], err[-200:])}, 4 if rc == 4 else 3)
         rows = json.load(open(offers_path, encoding="utf-8"))
     rows = [r for r in rows if r.get("click_url")]
+    # 第一条要查词：只查 EPC 靠前的 N 家（--top，默认 10），查词有配额
+    rows = sorted(rows, key=lambda r: max(float(r.get("epc") or 0), float(r.get("epc_3m") or 0)), reverse=True)[:int(kv.get("top", 10))]
+    kw_errors = {}
+    if not all(r.get("keywords") for r in rows):
+        cur, kw, kw_errors = keyword_data(cfg, rows, kv)
+        fx_table = cfg.get("fx") or {}
+        fx = fx_table.get(cur) if cur else None
+        if cur and fx is None:
+            return out({"step": "offers", "error": "config.fx 里没有 %s 的汇率（每 1 美元多少 %s）" % (cur, cur)}, 4)
+        for r in rows:
+            r["keywords"] = kw.get(r["offer_ref"]) or []
+            r["fx"] = float(fx or 1.0) / float(fx_table.get(r.get("epc_currency", "USD"), 1.0) or 1.0)
+            r["kw_currency"] = cur
+    if kv.get("pick"):
+        # --pick：Agent 已在联盟后台读过这家的 Program Terms，确认许 PPC；账（第一条）照样要算得过来
+        for r in rows:
+            if r["offer_ref"] == kv["pick"]:
+                r["ppc_allowed"] = True
+    econ = []
+    for r in rows:
+        e = J.offer_economics(r, p)
+        econ.append({"offer_ref": r["offer_ref"], "advertiser": r.get("advertiser"), "epc_7d": r.get("epc"), "epc_3m": r.get("epc_3m"),
+                     "earn_per_click": e.get("epc_per_click"), "currency": r.get("kw_currency"), "bid_below_epc": e["ok"], "why": e["why"],
+                     "passing_words": len(e.get("passing") or []), "best": e.get("best"), "ppc_allowed": r.get("ppc_allowed"),
+                     "brand_bidding_allowed": r.get("brand_bidding_allowed")})
     choices = [{"id": r["offer_ref"], "data": r} for r in rows] + [{"id": "none"}]
-    resp, ok = decide(cfg, soul, "offer.select", {"offers_total": len(rows), "market": kv.get("country", "US")}, choices, ["runs/launch/offers.json"])
-    ranked = sorted(rows, key=lambda r: (r.get("epc") or 0), reverse=True)
-    res = {"step": "offers", "offers_with_links": len(rows), "judge": {"choice": resp["choice"], "mode": resp["mode_local"], "reason": resp["judge"]["reason"]},
-           "top_by_epc": [{"offer_ref": r["offer_ref"], "advertiser": r["advertiser"], "epc": r.get("epc"), "category": r.get("category"), "ppc_allowed": r.get("ppc_allowed")} for r in ranked[:8]]}
-    pick = kv.get("pick") or (resp["choice"] if ok and resp["choice"] != "none" else "")
+    resp, ok = decide(cfg, soul, "offer.select", {"offers_total": len(rows), "market": kv.get("country", "US")}, choices, ["runs/launch/offers.json", "runs/launch/keywords.json"])
+    res = {"step": "offers", "checked": len(rows), "rule_1": "词的出价(%s) < 每次点击赚的钱(EPC÷100，%s)" % (p["offer"].get("bid_metric"), p["offer"].get("epc_basis")),
+           "economics": econ, "keyword_errors": kw_errors,
+           "judge": {"choice": resp["choice"], "mode": resp["mode_local"], "reason": resp["judge"]["reason"]}}
+    pick = resp["choice"] if ok and resp["choice"] != "none" else ""
     if not pick:
-        res["note"] = "SOUL 没放行任何 offer（多半是 ppc_allowed 全是 null：Agent 去 CJ 后台读 Program Terms，把核对值写进 data/inbox/cj-offer-policy.json 再跑，或 --pick 指定）"
+        passed = [e["advertiser"] for e in econ if e["bid_below_epc"]]
+        res["note"] = ("第一条（账）过了的：%s；但 PPC 政策没核（ppc_allowed 为 null）。Agent 去联盟后台读这几家的 Program Terms，写进 data/inbox/cj-offer-policy.json 再跑，或读完后 --pick <offer_ref>" % "、".join(passed)) \
+            if passed else "没有一家的账算得过来：词的出价都不低于每次点击赚的钱。换一批 offer（--top 加大）或换市场"
+        if kv.get("pick"):
+            res["note"] = "--pick %s 没过第一条：%s" % (kv["pick"], next((e["why"] for e in econ if e["offer_ref"] == kv["pick"]), "不在前 %s 家里" % kv.get("top", 10)))
         return out(res, 2)
-    hit = [r for r in rows if r["offer_ref"] == pick]
-    if not hit:
-        return out(dict(res, error="--pick %s 不在 offer 列表里" % pick), 4)
-    r = hit[0]
+    r = [x for x in rows if x["offer_ref"] == pick][0]
+    e = J.offer_economics(r, p)
     table = {r["offer_ref"]: {"url": r["click_url"], "param": "sid"}}
     json.dump(table, open(os.path.join(ROOT, "runs", "launch", "offers-table.json"), "w", encoding="utf-8"), indent=2)
-    res["picked"] = {"offer_ref": r["offer_ref"], "advertiser": r["advertiser"], "epc": r.get("epc"), "by": "pick" if kv.get("pick") else "soul"}
+    res["picked"] = {"offer_ref": r["offer_ref"], "advertiser": r["advertiser"], "epc": r.get("epc"), "earn_per_click": e["epc_per_click"], "currency": r.get("kw_currency"),
+                     "keywords": e["passing"][:20], "by": "pick" if kv.get("pick") else "soul"}
     st.update({"offer": res["picked"], "offer_click_url_host": r["click_url"].split("/")[2] if "//" in r["click_url"] else ""})
     save(st)
     return out(res, 0)
@@ -319,7 +365,8 @@ def selftest():
     chk = lp_check.summarize(lp_check.check_html(html))
     resp, ok = decide(cfg, soul, "lp.publish", {"lp_check_passed": chk["verdict"] == "pass"}, ["publish", "fix"], ["x"])
     t1 = chk["verdict"] == "pass" and ok and resp["choice"] == "publish"
-    offers = [{"id": "cj:1:1", "data": {"epc": 12.0, "ppc_allowed": True, "category": "software", "reversal_rate": 0.05, "cookie_days": 45}},
+    offers = [{"id": "cj:1:1", "data": {"epc": 12.0, "ppc_allowed": True, "category": "software", "reversal_rate": 0.05, "cookie_days": 45, "fx": 7.8,
+                                        "keywords": [{"text": "x software review", "volume": 800, "cpc_low": 0.6, "cpc_high": 2.1}]}},
               {"id": "cj:2:2", "data": {"epc": 30.0, "ppc_allowed": None, "category": "software"}}, {"id": "none"}]
     r2, ok2 = decide(cfg, soul, "offer.select", {"offers_total": 2}, offers, ["x"])
     t2 = r2["choice"] == "cj:1:1"

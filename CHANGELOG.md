@@ -2,6 +2,12 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。本文件记细节，README 的「进度记录」记叙事，每版两处都写。
 
+## 2.0.10（2026-09-26）选品第一条
+
+选品第一条是账：有一个词的出价小于每次点击赚的钱，这个 offer 才能投。每次点击赚的钱 = EPC÷100（联盟 EPC 是每百次点击），默认取 7 天与 3 个月里小的那个，按 `config.fx` 换成广告账户币种；词的出价默认用 Keyword Planner 的首页出价低位；月搜索不到 50 的词、出价为 0 的词不算；品牌词只在联盟许竞价品牌词时才算。三个数都在 SOUL 参数里（`offer.bid_metric`、`offer.epc_basis`、`offer.min_keyword_searches`）。新增首发关键词插件 `plugins/keywords/google-ads`（suggest、volume，用户自己的 Google Ads 凭据），`judge.offer_economics` 算账，`launch.py offers` 对 EPC 前 N 家查词算账、输出每家一行账、选中的 offer 带出过线的词；`--pick` 只代表政策核过，账照样要过。CJ offers 带出商家网址。
+
+真实世界：我们的账号对 CJ 前 10 家实测，3 家过、7 家出局（见 `plugins/keywords/google-ads/使用方法.md` 实测记录）。
+
 ## 2.0.9（2026-09-25）开局
 
 接入改成「交钥匙」：用户把 Cloudflare 全写钥匙、Google Ads、CJ 三把钥匙放进环境变量，其余全是 Agent。新增主干部件 `core/launch`（开局）：deploy 建落地位、offers 选 offer、page 写页发页、campaign 建系列、verify 真点一次、go 启用、teardown 拆，每步幂等，状态在 `runs/launch/launch.json`。`plugins/deploy/cloudflare-worker` 改为 `plugins/deploy/cloudflare`：不再用 wrangler 与 node，`cf_api.py` 用标准库直接调 Cloudflare API，`setup.py` 一次建好 KV、Worker（带绑定与 secret）、自定义域名（DNS 与证书自动），`publish.py` 推页面与 offer 表（只是 KV 写入，不重新部署），`status.py --roundtrip` 真点一次；Worker 同时服务落地页、/go、/export、/health；隐私与条款页模板；`data/deploy.json` 记落地位在哪，主干循环与 `subid.py pull` 从这里读。Google Ads 插件加 `--enable-campaign` / `--pause-campaign`。选品 `ppc_allowed` 为 null 时 SOUL 不放行，Agent 读 Program Terms 后填 policy 或 `--pick`。

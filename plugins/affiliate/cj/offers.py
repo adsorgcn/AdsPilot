@@ -9,8 +9,8 @@ api 路：Advertiser Lookup（advertiser-lookup.api.cj.com/v2，XML）拉已加�
 json 路：--json 读一份已按输出形状整理好的文件（用户从后台抄的）。
 
 输出：offer 列表 JSON
-  {offer_ref, network, advertiser, advertiser_id, epc, epc_3m, network_rank, commission, cookie_days, lock_days, ppc_allowed, brand_bidding_allowed,
-   allowed_traffic, category, status}
+  {offer_ref, network, advertiser, advertiser_id, epc, epc_3m（都是每百次点击，美元）, network_rank, commission, cookie_days, lock_days, ppc_allowed,
+   brand_bidding_allowed, allowed_traffic, category, program_url, epc_currency, status}
 
 用法：
   python3 offers.py [--advertiser-ids 100001,100002] [--with-links] [--out runs/<id>/offers.json]
@@ -66,6 +66,7 @@ def parse_advertisers(root, policy):
                     "ppc_allowed": pol.get("ppc_allowed"), "brand_bidding_allowed": pol.get("brand_bidding_allowed"),
                     "allowed_traffic": pol.get("allowed_traffic"), "reversal_rate": pol.get("reversal_rate"),
                     "category": ((cat.findtext("child") if cat is not None else "") or "").strip().lower(),
+                    "program_url": (adv.findtext("program-url") or "").strip(), "epc_currency": "USD",
                     "status": (adv.findtext("relationship-status") or "").strip().lower() or "joined"})
     return out
 

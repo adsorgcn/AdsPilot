@@ -7,6 +7,7 @@
   "line": "L2",
   "member": "",
   "currency": "USD",
+  "fx": { "USD": 1.0, "HKD": 7.8, "note": "广告账户币种每 1 美元；联盟 EPC 是美元，算选品账要换成广告账户币种" },
   "soul": "soul/default.soul.md",
   "judgment": {
     "provider": "local",
