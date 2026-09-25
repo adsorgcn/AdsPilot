@@ -1,0 +1,18 @@
+{
+  "manifest_version": 1,
+  "id": "report/feishu",
+  "kind": "report",
+  "name": "飞书回流（社区收集接口 + 自定义机器人）",
+  "version": "2.0.0",
+  "status": "alpha",
+  "usage": "使用方法.md",
+  "actions": { "post": "post.py" },
+  "credentials": [
+    { "env": "ADSPILOT_REPORT_URL", "required": false, "note": "社区机器人的收集接口；公益期在社区领取" },
+    { "env": "ADSPILOT_REPORT_WEBHOOK", "required": false, "note": "飞书自定义机器人 webhook，发人能读的摘要" },
+    { "env": "ADSPILOT_REPORT_SECRET", "required": false, "note": "收集接口的 Bearer，或 webhook 的签名密钥" }
+  ],
+  "external_apis": [ "社区收集接口（HTTPS POST JSON）", "open.feishu.cn 自定义机器人 webhook" ],
+  "limits": { "timeout_s": 15 },
+  "unattended": { "accepted": false, "days": 0, "note": "不可达时报告留在 runs/ 下一轮补发" }
+}

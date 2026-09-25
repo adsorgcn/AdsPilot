@@ -1,0 +1,14 @@
+{
+  "manifest_version": 1,
+  "id": "<kind>/<name>",
+  "kind": "<traffic|affiliate|judgment|report|deploy|keywords|ipintel>",
+  "name": "<人能读的名字>",
+  "version": "0.1.0",
+  "status": "alpha",
+  "usage": "使用方法.md",
+  "actions": { "<契约里的动作名>": "<脚本文件名 或 manual>" },
+  "credentials": [ { "env": "<ENV_NAME>", "required": true, "note": "<用户自己在哪拿>" } ],
+  "external_apis": [ "<这个插件对哪个外部 API 说话；为空就不是插件>" ],
+  "limits": {},
+  "unattended": { "accepted": false, "days": 0, "note": "" }
+}

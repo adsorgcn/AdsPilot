@@ -1,0 +1,27 @@
+{
+  "manifest_version": 1,
+  "id": "affiliate/cj",
+  "kind": "affiliate",
+  "name": "CJ Affiliate",
+  "version": "2.0.0",
+  "status": "alpha",
+  "usage": "使用方法.md",
+  "actions": {
+    "offers": "offers.py",
+    "link": "link.py",
+    "commissions": "commissions.py",
+    "chargebacks": "chargebacks.py"
+  },
+  "credentials": [
+    { "env": "CJ_ACCESS_TOKEN", "required": true, "note": "CJ 开发者门户里用户自己生成的 personal access token" },
+    { "env": "CJ_PUBLISHER_ID", "required": true, "note": "发布者 CID" }
+  ],
+  "external_apis": [
+    "commissions.api.cj.com (GraphQL Commission Detail)",
+    "advertiser-lookup.api.cj.com/v2",
+    "link-search.api.cj.com/v2",
+    "CJ 后台（csv 退路）"
+  ],
+  "limits": { "sub_id_param": "sid", "sub_id_readback": "shopperId", "token_max_len": 32, "commission_detail_window_days": 31 },
+  "unattended": { "accepted": false, "days": 0, "note": "api 路可全自动；csv 退路需要 Agent 导出" }
+}

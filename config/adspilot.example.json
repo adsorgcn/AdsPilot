@@ -1,0 +1,54 @@
+{
+  "config_version": 1,
+  "apply": false,
+  "timezone": "Asia/Tokyo",
+  "data_dir": "data",
+  "runs_dir": "runs",
+  "line": "L2",
+  "member": "",
+  "currency": "USD",
+  "soul": "soul/default.soul.md",
+  "judgment": {
+    "provider": "local",
+    "timeout_s": 8,
+    "llm": { "base_url_env": "LLM_BASE_URL", "api_key_env": "LLM_API_KEY", "model_env": "LLM_MODEL" },
+    "jev": { "endpoint_env": "JEV_ENDPOINT", "api_key_env": "JEV_API_KEY" },
+    "soul_api": { "endpoint_env": "SOUL_API_ENDPOINT", "api_key_env": "SOUL_API_KEY" }
+  },
+  "traffic": {
+    "plugin": "google-ads",
+    "account": "",
+    "report_source": "csv_export",
+    "report_csv": "data/inbox/google-ads-report.csv",
+    "conversion_name": "affiliate_commission",
+    "conversion_window_days": 90
+  },
+  "affiliate": {
+    "plugin": "cj",
+    "publisher_id_env": "CJ_PUBLISHER_ID",
+    "token_env": "CJ_ACCESS_TOKEN",
+    "commissions_source": "api",
+    "commissions_json": "data/inbox/cj-commissions.json",
+    "window_days": 7
+  },
+  "deploy": {
+    "plugin": "cloudflare-worker",
+    "domain": "",
+    "export_url": "",
+    "export_key_env": "ADSPILOT_EXPORT_KEY"
+  },
+  "report": {
+    "plugin": "feishu",
+    "enabled": false,
+    "webhook_env": "ADSPILOT_REPORT_WEBHOOK",
+    "secret_env": "ADSPILOT_REPORT_SECRET"
+  },
+  "caps": {
+    "max_cpc": 0.25,
+    "daily_budget": 10.0,
+    "first_day_budget": 5.0,
+    "stop_loss_spend": 300.0,
+    "budget_step_pct": 20,
+    "autonomy": "within_caps"
+  }
+}

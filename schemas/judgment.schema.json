@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/adsorgcn/AdsPilot/schemas/judgment.schema.json",
+  "title": "AdsPilot 判断接口：请求与响应",
+  "description": "主干在每个决策节点通过同一个接口问 SOUL。感知层（场景到 11 维向量）由提供者完成：本地规则、便宜模型、Jev 或托管 SOUL API。决策层（向量到模式）永远由主干按 iLang v5 f_v5 在本地计算，提供者报的模式只作对照。judge 对象即 iLang ::JUDGE{v5.0} 块的 JSON 形式（ilang-spec schema/judge-v5.0.json），冻结。",
+  "$defs": {
+    "unit": { "type": "number", "minimum": 0, "maximum": 1 },
+    "vector": {
+      "type": "object",
+      "required": ["int", "cap", "csq", "rel", "cer", "aut", "rev", "evd", "sov", "ine", "ext"],
+      "additionalProperties": false,
+      "properties": {
+        "int": { "$ref": "#/$defs/unit" }, "cap": { "$ref": "#/$defs/unit" }, "csq": { "$ref": "#/$defs/unit" },
+        "rel": { "$ref": "#/$defs/unit" }, "cer": { "$ref": "#/$defs/unit" }, "aut": { "$ref": "#/$defs/unit" },
+        "rev": { "$ref": "#/$defs/unit" }, "evd": { "$ref": "#/$defs/unit" }, "sov": { "$ref": "#/$defs/unit" },
+        "ine": { "$ref": "#/$defs/unit" }, "ext": { "$ref": "#/$defs/unit" }
+      }
+    },
+    "judge": {
+      "type": "object",
+      "required": ["judge", "v", "mode", "conf", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "judge": { "const": "v5.0" },
+        "v": { "$ref": "#/$defs/vector" },
+        "mode": { "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"] },
+        "conf": { "$ref": "#/$defs/unit" },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 120, "pattern": "^[^\\n\\r]*$" }
+      }
+    },
+    "node": {
+      "description": "决策节点闭集。加节点要改主干与默认 SOUL，不在插件里加。",
+      "enum": ["offer.select", "lp.publish", "campaign.launch", "campaign.adjust", "keyword.action", "conversion.upload", "anomaly.escalate"]
+    },
+    "choice": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "label": { "type": "string" },
+        "data": { "type": "object" }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "title": "request",
+      "type": "object",
+      "required": ["type", "node", "state", "choices"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "judgment.request" },
+        "schema_version": { "const": 1 },
+        "id": { "type": "string" },
+        "node": { "$ref": "#/$defs/node" },
+        "state": { "description": "节点状态，字段由主干各节点定义（见 core/judge/使用方法.md）。", "type": "object" },
+        "choices": { "type": "array", "minItems": 1, "maxItems": 255, "items": { "$ref": "#/$defs/choice" } },
+        "caps": { "description": "用户在配置里预授权的上限，超出即 aut 降低。", "type": "object" },
+        "evidence": { "type": "array", "items": { "type": "string" } },
+        "soul": { "description": "SOUL 标识与版本，如 default@2.0.0。", "type": "string" }
+      }
+    },
+    {
+      "title": "response",
+      "type": "object",
+      "required": ["type", "node", "choice", "confidence", "judge", "provider", "mode_local"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "judgment.response" },
+        "schema_version": { "const": 1 },
+        "id": { "type": "string" },
+        "node": { "$ref": "#/$defs/node" },
+        "choice": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "confidence": { "$ref": "#/$defs/unit" },
+        "judge": { "$ref": "#/$defs/judge" },
+        "mode_local": { "description": "主干按 f_v5 从 v 算出的模式。与 judge.mode 不一致时以此为准并记录。", "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"] },
+        "provider": { "description": "local、llm、jev、soul-api。", "type": "string" },
+        "fallback": { "description": "提供者失败后退回本地规则时为 true。", "type": "boolean" },
+        "boundary_hit": { "description": "命中 ::BOUNDARY 时给出边界名，模式强制 M8。", "type": "string" },
+        "distribution": { "description": "各选项概率，Jev 类提供者给出。", "type": "object", "additionalProperties": { "$ref": "#/$defs/unit" } },
+        "latency_ms": { "type": "integer", "minimum": 0 }
+      }
+    }
+  ]
+}

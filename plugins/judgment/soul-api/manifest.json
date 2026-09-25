@@ -1,0 +1,17 @@
+{
+  "manifest_version": 1,
+  "id": "judgment/soul-api",
+  "kind": "judgment",
+  "name": "iLang 托管 SOUL API（公益期免费）",
+  "version": "2.0.0",
+  "status": "alpha",
+  "usage": "使用方法.md",
+  "actions": { "judge": "provider.py" },
+  "credentials": [
+    { "env": "SOUL_API_ENDPOINT", "required": true },
+    { "env": "SOUL_API_KEY", "required": true, "note": "公益期在社区领取" }
+  ],
+  "external_apis": [ "iLang Inc. SOUL API /v1/judge（服务端不在本仓库）" ],
+  "limits": { "timeout_s": 8 },
+  "unattended": { "accepted": false, "days": 0, "note": "发前扫掉凭据与 gclid；失败退回本地规则" }
+}

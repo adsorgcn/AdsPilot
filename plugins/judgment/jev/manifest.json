@@ -1,0 +1,17 @@
+{
+  "manifest_version": 1,
+  "id": "judgment/jev",
+  "kind": "judgment",
+  "name": "Jev（TypeSafe AI 决策模型，选项分布）",
+  "version": "2.0.0",
+  "status": "alpha",
+  "usage": "使用方法.md",
+  "actions": { "judge": "provider.py" },
+  "credentials": [
+    { "env": "JEV_ENDPOINT", "required": true, "note": "早期接入给的端点" },
+    { "env": "JEV_API_KEY", "required": true }
+  ],
+  "external_apis": [ "Jev decide 接口（早期接入，形状待锁死）" ],
+  "limits": { "max_choices": 255, "timeout_s": 8 },
+  "unattended": { "accepted": false, "days": 0, "note": "只给选项与分布；向量由主干本地规则给，模式由 f_v5 算" }
+}

@@ -1,7 +1,7 @@
 ::ILANG::v5.0::ADSPILOT_ENTRY
-[TYPE:entry][AGENT:claude-code][LANG:zh]
+[TYPE:entry][AGENT:codex-and-any][LANG:zh]
 
-# AdsPilot（给 Claude Code 的入口）
+# AdsPilot（给 Codex、OpenClaw、Hermes 与任何 Agent 的入口）
 
 你是执行者。这个仓库不是一个要你编译的程序，是一套让你在用户自己的账号和机器上无人值守跑广告联盟投放的方法与脚本。先读，再自检，再动。
 

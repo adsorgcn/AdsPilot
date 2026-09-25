@@ -1,0 +1,10 @@
+[Unit]
+Description=Run AdsPilot daily loop once a day
+
+[Timer]
+OnCalendar=*-*-* 06:30:00
+RandomizedDelaySec=900
+Persistent=true
+
+[Install]
+WantedBy=timers.target

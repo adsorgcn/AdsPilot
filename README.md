@@ -1,142 +1,54 @@
 # AdsPilot
 
-*English version: [README.en.md](README.en.md).*
+**开源、免费。** 把整套广告联盟投放能力做成基座加插件，交给你自己的 Agent（Claude Code、Codex、OpenClaw、Hermes 或同类），在你自己的账号、你自己的机器上无人值守地跑。不登录、不托管、不收费。
 
-一个会投放的 AI,不是一个让你登录的系统。
+**合规姿态，与开源免费并排写在第一屏。** 本人真实身份、单账号，平台要 KYC 照实做；不造流量、不模拟点击、不做 cloaking、不绕平台资格与封禁、不冒充身份、不做多账号；凭据零留存，一切在你自己的机器与账号里。做不到这几条的，这个仓库帮不上。
 
-AdsPilot 不是一个让你登录的后台。你在本地装好、连上你自己的 Google Ads 账号,然后对一个
-AI 说话,它替你操作 Google Ads:选 offer 和关键词、建广告和调广告、过滤流量、管理多个账号。
+*English: [README.en.md](README.en.md)*
 
-> **凭证归你自己。** 授权在你本机的浏览器里完成(OAuth loopback 流程,和 Claude Code CLI
-> 登录用的是同一套)。你的 Google refresh token 存在你自己机器上,不发往任何服务器。
+## 这是什么
 
-## AdsPilot 是什么
+传统投放 SaaS 的架构是「平台替你干活」，所以要登录、计费、多租户、托管你的 token。AdsPilot 的架构是「你的 Agent 替你干活」：仓库里是一套 **使用方法**（iLang 形状，任何 Agent 读了都同样执行）加一组标准库脚本，你的 Agent 读完就能建广告、拉报表、对账、灌转化、每天自己跑。
 
-大多数广告工具是个 Web 控制台:你登录、点来点去、手工配置一切。AdsPilot 把它反过来。界面
-就是 AI。你用大白话说你要什么,AI 替你驱动 Google Ads API。
+能跑起来是基座保证的。跑得好不好取决于 SOUL：仓库自带一个通用默认 SOUL，本地、开源、零成本。公益期由 iLang Inc. 托管一个判断服务（便宜模型加 Jev），免费给大家用，用真实数据把判断磨准。
 
-- AI 就是操作者,没有要学的管理后台。
-- 它跑在你这边、你自己的机器上,不是一个替你拿着账号的托管服务。
-- 它设计成以 OpenClaw skill 的形式运行,让非技术用户能在引导下装好;他们遇到的 bug 会变成
-  对项目的改进。
+这也是 [iLang 协议](https://github.com/ilang-ai/ilang-spec) 第一个较大的商用应用：v3 通信层、v4 执行层、v5 判断层各管一段。
 
-## 为什么没有登录系统
+## 一条判据
 
-传统广告 SaaS 需要登录系统、订阅计费、多租户权限、托管你的 token,因为它的架构是"平台替你
-干活"。AdsPilot 的架构是"AI 替你干活"。你在本地装好、在自己浏览器里完成 Google 授权,token
-归你自己。AI 直接操作 API,中间不需要一个 Web 后台。登录系统、计费、多租户、token 托管在这
-个范式下不需要存在,所以它们就不存在。
+**凡是要对外部 API 说话的，就是插件口子；剩下的全是主干。** 主干不依赖任何一家外部服务。
 
-## 四块核心能力
-
-**1. 联盟 API 对接。** 可插拔的 `AffiliateProvider` 接口。AI 从联盟的第一方结构化数据里选
-offer、写广告文案。接新联盟只需实现接口,不动主干。
-
-**2. Google Ads 关键词数据。** `KeywordProvider` 接口抽象关键词来源。Google Ads API 是首发
-实现;API 还没批下来时,CSV 导入自动兜底,系统不停摆。
-
-**3. 真实流量源 + 反作弊过滤。** 买来的真实流量经埋点入库,四层过滤假流量:
-
-| 层 | 机制 | 延迟 |
-|---|---|---|
-| 第一层 | 入口指纹(IP 情报、UA 异常、头一致性) | 毫秒级,同步 |
-| 第二层 | 频率窗口(同 IP/指纹在时间窗内的点击频次) | 毫秒级,Redis 计数 |
-| 第三层 | 行为信号(停留时间、交互、JS 执行) | 秒级,异步回填 |
-| 第四层 | 转化回溯(联盟回传拒付,反标到对应点击) | 天级,离线批处理 |
-
-IP 情报可插拔(`IPIntelProvider`,首发 IPQS)。实时规则引擎和离线 ML 模型双引擎并行:冷启动
-靠规则扛,样本够了模型接管。这里的"反作弊"是把假流量过滤掉,不是制造假流量。
-
-**4. 多账户管理。** Google Ads MCC 管理多账户数据,`BrowserProvider` 接口对接指纹浏览器(首
-发 AdsPower),实现多账户会话隔离。
-
-## 怎么用
-
-1. **安装**:通过 OpenClaw(或克隆下来本地跑,用于开发)。
-2. **授权**:本机的浏览器流程连上你的 Google Ads 账号。token 只写到你的机器上。配置和完整流程见 [本地授权指南](docs/local-auth.md)。
-3. **操作**:告诉 AI 你要什么("给这个产品找关键词"、"给这个 offer 开个广告系列"、"这个广
-   告组为什么跑不动"),它用 Google Ads API 去做。
-
-## 可插拔架构
-
-每个第三方集成都走 provider 接口,新增同类只需实现接口,不改主干。
-
-| Provider | 接口 | 首发实现 |
-|---|---|---|
-| 联盟 | `AffiliateProvider` | CJ / Impact |
-| 关键词 | `KeywordProvider` | Google Ads API |
-| 流量源 | `TrafficProvider` | Native |
-| IP 情报 | `IPIntelProvider` | IPQS |
-| AI | `AIProvider` | Claude / DeepSeek |
-| 指纹浏览器 | `BrowserProvider` | AdsPower |
-
-## 模块
-
-能力层是一组独立的 Go 服务模块,通过 Go workspace(`go.work`)串起来。
-
-| 模块 | 职责 | 状态 |
-|---|---|---|
-| `adscenter` | Google Ads API:账户、关键词、广告系列、MCC | 已建 |
-| `aicore` | AI 抽象层(选 offer、设计广告、反作弊推理) | 已建 |
-| `siterank` | 站点和关键词排名信号 | 已建 |
-| `recommendations` | 优化建议 | 已建 |
-| `proxy-pool` | 中性 IP 路由基础设施 | 已建 |
-| `gateway-middleware` | 边缘鉴权和路由 | 已建 |
-| `bff` | 聚合层 | 已建 |
-| `projector` | 事件投影和读模型 | 已建 |
-| `useractivity` | 活动追踪 | 已建 |
-| `console` | 控制台后端 | 已建 |
-| `affiliate` | 联盟 API 对接 | 计划中 |
-| `traffic` | 真实流量接入和埋点 | 计划中 |
-| `antifraud` | 反作弊过滤 | 计划中 |
-| `browserpool` | 指纹浏览器 API | 计划中 |
-
-共享 Go 库放在 `pkg/`。
-
-## 状态
-
-本地授权(浏览器 loopback 流程、token 存用户本机)正在开发中。把能力打包成 OpenClaw skill、
-以及通过 ClawHub 分发,是接下来的事。
-
-## 铁律
-
-- 不做假流量、不模拟点击。"反作弊"是把假流量或垃圾流量过滤掉,绝不制造。
-- 不做 cloaking,给 Google 爬虫看的和真实用户看的没有任何不同。
-- 凭证不进代码。全走环境变量,加密入库。
-- 你的 OAuth token 存在你机器上,平台零留存。
-
-## 配置
-
-配置全走环境变量。从 `.env.example` 开始,填你自己的值。
-
-| 变量 | 说明 |
-|---|---|
-| `DATABASE_URL` | PostgreSQL 连接串 |
-| `REDIS_URL` | Redis 连接串 |
-| `CREDENTIAL_ENC_KEY` | 32 字节,加密存储凭证用 |
-| `GOOGLE_ADS_DEVELOPER_TOKEN` | 你自己的 Google Ads Developer Token |
-| `GOOGLE_ADS_OAUTH_CLIENT_ID` | 你自己的 OAuth Client ID(桌面类型客户端) |
-| `GOOGLE_ADS_OAUTH_CLIENT_SECRET` | 你自己的 OAuth Client Secret |
-
-## 开发
-
-后端(Go 1.25.1+):
-
-```bash
-go work sync
-go build ./...
+```
+core/       主干：agent 适配与自检 · lp 落地页 · judge 判断（f_v5 冻结） · ledger 归因对账 · loop 无人值守循环 · selfcheck
+plugins/    插件：traffic/google-ads · affiliate/cj · judgment/{llm,jev,soul-api} · report/feishu · deploy/cloudflare-worker · keywords · ipintel
+soul/       默认 SOUL、SOUL 接口、SOUL API 接口说明
+schemas/    manifest · judgment · report · traffic-spec · traffic-report · commissions
+reference/  iLang runtime（钉版本）· affiliate-design · v1 交接
 ```
 
-本地把服务跑起来(单用户模式,自带内嵌数据库,不需要 Docker):
+## 三分钟上手（给你的 Agent）
 
 ```bash
-./scripts/dev-local.sh        # Windows 用 .\scripts\dev-local.ps1
+git clone https://github.com/adsorgcn/AdsPilot && cd AdsPilot
+python3 core/agent/selfcheck.py                     # 够不够格无人值守
+cp config/adspilot.example.json config/adspilot.json  # 填自己的值，凭据放环境变量
+python3 core/loop/daily.py --dry-run                # 跑一轮，什么都不写外部
 ```
 
-详见 [本地运行指南](docs/local-run.md)。
+Claude Code 读 `CLAUDE.md`，Codex 与其他读 `AGENTS.md`，Cursor 读 `.cursor/rules/`。三份一样。之后按 `core/loop/使用方法.md` 装调度器，每天一轮。
 
-格式检查和分模块测试在 CI 里跑,见 `.github/workflows/ci.yml`。
+## 人只在三处出现
 
-## License
+证件与 KYC、付款与绑卡、平台要求本人申诉。其余全是 Agent 与脚本。每个插件要在一台干净的用户环境里连续七天无人干预跑完日常循环，才能从 alpha 标成 stable。
 
-MIT。
+## 数据回流
+
+方向只有一个：从用户回到社区。你的 Agent 每轮用固定 schema 回报（花费、点击、转化、判断与置信度、证据引用，不含凭据与 gclid 原文），社区机器人校验、审计、记进度；聚合数据回填阈值与资格表，用来校验判断引擎。
+
+## 版本
+
+`VERSION` 三位号。日常改动只动末位；「迭代小版本」动中间位；大版本第一位单独决定。旧 Go 代码在 tag `v1-go-archive`。
+
+## 许可
+
+MIT。iLang runtime 副本来自 ilang-spec（MIT）。

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/adsorgcn/AdsPilot/schemas/manifest.schema.json",
+  "title": "AdsPilot 插件 manifest",
+  "description": "每个插件目录一份 manifest.json。主干只读这份文件决定怎么调用插件；加一家只加一个目录，主干不改。",
+  "type": "object",
+  "required": ["manifest_version", "id", "kind", "version", "status", "actions", "credentials", "external_apis"],
+  "additionalProperties": false,
+  "properties": {
+    "manifest_version": { "const": 1 },
+    "id": {
+      "description": "插件唯一 id，形如 traffic/google-ads、affiliate/cj、judgment/llm。",
+      "type": "string",
+      "pattern": "^(traffic|affiliate|judgment|report|deploy|keywords|ipintel)/[a-z0-9][a-z0-9-]*$"
+    },
+    "kind": { "enum": ["traffic", "affiliate", "judgment", "report", "deploy", "keywords", "ipintel"] },
+    "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "status": {
+      "description": "alpha 未过七天无人值守验收；stable 已过；deprecated 停用。",
+      "enum": ["alpha", "stable", "deprecated"]
+    },
+    "actions": {
+      "description": "契约动作到脚本的映射。流量插件必须有 spec、deploy、report、convert；联盟插件必须有 offers、link、commissions、chargebacks；判断插件必须有 judge；回流插件必须有 post；部署插件必须有 deploy、status。值为相对插件目录的脚本路径，或 manual 表示该动作由 Agent 按使用方法操作后台完成。",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "credentials": {
+      "description": "用户自己持有、放在自己环境变量里的凭据名。仓库永远不带值。",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["env", "required"],
+        "additionalProperties": false,
+        "properties": {
+          "env": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+          "required": { "type": "boolean" },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "external_apis": {
+      "description": "这个插件会对哪些外部 API 说话。主干本身这项永远为空，这是判据。",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": { "type": ["number", "string", "integer"] }
+    },
+    "unattended": {
+      "description": "无人值守验收记录。",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "accepted": { "type": "boolean" },
+        "days": { "type": "integer", "minimum": 0 },
+        "note": { "type": "string" }
+      }
+    },
+    "usage": { "description": "使用方法文件名。", "type": "string" }
+  }
+}

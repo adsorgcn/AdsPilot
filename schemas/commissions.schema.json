@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/adsorgcn/AdsPilot/schemas/commissions.schema.json",
+  "title": "标准佣金明细（联盟插件 commissions 与 chargebacks 动作的输出）",
+  "description": "网络无关。每行一笔佣金事件，sub_id 里装的是我们的 token。联盟插件负责把自家字段翻译成这个形状（CJ 的 shopperId、Impact 的 subId1、Awin 的 clickref、Rakuten 的 u1、ShareASale 的 afftrack 都落到 sub_id）。",
+  "type": "object",
+  "required": ["type", "schema_version", "network", "currency", "pulled_at", "rows"],
+  "additionalProperties": false,
+  "properties": {
+    "type": { "const": "adspilot.commissions" },
+    "schema_version": { "const": 1 },
+    "network": { "type": "string" },
+    "publisher_id": { "type": "string" },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "pulled_at": { "type": "string" },
+    "window": {
+      "type": "object",
+      "properties": { "since": { "type": "string" }, "until": { "type": "string" } }
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["event_id", "event_time", "sub_id", "status", "amount", "currency"],
+        "additionalProperties": false,
+        "properties": {
+          "event_id": { "type": "string", "minLength": 1 },
+          "event_time": { "type": "string", "minLength": 10 },
+          "click_time": { "type": "string" },
+          "sub_id": { "description": "我们的 token；空字符串表示这笔没带 sub-id。", "type": "string", "maxLength": 64 },
+          "status": { "enum": ["new", "locked", "extended", "closed", "corrected", "reversed", "unknown"] },
+          "amount": { "description": "发布者佣金，拒付或纠正为负数。", "type": "number" },
+          "sale_amount": { "type": "number" },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "advertiser": { "type": "string" },
+          "advertiser_id": { "type": "string" },
+          "offer_ref": { "type": "string" },
+          "action": { "type": "string" },
+          "is_chargeback": { "type": "boolean" },
+          "original_event_id": { "description": "拒付或纠正所指向的原始事件。", "type": "string" }
+        }
+      }
+    }
+  }
+}

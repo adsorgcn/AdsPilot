@@ -1,0 +1,12 @@
+[Unit]
+Description=AdsPilot daily unattended loop
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=__ROOT__
+EnvironmentFile=-/etc/adspilot.env
+ExecStart=/usr/bin/env python3 core/loop/daily.py
+TimeoutStartSec=1800
+Nice=10

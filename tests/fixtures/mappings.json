@@ -1,0 +1,35 @@
+[
+  {
+    "token": "FIXTURETOKEN00000001",
+    "gclid": "CjwKCAjwFixtureGclid0001_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "campaign": "Widget Deals",
+    "adgroup": "Brand X",
+    "keyword": "widget x review",
+    "page": "/widget-x-review",
+    "ts": "2026-09-10T14:03:00+00:00",
+    "network": "cj",
+    "offer": "cj:100001:12345"
+  },
+  {
+    "token": "FIXTURETOKEN00000002",
+    "gclid": "CjwKCAjwFixtureGclid0002_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "campaign": "Widget Deals",
+    "adgroup": "Brand Y",
+    "keyword": "widget y coupon",
+    "page": "/widget-x-review",
+    "ts": "2026-09-12T09:30:00+00:00",
+    "network": "cj",
+    "offer": "cj:100002:12346"
+  },
+  {
+    "token": "FIXTURETOKEN00000003",
+    "gclid": "CjwKCAjwFixtureGclid0003_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "campaign": "Gadget Test",
+    "adgroup": "Gadget",
+    "keyword": "gadget z discount",
+    "page": "/widget-x-review",
+    "ts": "2026-09-15T20:10:00+00:00",
+    "network": "cj",
+    "offer": "cj:100003:12347"
+  }
+]

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/adsorgcn/AdsPilot/schemas/traffic-report.schema.json",
+  "title": "标准投放报表（流量插件 report 动作的输出）",
+  "description": "平台无关。每行一个 (日期, 系列, 广告组, 关键词) 的汇总。流量插件负责把自家报表翻译成这个形状；主干只认这个形状。",
+  "type": "object",
+  "required": ["type", "schema_version", "platform", "currency", "pulled_at", "rows"],
+  "additionalProperties": false,
+  "properties": {
+    "type": { "const": "adspilot.traffic_report" },
+    "schema_version": { "const": 1 },
+    "platform": { "type": "string" },
+    "account": { "description": "账号标识，可打码。", "type": "string" },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "pulled_at": { "type": "string" },
+    "source": { "description": "csv_export 或 api。", "enum": ["csv_export", "api"] },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["date", "campaign", "impressions", "clicks", "cost"],
+        "additionalProperties": false,
+        "properties": {
+          "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+          "campaign": { "type": "string" },
+          "campaign_id": { "type": "string" },
+          "campaign_status": { "type": "string" },
+          "adgroup": { "type": "string" },
+          "adgroup_id": { "type": "string" },
+          "keyword": { "type": "string" },
+          "keyword_id": { "type": "string" },
+          "match": { "enum": ["phrase", "exact", "broad", ""] },
+          "impressions": { "type": "integer", "minimum": 0 },
+          "clicks": { "type": "integer", "minimum": 0 },
+          "cost": { "type": "number", "minimum": 0 },
+          "avg_cpc": { "type": "number", "minimum": 0 },
+          "conversions": { "type": "number", "minimum": 0 },
+          "conv_value": { "type": "number", "minimum": 0 },
+          "disapproved": { "type": "boolean" },
+          "policy": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/adsorgcn/AdsPilot/schemas/report.schema.json",
+  "title": "AdsPilot 回流报告",
+  "description": "用户的 Agent 每跑完一轮或做完一段，用这份 schema 回报社区。方向只有一个：从用户回到社区。不含凭据，不含 gclid 原文，不含他人数据。",
+  "type": "object",
+  "required": ["type", "schema_version", "adspilot_version", "reported_at", "run_id", "line", "seg", "summary", "actions", "judgments", "evidence", "needs_human"],
+  "additionalProperties": false,
+  "properties": {
+    "type": { "const": "adspilot.report" },
+    "schema_version": { "const": 1 },
+    "adspilot_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+" },
+    "reported_at": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}" },
+    "run_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{4,64}$" },
+    "member": {
+      "description": "回报者标识：社区发的 open_id 或成员 id。没有就省略，社区侧按通道身份归属。",
+      "type": "string"
+    },
+    "line": { "description": "在做哪条线，L1 到 L4，或 NA。", "enum": ["L1", "L2", "L3", "L4", "NA"] },
+    "seg": { "description": "自评到第几段，0 到 7。社区只在审过证据后才记进度。", "type": "integer", "minimum": 0, "maximum": 7 },
+    "summary": {
+      "type": "object",
+      "required": ["window_days", "spend", "clicks", "conversions", "commission", "currency"],
+      "additionalProperties": false,
+      "properties": {
+        "window_days": { "type": "integer", "minimum": 1, "maximum": 90 },
+        "spend": { "type": "number", "minimum": 0 },
+        "clicks": { "type": "integer", "minimum": 0 },
+        "impressions": { "type": "integer", "minimum": 0 },
+        "avg_cpc": { "type": "number", "minimum": 0 },
+        "conversions": { "type": "integer", "minimum": 0 },
+        "commission": { "type": "number", "minimum": 0 },
+        "chargebacks": { "type": "integer", "minimum": 0 },
+        "epc": { "type": "number", "minimum": 0 },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "campaigns_active": { "type": "integer", "minimum": 0 },
+        "offers_active": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "actions": {
+      "description": "本轮执行或提议的动作。applied 为 false 表示只提议未执行。",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["node", "choice", "applied"],
+        "additionalProperties": false,
+        "properties": {
+          "node": { "type": "string" },
+          "target": { "type": "string" },
+          "choice": { "type": "string" },
+          "applied": { "type": "boolean" },
+          "note": { "type": "string", "maxLength": 200 }
+        }
+      }
+    },
+    "judgments": {
+      "description": "本轮每个判断的模式与置信度，向量原文可选。用于回填阈值与校验判断引擎。",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["node", "mode", "conf", "provider"],
+        "additionalProperties": false,
+        "properties": {
+          "node": { "type": "string" },
+          "mode": { "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"] },
+          "conf": { "type": "number", "minimum": 0, "maximum": 1 },
+          "provider": { "type": "string" },
+          "v": { "type": "object" },
+          "reason": { "type": "string", "maxLength": 120 }
+        }
+      }
+    },
+    "evidence": {
+      "description": "证据引用，只给类型与引用名，不给原文。",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "ref", "result"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "deliverable": { "type": "string" },
+          "kind": { "enum": ["file", "screenshot", "report", "ledger", "test_output", "manual_check"] },
+          "ref": { "type": "string" },
+          "result": { "enum": ["pass", "fail", "unknown"] },
+          "gap": { "type": "string" }
+        }
+      }
+    },
+    "needs_human": {
+      "description": "本轮是否需要本人出手，以及为什么。三处以外的 needs_human 都是要修的缺陷。",
+      "type": "object",
+      "required": ["required"],
+      "additionalProperties": false,
+      "properties": {
+        "required": { "type": "boolean" },
+        "reasons": { "type": "array", "items": { "enum": ["kyc", "payment", "appeal", "other"] } },
+        "note": { "type": "string", "maxLength": 300 }
+      }
+    },
+    "status": {
+      "description": "iLang ::STATUS 的状态值。",
+      "enum": ["in_progress", "claimed_complete", "needs_revision", "stopped", "blocked"]
+    },
+    "exit_code": { "type": "integer", "minimum": 0, "maximum": 255 },
+    "plugins": {
+      "description": "本轮用到的插件 id 与版本。",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "soul": { "type": "string" }
+  }
+}

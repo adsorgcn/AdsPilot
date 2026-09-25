@@ -1,0 +1,19 @@
+{
+  "offer_ref": "cj:100001:12345",
+  "name": "Widget X Review",
+  "country": "US",
+  "language": "en",
+  "currency": "USD",
+  "final_url": "https://example.com/widget-x-review",
+  "keywords": [
+    { "text": "widget x review", "match": "phrase" },
+    { "text": "buy widget x", "match": "exact" }
+  ],
+  "headlines": ["Widget X Review 2026", "Is Widget X Worth It", "Widget X Pros And Cons"],
+  "descriptions": ["Hands-on review of Widget X with pricing and alternatives.", "See who it fits and who should skip it."],
+  "path1": "review", "path2": "widget-x",
+  "negatives": ["free", "download", "torrent"],
+  "daily_budget": 5,
+  "max_cpc": 0.25,
+  "is_new_account": true
+}

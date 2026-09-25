@@ -1,0 +1,17 @@
+{
+  "manifest_version": 1,
+  "id": "deploy/cloudflare-worker",
+  "kind": "deploy",
+  "name": "Cloudflare Worker 中转（/go 铸 token 存映射 302）",
+  "version": "2.0.0",
+  "status": "alpha",
+  "usage": "使用方法.md",
+  "actions": { "deploy": "deploy.sh", "status": "status.sh" },
+  "credentials": [
+    { "env": "CLOUDFLARE_API_TOKEN", "required": false, "note": "无人值守部署时用；交互式用 wrangler login" },
+    { "env": "ADSPILOT_EXPORT_KEY", "required": true, "note": "与 Worker 的 EXPORT_KEY secret 相同，主干拉映射用" }
+  ],
+  "external_apis": [ "Cloudflare Workers / KV（wrangler）", "用户自有域名上的 /go /export /health" ],
+  "limits": { "kv_ttl_days": 100, "export_pages": 20 },
+  "unattended": { "accepted": false, "days": 0, "note": "部署一次即常驻；主干每轮 /export 拉回映射" }
+}

@@ -1,0 +1,18 @@
+{
+  "manifest_version": 1,
+  "id": "judgment/llm",
+  "kind": "judgment",
+  "name": "OpenAI 兼容聊天模型（感知层）",
+  "version": "2.0.0",
+  "status": "alpha",
+  "usage": "使用方法.md",
+  "actions": { "judge": "provider.py" },
+  "credentials": [
+    { "env": "LLM_BASE_URL", "required": true, "note": "如 https://api.deepseek.com/v1，任何 OpenAI 兼容端点" },
+    { "env": "LLM_API_KEY", "required": true },
+    { "env": "LLM_MODEL", "required": true, "note": "便宜模型即可，只要求它按格式输出五行" }
+  ],
+  "external_apis": [ "OpenAI 兼容 /chat/completions（用户选的提供商）" ],
+  "limits": { "timeout_s": 8, "max_tokens": 300 },
+  "unattended": { "accepted": false, "days": 0, "note": "失败自动退回本地规则，不阻塞循环" }
+}

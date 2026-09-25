@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/adsorgcn/AdsPilot/schemas/traffic-spec.schema.json",
+  "title": "投放规格（流量插件 spec 动作的输出，deploy 动作的输入）",
+  "description": "平台无关的投放规格。流量插件把它翻译成自家后台的字段。这份也是学员自证 JSON 的格式：建好系列后导出成同一形状贴回社区。",
+  "type": "object",
+  "required": ["type", "schema_version", "platform", "campaign", "adgroups", "hard_limits"],
+  "additionalProperties": false,
+  "properties": {
+    "type": { "const": "adspilot.traffic_spec" },
+    "schema_version": { "const": 1 },
+    "platform": { "type": "string", "minLength": 1 },
+    "campaign": {
+      "type": "object",
+      "required": ["name", "objective", "networks", "geo", "language", "bidding", "daily_budget", "currency", "final_url_domain"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "objective": { "enum": ["search"] },
+        "networks": {
+          "type": "object",
+          "required": ["search_partners", "display"],
+          "properties": { "search_partners": { "const": false }, "display": { "const": false } }
+        },
+        "geo": {
+          "type": "object",
+          "required": ["countries", "presence"],
+          "properties": {
+            "countries": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[A-Z]{2}$" } },
+            "presence": { "description": "只投「位于」目标市场的人。", "const": "living_in" }
+          }
+        },
+        "language": { "type": "string", "pattern": "^[a-z]{2}$" },
+        "bidding": {
+          "type": "object",
+          "required": ["strategy", "max_cpc"],
+          "properties": {
+            "strategy": { "enum": ["manual_cpc"] },
+            "max_cpc": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "daily_budget": { "type": "number", "exclusiveMinimum": 0 },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "final_url_domain": { "description": "落地页所在的自有域名。不允许直投联盟链接。", "type": "string", "minLength": 3 },
+        "start_date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "tracking_template": { "type": "string" },
+        "negatives": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "adgroups": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "keywords", "ads", "final_url"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "max_cpc": { "type": "number", "exclusiveMinimum": 0 },
+          "final_url": { "type": "string", "pattern": "^https://" },
+          "keywords": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["text", "match"],
+              "properties": {
+                "text": { "type": "string", "minLength": 1 },
+                "match": { "description": "只许词组或精确。", "enum": ["phrase", "exact"] },
+                "max_cpc": { "type": "number", "exclusiveMinimum": 0 }
+              }
+            }
+          },
+          "ads": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["headlines", "descriptions"],
+              "properties": {
+                "headlines": { "type": "array", "minItems": 3, "maxItems": 15, "items": { "type": "string", "maxLength": 30 } },
+                "descriptions": { "type": "array", "minItems": 2, "maxItems": 4, "items": { "type": "string", "maxLength": 90 } },
+                "path1": { "type": "string", "maxLength": 15 },
+                "path2": { "type": "string", "maxLength": 15 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "hard_limits": {
+      "description": "从 SOUL 参数抄进来的硬限，deploy 前逐条核对。",
+      "type": "object",
+      "required": ["max_cpc_cap", "daily_budget_cap", "stop_loss_spend"],
+      "properties": {
+        "max_cpc_cap": { "type": "number", "exclusiveMinimum": 0 },
+        "daily_budget_cap": { "type": "number", "exclusiveMinimum": 0 },
+        "stop_loss_spend": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "offer_ref": { "description": "这条系列对应的联盟 offer 引用，形如 cj:advertiser_id:link_id。", "type": "string" },
+    "sub_id_form": { "enum": ["landing_first_party", "valuetrack_dimension"] }
+  }
+}

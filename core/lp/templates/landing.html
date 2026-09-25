@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<meta name="description" content="{{DESCRIPTION}}">
+<style>
+  :root { --fg:#1b1b1b; --bg:#ffffff; --muted:#5c5c5c; --accent:#0b57d0; }
+  body { margin:0; font:17px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:var(--fg); background:var(--bg); }
+  main { max-width:720px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:1.9rem; line-height:1.2; margin:.4em 0; }
+  h2 { font-size:1.3rem; margin-top:2em; }
+  .disclosure { font-size:.9rem; color:var(--muted); border-left:3px solid #ddd; padding:8px 12px; margin:16px 0; }
+  .cta { display:inline-block; background:var(--accent); color:#fff; padding:14px 22px; border-radius:8px; text-decoration:none; font-weight:600; }
+  table { border-collapse:collapse; width:100%; } td,th { border-bottom:1px solid #e5e5e5; padding:8px; text-align:left; }
+  footer { margin-top:48px; font-size:.9rem; color:var(--muted); }
+  footer a { color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>{{TITLE}}</h1>
+  <p class="disclosure">Affiliate disclosure: this page contains affiliate links. If you buy through them we may earn a commission at no extra cost to you. Opinions are our own.</p>
+
+  <!-- 实质内容：至少 300 词，必须是原创、与广告承诺一致、对搜索这个词的人有用。下面三段是占位，写成真的。 -->
+  <h2>{{H2_WHAT}}</h2>
+  <p>{{P_WHAT}}</p>
+
+  <h2>{{H2_WHO}}</h2>
+  <p>{{P_WHO}}</p>
+
+  <h2>{{H2_COMPARE}}</h2>
+  <table>
+    <tr><th>Feature</th><th>{{OFFER_NAME}}</th><th>Alternative</th></tr>
+    <tr><td>{{ROW1_K}}</td><td>{{ROW1_A}}</td><td>{{ROW1_B}}</td></tr>
+    <tr><td>{{ROW2_K}}</td><td>{{ROW2_A}}</td><td>{{ROW2_B}}</td></tr>
+  </table>
+
+  <h2>{{H2_VERDICT}}</h2>
+  <p>{{P_VERDICT}}</p>
+
+  <p><a class="cta" href="/go?o={{OFFER_REF}}" data-go="1" rel="nofollow sponsored">{{CTA_TEXT}}</a></p>
+
+  <footer>
+    <p>{{SITE_NAME}} · <a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms</a> · <a href="mailto:{{CONTACT_EMAIL}}">Contact</a></p>
+  </footer>
+</main>
+
+<script>
+/* 第一方标签：只做三件事。1 读 URL 里的 gclid/gbraid/wbraid 与 ValueTrack 维度；2 存进第一方 cookie（90 天）；3 把它们挂到本站 /go 链接上。
+   不改内容，不跳转，不按访客身份区分。*/
+(function () {
+  var q = new URLSearchParams(location.search);
+  var keys = ["gclid", "gbraid", "wbraid", "c", "a", "k", "n"];   /* c={campaignid} a={adgroupid} k={targetid} n={network} */
+  var days = 90, store = {};
+  keys.forEach(function (k) {
+    var v = q.get(k);
+    if (v) { document.cookie = "ap_" + k + "=" + encodeURIComponent(v) + ";max-age=" + (days * 86400) + ";path=/;SameSite=Lax;Secure"; store[k] = v; }
+    else { var m = document.cookie.match("(?:^|; )ap_" + k + "=([^;]*)"); if (m) store[k] = decodeURIComponent(m[1]); }
+  });
+  document.querySelectorAll('a[data-go="1"]').forEach(function (a) {
+    var u = new URL(a.getAttribute("href"), location.origin);
+    keys.forEach(function (k) { if (store[k]) u.searchParams.set(k, store[k]); });
+    u.searchParams.set("p", location.pathname);
+    a.setAttribute("href", u.pathname + u.search);
+  });
+})();
+</script>
+</body>
+</html>
