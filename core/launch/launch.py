@@ -83,10 +83,23 @@ def plugin(cfg, kind):
     return d, m
 
 
-def decide(cfg, soul, node, st_, choices, evidence):
+def decide(cfg, soul, node, st_, choices, evidence, user=None):
+    """user：用户明确说的选项。有就照做，判断照算，作为建议（advice）带出。"""
     choices = [{"id": c} if isinstance(c, str) else c for c in choices]
+    if user:
+        st_ = dict(st_ or {}, user_decision=user)
     resp = J.judge(node, st_, choices, cfg=cfg, soul=soul, evidence=evidence, req_id="launch-%s-%d" % (node, int(time.time())))
-    return resp, J.acts(resp["mode_local"])
+    return resp, J.executes(resp)
+
+
+def judged(resp):
+    """输出里的判断一栏：谁拿主意、做不做、判断自己的意见。"""
+    j = {"choice": resp["choice"], "decided_by": resp.get("decided_by"), "executes": resp.get("executes"), "mode": resp["mode_local"], "reason": resp["judge"]["reason"]}
+    if resp.get("advice"):
+        j["advice"] = resp["advice"]
+    if resp.get("boundary_hit"):
+        j["boundary_hit"] = resp["boundary_hit"]
+    return j
 
 
 def fill(html, values):
@@ -153,8 +166,14 @@ def step_offers(cfg, kv, apply):
             return out({"step": "offers", "error": "offers 动作退出码 %d: %s %s" % (rc, txt[-200:], err[-200:])}, 4 if rc == 4 else 3)
         rows = json.load(open(offers_path, encoding="utf-8"))
     rows = [r for r in rows if r.get("click_url")]
-    # 第一条要查词：只查 EPC 靠前的 N 家（--top，默认 10），查词有配额
-    rows = sorted(rows, key=lambda r: max(float(r.get("epc") or 0), float(r.get("epc_3m") or 0)), reverse=True)[:int(kv.get("top", 10))]
+    user = kv.get("pick") or kv.get("user")
+    # 查词有配额：只算 EPC 靠前的 N 家（--top，默认 10）；用户指定的那家不在前 N 也一起算
+    top = sorted(rows, key=lambda r: max(float(r.get("epc") or 0), float(r.get("epc_3m") or 0)), reverse=True)[:int(kv.get("top", 10))]
+    if user and user not in [r["offer_ref"] for r in top]:
+        top += [r for r in rows if r["offer_ref"] == user]
+    if user and user not in [r["offer_ref"] for r in top]:
+        return out({"step": "offers", "error": "用户指定的 %s 不在联盟已加入且有点击链接的 offer 里" % user}, 4)
+    rows = top
     kw_errors = {}
     if not all(r.get("keywords") for r in rows):
         cur, kw, kw_errors = keyword_data(cfg, rows, kv)
@@ -166,11 +185,6 @@ def step_offers(cfg, kv, apply):
             r["keywords"] = kw.get(r["offer_ref"]) or []
             r["fx"] = float(fx or 1.0) / float(fx_table.get(r.get("epc_currency", "USD"), 1.0) or 1.0)
             r["kw_currency"] = cur
-    if kv.get("pick"):
-        # --pick：Agent 已在联盟后台读过这家的 Program Terms，确认许 PPC；账（第一条）照样要算得过来
-        for r in rows:
-            if r["offer_ref"] == kv["pick"]:
-                r["ppc_allowed"] = True
     econ = []
     for r in rows:
         e = J.offer_economics(r, p)
@@ -179,24 +193,35 @@ def step_offers(cfg, kv, apply):
                      "passing_words": len(e.get("passing") or []), "best": e.get("best"), "ppc_allowed": r.get("ppc_allowed"),
                      "brand_bidding_allowed": r.get("brand_bidding_allowed")})
     choices = [{"id": r["offer_ref"], "data": r} for r in rows] + [{"id": "none"}]
-    resp, ok = decide(cfg, soul, "offer.select", {"offers_total": len(rows), "market": kv.get("country", "US")}, choices, ["runs/launch/offers.json", "runs/launch/keywords.json"])
+    resp, ok = decide(cfg, soul, "offer.select", {"offers_total": len(rows), "market": kv.get("country", "US")}, choices,
+                      ["runs/launch/offers.json", "runs/launch/keywords.json"], user=user)
     res = {"step": "offers", "checked": len(rows), "rule_1": "词的出价(%s) < 每次点击赚的钱(EPC÷100，%s)" % (p["offer"].get("bid_metric"), p["offer"].get("epc_basis")),
-           "economics": econ, "keyword_errors": kw_errors,
-           "judge": {"choice": resp["choice"], "mode": resp["mode_local"], "reason": resp["judge"]["reason"]}}
+           "economics": econ, "keyword_errors": kw_errors, "judge": judged(resp)}
     pick = resp["choice"] if ok and resp["choice"] != "none" else ""
     if not pick:
         passed = [e["advertiser"] for e in econ if e["bid_below_epc"]]
-        res["note"] = ("第一条（账）过了的：%s；但 PPC 政策没核（ppc_allowed 为 null）。Agent 去联盟后台读这几家的 Program Terms，写进 data/inbox/cj-offer-policy.json 再跑，或读完后 --pick <offer_ref>" % "、".join(passed)) \
-            if passed else "没有一家的账算得过来：词的出价都不低于每次点击赚的钱。换一批 offer（--top 加大）或换市场"
-        if kv.get("pick"):
-            res["note"] = "--pick %s 没过第一条：%s" % (kv["pick"], next((e["why"] for e in econ if e["offer_ref"] == kv["pick"]), "不在前 %s 家里" % kv.get("top", 10)))
+        res["note"] = ("建议：账过了的有 %s；PPC 政策没核（ppc_allowed 为 null）。用户定一家就 --pick <offer_ref>，照做；或 Agent 读完 Program Terms 写进 data/inbox/cj-offer-policy.json 再跑，由判断选" % "、".join(passed)) \
+            if passed else "建议：前 %d 家没有一家账算得过来（词的出价都不低于每次点击赚的钱）。用户要投哪家就 --pick <offer_ref>，照做" % len(rows)
         return out(res, 2)
     r = [x for x in rows if x["offer_ref"] == pick][0]
     e = J.offer_economics(r, p)
     table = {r["offer_ref"]: {"url": r["click_url"], "param": "sid"}}
     json.dump(table, open(os.path.join(ROOT, "runs", "launch", "offers-table.json"), "w", encoding="utf-8"), indent=2)
-    res["picked"] = {"offer_ref": r["offer_ref"], "advertiser": r["advertiser"], "epc": r.get("epc"), "earn_per_click": e["epc_per_click"], "currency": r.get("kw_currency"),
-                     "keywords": e["passing"][:20], "by": "pick" if kv.get("pick") else "soul"}
+    # 能投的词：账过了带过线的词；用户硬选、账没过，就带出价最低的非品牌词，建系列时由用户或 Agent 定出价
+    words = e["passing"][:20]
+    if not words:
+        metric = p["offer"].get("bid_metric", "cpc_low")
+        cands = [k for k in (r.get("keywords") or []) if float(k.get(metric) or 0) > 0 and (r.get("brand_bidding_allowed") is True or not k.get("brand"))]
+        words = [{"text": k["text"], "volume": k.get("volume"), metric: k.get(metric), "brand": k.get("brand", False)} for k in sorted(cands, key=lambda k: float(k[metric]))[:20]]
+    res["picked"] = {"offer_ref": r["offer_ref"], "advertiser": r["advertiser"], "epc": r.get("epc"), "earn_per_click": e.get("epc_per_click"), "currency": r.get("kw_currency"),
+                     "keywords": words, "by": resp.get("decided_by")}
+    warnings = []
+    if not e["ok"]:
+        warnings.append("账没过：%s" % e["why"])
+    if r.get("ppc_allowed") is not True:
+        warnings.append("PPC 政策没核：联盟不许 PPC 的话佣金可能被撤")
+    if warnings:
+        res["picked"]["warnings"] = warnings
     st.update({"offer": res["picked"], "offer_click_url_host": r["click_url"].split("/")[2] if "//" in r["click_url"] else ""})
     save(st)
     return out(res, 0)
@@ -218,11 +243,12 @@ def step_page(cfg, kv, apply):
     page_path = os.path.join(site_dir, slug + ".html")
     open(page_path, "w", encoding="utf-8").write(html)
     chk = lp_check.summarize(lp_check.check_html(html))
-    resp, ok = decide(cfg, soul, "lp.publish", {"lp_check_passed": chk["verdict"] == "pass", "fails": chk["fail"], "slug": slug}, ["publish", "fix"], ["site/%s.html" % slug])
+    resp, ok = decide(cfg, soul, "lp.publish", {"lp_check_passed": chk["verdict"] == "pass", "fails": chk["fail"], "slug": slug}, ["publish", "fix"],
+                      ["site/%s.html" % slug], user=kv.get("user"))
     res = {"step": "page", "slug": slug, "file": os.path.relpath(page_path, ROOT), "lp_check": {"verdict": chk["verdict"], "fail": chk["fail"], "warn": chk["warn"],
-           "fails": [r for r in chk["results"] if r["status"] == "fail"]}, "judge": {"choice": resp["choice"], "mode": resp["mode_local"], "reason": resp["judge"]["reason"]}}
+           "fails": [r for r in chk["results"] if r["status"] == "fail"]}, "judge": judged(resp)}
     if not (ok and resp["choice"] == "publish"):
-        return out(dict(res, note="页面没过，不发布；改内容再跑"), 2)
+        return out(dict(res, note="建议先改：页面检查没过（Google 目的地要求可能拒登）。用户要照发就 --user publish"), 2)
     if apply:
         if not st.get("host"):
             return out(dict(res, error="先跑 deploy"), 4)
@@ -265,11 +291,12 @@ def step_campaign(cfg, kv, apply, enable=False):
             pass
     jst = {"spec_valid": not problems and not errs, "lp_published": bool(st.get("page_url")) or bool(kv.get("brief") and not apply), "account_status": acct,
            "max_cpc": spec["campaign"]["bidding"]["max_cpc"], "daily_budget": spec["campaign"]["daily_budget"], "is_new_account": bool(brief.get("is_new_account"))}
-    resp, ok = decide(cfg, soul, "campaign.launch", jst, ["go", "hold"], ["runs/launch/spec.json"])
-    res = {"step": "campaign", "spec": os.path.relpath(spec_path, ROOT), "problems": problems, "schema_errors": errs[:3], "state": jst,
-           "judge": {"choice": resp["choice"], "mode": resp["mode_local"], "reason": resp["judge"]["reason"]}}
+    resp, ok = decide(cfg, soul, "campaign.launch", jst, ["go", "hold"], ["runs/launch/spec.json"], user=kv.get("user"))
+    res = {"step": "campaign", "spec": os.path.relpath(spec_path, ROOT), "problems": problems, "schema_errors": errs[:3], "state": jst, "judge": judged(resp)}
     if not (ok and resp["choice"] == "go"):
-        return out(dict(res, note="不放行，不建"), 2)
+        return out(dict(res, note="建议先别建：%s。用户要照建就 --user go" % ("；".join(problems) or resp["judge"]["reason"])), 2)
+    if errs:
+        return out(dict(res, error="spec 结构不对，Google 不收（这不是判断，是格式）：%s" % errs[:3]), 1)
     d, m = plugin(cfg, "traffic")
     args = ["--spec", spec_path] + (["--apply"] if apply else []) + (["--enable"] if enable else [])
     rc, j, txt, err = run(os.path.join(d, m["actions"]["deploy"]), args, timeout=600)
@@ -307,8 +334,8 @@ def step_go(cfg, kv, apply):
     st = state()
     if not st.get("campaign_id"):
         return out({"error": "没有已建的系列（先 campaign --apply）"}, 4)
-    if not st.get("verified_at"):
-        return out({"error": "先 verify 通过再启用"}, 2)
+    if not st.get("verified_at") and kv.get("user") != "go":
+        return out({"step": "go", "note": "建议先 verify：还没真点过一次，点击能不能进账本没核。用户要直接启用就 --user go"}, 2)
     d, m = plugin(cfg, "traffic")
     rc, j, txt, err = run(os.path.join(d, m["actions"]["deploy"]), ["--enable-campaign", st["campaign_id"]] + (["--apply"] if apply else []))
     res = {"step": "go", "campaign_id": st["campaign_id"], "result": j or txt[-300:]}
@@ -378,8 +405,14 @@ def selftest():
     t3 = r3["choice"] == "go" and ok3
     r4, _ = decide(cfg, soul, "campaign.launch", {"spec_valid": False, "lp_published": True, "account_status": "ok", "max_cpc": 0.2, "daily_budget": 5}, ["go", "hold"], ["x"])
     t4 = r4["choice"] == "hold"
-    good = t1 and t2 and t3 and t4
-    print("lp=%s/%s offer=%s launch=%s hold=%s -> %s" % (chk["verdict"], resp["mode_local"], r2["choice"], r3["mode_local"], r4["choice"], "OK" if good else "FAIL"))
+    bad = [{"id": "cj:9:9", "data": {"epc": 90, "fx": 7.8, "ppc_allowed": None, "keywords": [{"text": "x", "volume": 900, "cpc_low": 30.0}]}}, {"id": "none"}]
+    r5, ok5 = decide(cfg, soul, "offer.select", {}, bad, ["x"], user="cj:9:9")
+    t5 = r5["choice"] == "cj:9:9" and ok5 and r5["decided_by"] == "user" and r5["advice"]["choice"] == "none"
+    r6, ok6 = decide(cfg, soul, "lp.publish", {"lp_check_passed": False}, ["publish", "fix"], ["x"], user="publish")
+    t6 = r6["choice"] == "publish" and ok6
+    good = t1 and t2 and t3 and t4 and t5 and t6
+    print("lp=%s/%s offer=%s launch=%s hold=%s user_pick=%s/%s user_publish=%s -> %s" % (chk["verdict"], resp["mode_local"], r2["choice"], r3["mode_local"], r4["choice"],
+          r5["choice"], r5["decided_by"], r6["choice"], "OK" if good else "FAIL"))
     if chk["fail"]:
         print([r for r in chk["results"] if r["status"] == "fail"])
     return 0 if good else 1

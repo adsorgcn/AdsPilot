@@ -83,6 +83,10 @@ def load_soul(path):
 
 
 # ------------------------------------------------------------------ 边界
+# 合规姿态：用户说了也不做（怎么投）。其余是运营边界：Agent 自己拿主意时不越过，用户明确说了就照做。
+COMPLIANCE_BOUNDARIES = ("forbidden_action", "account_suspended_or_limited")
+
+
 def boundary_hit(node, state, choice, soul):
     """状态或选项命中 SOUL 边界即返回边界名；命中则模式强制 M8。"""
     st = state or {}
@@ -349,6 +353,25 @@ def judge(node, state, choices, cfg=None, soul=None, caps=None, evidence=None, p
             "provider": used, "fallback": fallback}
     if b:
         resp["boundary_hit"] = b
+    # 谁拿主意：用户明确说了就照做，判断照算作为建议；合规姿态例外
+    user = (state or {}).get("user_decision")
+    ids = [c["id"] for c in choices]
+    if user:
+        resp["user_choice"] = str(user)[:64]
+        ub = boundary_hit(node, state, user, soul) if user in ids else None
+        if user not in ids:
+            resp.update({"decided_by": "judge", "executes": acts(mode_local)})
+            resp["advice"] = {"choice": perc["choice"], "mode": mode_local, "reason": "user_choice_not_in_choices"}
+        elif ub in COMPLIANCE_BOUNDARIES:
+            resp.update({"decided_by": "compliance", "executes": False})
+            resp["advice"] = {"choice": perc["choice"], "mode": "M8", "reason": "compliance_boundary", "boundary_hit": ub}
+        else:
+            adv = {"choice": perc["choice"], "mode": mode_local, "reason": perc["reason"]}
+            if ub or b:
+                adv["boundary_hit"] = ub or b
+            resp.update({"choice": user, "decided_by": "user", "executes": True, "advice": adv})
+    else:
+        resp.update({"decided_by": "judge", "executes": acts(mode_local)})
     if distribution:
         resp["distribution"] = {k: r2(x) for k, x in distribution.items()}
     if latency is not None:
@@ -360,6 +383,11 @@ def to_judge_text(resp):
     j = resp["judge"]
     return "::JUDGE{v5.0}\nV:[%s]\nM:%s|conf:%.2f\nR:%s" % (
         ",".join("%s=%.2f" % (d, j["v"][d]) for d in DIMS), j["mode"], j["conf"], j["reason"])
+
+
+def executes(resp):
+    """这一步做不做：用户明确说了（且不是合规姿态）就做；否则 M1、M2 做。"""
+    return bool(resp.get("executes", acts(resp.get("mode_local", "M8"))))
 
 
 def acts(mode):
@@ -407,6 +435,26 @@ def selftest(soul_path="soul/default.soul.md"):
             fails += 1
         print("%s %-18s choice=%-10s mode=%s%s  %s" % ("ok  " if ok else "FAIL", node, r["choice"], r["mode_local"],
                                                        " boundary=" + r["boundary_hit"] if r.get("boundary_hit") else "", r["judge"]["reason"]))
+    # 谁拿主意：用户说了照做（判断当建议），合规姿态例外
+    u_cases = [
+        ("user overrides hold", "campaign.launch", {"spec_valid": False, "lp_published": True, "account_status": "ok", "daily_budget": 5, "max_cpc": 0.25,
+                                                    "is_new_account": False, "user_decision": "go"}, ["go", "hold"], ("go", "user", True, "hold")),
+        ("user picks offer that fails economics", "offer.select", {"user_decision": "d"},
+         [{"id": "none"}, {"id": "d", "data": {"epc": 90, "fx": 7.8, "keywords": [{"text": "d x", "volume": 900, "cpc_low": 9.0}]}}], ("d", "user", True, "none")),
+        ("user overrides operational boundary", "campaign.launch", {"spec_valid": True, "lp_published": True, "account_status": "ok", "daily_budget": 5, "max_cpc": 0.25,
+                                                                    "is_new_account": False, "final_url_is_affiliate": True, "user_decision": "go"}, ["go", "hold"], ("go", "user", True, None)),
+        ("compliance holds even if user says", "anomaly.escalate", {"account_status": "suspended", "disapprovals": 0, "spend_today": 1, "spend_avg_7d": 1,
+                                                                    "user_decision": "continue"}, ["continue", "pause_all", "escalate"], ("pause_all", "compliance", False, None)),
+        ("no user: judge decides", "campaign.launch", {"spec_valid": False, "lp_published": True, "account_status": "ok", "daily_budget": 5, "max_cpc": 0.25,
+                                                       "is_new_account": False}, ["go", "hold"], ("hold", "judge", None, None)),
+    ]
+    for name, node, st, ch, (wc, wby, wex, wadv) in u_cases:
+        choices = [c if isinstance(c, dict) else {"id": c} for c in ch]
+        r = judge(node, st, choices, cfg=cfg, soul=soul, evidence=ev, provider="local")
+        ok = r["choice"] == wc and r["decided_by"] == wby and (wex is None or r["executes"] is wex) and (wadv is None or (r.get("advice") or {}).get("choice") == wadv)
+        if not ok:
+            fails += 1
+        print("%s %-40s choice=%-10s by=%-10s executes=%s advice=%s" % ("ok  " if ok else "FAIL", name, r["choice"], r["decided_by"], r["executes"], (r.get("advice") or {}).get("choice")))
     # schema 校验
     try:
         from validate import load_schema, validate as _validate

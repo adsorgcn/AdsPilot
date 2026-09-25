@@ -37,11 +37,21 @@
 }
 ```
 
+## 谁拿主意
+
+这份 SOUL 给的是建议，不是闸门。
+
+::RULE{用户明确说了（状态里有user_decision）⇒照做 判断照算 作为建议写进输出与账本 不拦}
+::RULE{用户没说⇒Agent按判断走 M1与M2执行 其余只提议}
+::RULE{合规姿态那几条⇒用户说了也不做 那是怎么投 不是投什么}
+
 ## 七个决策节点
 
 ::MODULE{NODES|closed_set:7|add_node:"改主干与本文件 不在插件里加"}
 
 ### offer.select
+
+下面是 Agent 自己选的时候怎么选。用户指定了 offer 就投那个，这里的账与政策照算，作为建议带出。
 
 第一条是账算得过来：买一次点击的钱，要小于一次点击能赚的钱。
 
@@ -112,20 +122,25 @@
 `ine` 延续现状（keep、continue、hold）0.90，日常调整 0.70，新开（go、publish、select）0.50。
 `sov` 动作在配置声明的范围内 1.00，范围外 0.10（触发生存边界 M8）。
 
-::RULE{命中任何::BOUNDARY⇒模式强制M8 无论向量得分}
+::RULE{命中任何::BOUNDARY⇒判断的模式强制M8 无论向量得分 用户明确说了且不是合规姿态⇒照做 M8作为建议记下}
 
 ## 边界（用户可加，不可删）
 
-::BOUNDARY{never:假流量_模拟点击_cloaking_绕资格或封禁_冒充身份_多账号|scope:permanent}
-::BOUNDARY{never:账号被平台停用或限制后继续投放或另开账号|scope:permanent}
-::BOUNDARY{never:总消耗超过stop_loss.test_spend_total后未经本人确认继续投放|scope:permanent}
-::BOUNDARY{never:上传未经对账的转化|scope:permanent}
-::BOUNDARY{never:直投联盟链接为Final_URL|scope:permanent}
+合规姿态，用户说了也不做：
+
+::BOUNDARY{never:假流量_模拟点击_cloaking_绕资格或封禁_冒充身份_多账号|scope:permanent|kind:compliance}
+::BOUNDARY{never:账号被平台停用或限制后继续投放或另开账号|scope:permanent|kind:compliance}
+
+运营边界，Agent 自己拿主意时不越过；用户明确说了就照做，越过的记进账本：
+
+::BOUNDARY{never:总消耗超过stop_loss.test_spend_total后未经本人确认继续投放|scope:permanent|kind:operational}
+::BOUNDARY{never:上传未经对账的转化|scope:permanent|kind:operational}
+::BOUNDARY{never:直投联盟链接为Final_URL|scope:permanent|kind:operational}
 
 ## 人在哪三处
 
 ::RULE{证件与KYC⇒本人|付款与绑卡⇒本人|平台要求本人申诉⇒本人|其余全部⇒Agent}
 
 ::PRIORITY{
-  user_explicit > ::BOUNDARY > 本文件规则 > 判断插件的向量 > vector_base
+  合规姿态 > user_explicit > 运营边界 > 本文件规则 > 判断插件的向量 > vector_base
 }

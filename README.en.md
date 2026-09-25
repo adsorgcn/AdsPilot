@@ -14,7 +14,7 @@ AdsPilot is built the other way round: "your agent works for you". There is no p
 
 It splits in two along one rule: **anything that talks to an external API is a plugin; everything else is core.** The core depends on no external service. Remove any plugin and the core still runs, only dumber. Adding a platform or a network means adding one directory; the core does not change.
 
-The core guarantees it runs; how well it runs depends on the SOUL, the collection of judgment rules and thresholds. A general default SOUL ships in the repo, local, open, free. At every decision point (which offer, whether to publish, raise budget or pause today, keep or stop this keyword, upload this conversion, stop on an account anomaly) the core scores the state as an iLang v5 eleven-dimension vector, runs the frozen f_v5 cascade to get M1 through M8, and only M1 and M2 execute; anything beyond your preset caps is downgraded to a proposal; anything that hits a boundary is forced to stop. During the public-good phase iLang Inc. hosts a judgment service (a cheap model plus Jev) free of charge, to sharpen the judgment on real data. This is also the first sizeable commercial application of the [iLang protocol](https://github.com/ilang-ai/ilang-spec): v3 communication, v4 execution, v5 judgment.
+The core guarantees it runs; how well it runs depends on the SOUL, the collection of judgment rules and thresholds. A general default SOUL ships in the repo, local, open, free. At every decision point (which offer, whether to publish, raise budget or pause today, keep or stop this keyword, upload this conversion, stop on an account anomaly) the core scores the state as an iLang v5 eleven-dimension vector, runs the frozen f_v5 cascade to get M1 through M8. Judgment is advice, not a gate: when you say what to run or how to adjust, that is what happens, and the judgment is still computed and written into the output and ledger as advice; when you have not said, the agent decides by the judgment, M1 and M2 execute and the rest are only proposed. The only thing a word from you does not unlock is the first-screen compliance posture. During the public-good phase iLang Inc. hosts a judgment service (a cheap model plus Jev) free of charge, to sharpen the judgment on real data. This is also the first sizeable commercial application of the [iLang protocol](https://github.com/ilang-ai/ilang-spec): v3 communication, v4 execution, v5 judgment.
 
 Humans appear in exactly three places: identity and KYC, payment and card binding, and appeals the platform requires in person. Everything else is the agent and the scripts.
 
@@ -36,7 +36,7 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-09-26, version 2.0.10. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-09-26, version 2.0.11. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
@@ -58,6 +58,8 @@ As of 2026-09-26, version 2.0.10. Every part below has code, a usage method and 
 In one sentence: onboarding is now one action, hand over three keys (Cloudflare, Google Ads, CJ), then run launch and get a real campaign. The whole chain from landing site to campaign to ledger has closed once in the real world. The only part not yet touched by real data is the SOUL thresholds, which can only be calibrated by running. Next is the first student environment running seven unattended days, after which the plugins move from alpha to stable.
 
 ## Progress log
+
+**2026-09-26, 2.0.11.** Fixed a logic error: judgment had been built as a gate and blocked what the user wanted (a picked offer that failed the math was refused, a page that failed the check was not published, a hold stopped campaign creation). Now judgment only advises: when the user says, it is done, with the judgment still computed and recorded as advice; when the user has not said, the agent decides by the judgment. The daily loop works the same way: "don't pause this one" means the loop does not pause it and logs the judgment's view. Only the first-screen compliance posture is not unlocked by a word.
 
 **2026-09-26, 2.0.10.** Offer rule 1: an offer can run only if at least one keyword's bid is below what one click earns. Earnings per click is EPC÷100 in the ad account's currency; the bid is Keyword Planner's low top-of-page bid; brand terms count only if the program allows brand bidding. First keywords plugin. On our account against the top 10 CJ offers: Roborock earns HK$4.56 per click and 6 category keywords bid below that (lowest: vacuum mop at 3.79), so it passes; ContactsDirect earns 12.52 but its cheapest non-brand keyword costs 18.96, so it is out. 3 of 10 pass.
 

@@ -161,14 +161,37 @@ class Run:
         return out
 
     # ---------------------------------------------------------------- 判断
+    def user_decision(self, node, target):
+        """用户明确说过的：data/inbox/user-decisions.json
+        {"decisions":[{"node":"campaign.adjust","target":"AP X","choice":"keep","until":"2026-10-31","note":"先别停"}]}
+        target 写 * 表示这个节点全部。过了 until 就不算。"""
+        if not hasattr(self, "_user_decisions"):
+            self._user_decisions = []
+            p = os.path.join(self.data_dir, "inbox", "user-decisions.json")
+            if os.path.exists(p):
+                try:
+                    self._user_decisions = json.load(open(p, encoding="utf-8")).get("decisions") or []
+                except (ValueError, AttributeError):
+                    self.log("user-decisions.json 读不了，忽略")
+        today = time.strftime("%Y-%m-%d")
+        for d in self._user_decisions:
+            if d.get("node") == node and d.get("target") in (target, "*") and (not d.get("until") or d["until"] >= today):
+                return d.get("choice")
+        return None
+
     def decide(self, node, state, choices, target="", evidence=None):
+        user = self.user_decision(node, target)
+        if user:
+            state = dict(state or {}, user_decision=user)
         resp = J.judge(node, state, [{"id": c} if isinstance(c, str) else c for c in choices], cfg=self.cfg, soul=self.soul,
                        evidence=evidence if evidence is not None else [e["ref"] for e in self.evidence], req_id="%s-%s-%s" % (self.run_id, node, target or "x"))
         self.judgments.append({"node": node, "mode": resp["mode_local"], "conf": resp["confidence"], "provider": resp["provider"],
-                               "v": resp["judge"]["v"], "reason": resp["judge"]["reason"]})
-        self.log("judge %-18s %-14s -> %-10s %s %s%s" % (node, target[:14], resp["choice"], resp["mode_local"], resp["judge"]["reason"],
-                                                        " [fallback]" if resp.get("fallback") else ""))
-        if resp["mode_local"] in ("M6", "M8"):
+                               "v": resp["judge"]["v"], "reason": resp["judge"]["reason"], "decided_by": resp.get("decided_by"),
+                               "advice": resp.get("advice")})
+        by = "" if resp.get("decided_by") == "judge" else " [%s%s]" % (resp.get("decided_by"), (" advice=%s" % resp["advice"]["choice"]) if resp.get("advice") else "")
+        self.log("judge %-18s %-14s -> %-10s %s %s%s%s" % (node, target[:14], resp["choice"], resp["mode_local"], resp["judge"]["reason"],
+                                                          " [fallback]" if resp.get("fallback") else "", by))
+        if resp.get("decided_by") == "compliance" or (resp.get("decided_by") == "judge" and resp["mode_local"] in ("M6", "M8")):
             self.needs_human_note("appeal" if node == "anomaly.escalate" else "other", "%s %s -> %s (%s)" % (node, target, resp["choice"], resp["mode_local"]))
         return resp
 
@@ -186,6 +209,9 @@ class Run:
 
     def record_action(self, node, target, resp, applied, note=""):
         aid = "%s:%s:%s" % (self.run_id, node, target)
+        if resp.get("decided_by") == "user" and resp.get("advice"):
+            a = resp["advice"]
+            note = "用户定的；判断建议 %s（%s %s）；%s" % (a.get("choice"), a.get("mode"), a.get("boundary_hit") or a.get("reason", ""), note)
         self.con.execute("INSERT OR REPLACE INTO actions(action_id,run_id,node,target,choice,mode,provider,applied,applied_at,note,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                          (aid, self.run_id, node, target, resp["choice"], resp["mode_local"], resp["provider"], 1 if applied else 0,
                           subid.now_iso() if applied else None, note, subid.now_iso()))
@@ -243,7 +269,7 @@ class Run:
             resp = self.decide("campaign.adjust", st, ["keep", "bid_down", "budget_up", "budget_down", "pause"], target=c)
             if resp["choice"] == "keep":
                 self.record_action("campaign.adjust", c, resp, applied=True, note="no_change")
-            elif J.acts(resp["mode_local"]):
+            elif J.executes(resp):
                 todo.append({"node": "campaign.adjust", "target": c, "choice": resp["choice"], "state": st, "reason": resp["judge"]["reason"]})
                 self.record_action("campaign.adjust", c, resp, applied=False, note="todo: 由流量插件 deploy 动作或 Agent 在后台执行")
             else:
@@ -265,7 +291,7 @@ class Run:
             st = {"clicks": clicks, "conversions": conv_by_k[key], "avg_cpc": round(cost / clicks, 4), "cost": round(cost, 2), "money_at_stake": round(cost, 2)}
             tgt = "%s/%s/%s" % key
             resp = self.decide("keyword.action", st, ["keep", "pause", "bid_down", "negative"], target=tgt)
-            if resp["choice"] != "keep" and J.acts(resp["mode_local"]):
+            if resp["choice"] != "keep" and J.executes(resp):
                 todo.append({"node": "keyword.action", "target": tgt, "choice": resp["choice"], "state": st, "reason": resp["judge"]["reason"]})
                 self.record_action("keyword.action", tgt, resp, applied=False, note="todo")
             elif resp["choice"] != "keep":
@@ -276,7 +302,7 @@ class Run:
             st = {"rows_in_window": len(rec["rows"]), "rows_out_of_window": len(rec["out_of_window"]), "gclid_all_valid": True, "reconciled": True,
                   "chargebacks": len(rec["chargebacks"]), "money_at_stake": rec["summary"]["value"]}
             resp = self.decide("conversion.upload", st, ["upload", "hold"], target="conversions")
-            if resp["choice"] == "upload" and J.acts(resp["mode_local"]):
+            if resp["choice"] == "upload" and J.executes(resp):
                 upload = resp
             self.record_action("conversion.upload", "conversions", resp, applied=False, note="见 outbox 上传文件" if upload else "hold")
         return todo, upload
@@ -405,8 +431,18 @@ def selftest():
     rep = json.load(open(os.path.join(cfg["runs_dir"], "selftest", "report.json"), encoding="utf-8"))
     errs = validate(load_schema("report.schema.json"), rep)
     ok = rc in (0, 2) and not errs and rep["summary"]["conversions"] >= 1 and any(a["node"] == "campaign.adjust" for a in rep["actions"])
-    print("selftest rc=%d conversions=%d actions=%d judgments=%d schema=%s -> %s" % (rc, rep["summary"]["conversions"], len(rep["actions"]), len(rep["judgments"]),
-                                                                                 "ok" if not errs else errs[:2], "OK" if ok else "FAIL"))
+    # 第二轮：用户说「这些系列都别动」（keep），循环照做，判断的意见记成建议
+    adj = [a for a in rep["actions"] if a["node"] == "campaign.adjust" and a["choice"] != "keep"]
+    json.dump({"decisions": [{"node": "campaign.adjust", "target": "*", "choice": "keep", "note": "selftest"}]},
+              open(os.path.join(cfg["data_dir"], "inbox", "user-decisions.json"), "w", encoding="utf-8"))
+    run_once(cfg, run_id="selftest-user", apply=False)
+    rep2 = json.load(open(os.path.join(cfg["runs_dir"], "selftest-user", "report.json"), encoding="utf-8"))
+    errs2 = validate(load_schema("report.schema.json"), rep2)
+    adj2 = [a for a in rep2["actions"] if a["node"] == "campaign.adjust"]
+    user_ok = not errs2 and adj2 and all(a["choice"] == "keep" for a in adj2) and any(j.get("decided_by") == "user" for j in rep2["judgments"])
+    ok = ok and user_ok
+    print("selftest rc=%d conversions=%d actions=%d judgments=%d schema=%s judge_changes=%d user_keep=%s -> %s" % (
+        rc, rep["summary"]["conversions"], len(rep["actions"]), len(rep["judgments"]), "ok" if not errs else errs[:2], len(adj), bool(user_ok), "OK" if ok else "FAIL"))
     shutil.rmtree(tmp, ignore_errors=True)
     return 0 if ok else 1
 

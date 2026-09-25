@@ -2,6 +2,10 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。本文件记细节，README 的「进度记录」记叙事，每版两处都写。
 
+## 2.0.11（2026-09-26）判断是建议，不是闸门
+
+改正一处逻辑错：SOUL 早写了「用户明确说的排第一」，代码没实现，结果判断成了闸门，开局里 `--pick` 账没过就拒、页面检查没过不发、建系列判 hold 不建、没真点过不许启用，都在拦用户。现在一条规矩管全部：用户明确说了就照做，判断照算，作为建议（`advice`）写进输出与账本；用户没说，Agent 按判断走，M1、M2 执行，其余只提议。唯一不因用户一句话放行的是合规姿态（假流量、模拟点击、cloaking、绕资格或封禁、冒充身份、多账号、账号被停后继续或另开）。判断响应加 `decided_by`（user、judge、compliance）、`executes`、`advice`、`user_choice`；调用方只看 `executes`。开局每步加用户口子（`--pick`、`--user publish`、`--user go`、`go --user go`），账没过或政策没核照投，警告带出。日常循环读 `data/inbox/user-decisions.json`，用户说过的照做，判断意见记进账本与 `report.json`。SOUL 边界分成合规姿态与运营边界两组，优先级改为：合规姿态 > 用户明确 > 运营边界 > SOUL 规则。架构总图第 5 节、README、入口文件同步改。
+
 ## 2.0.10（2026-09-26）选品第一条
 
 选品第一条是账：有一个词的出价小于每次点击赚的钱，这个 offer 才能投。每次点击赚的钱 = EPC÷100（联盟 EPC 是每百次点击），默认取 7 天与 3 个月里小的那个，按 `config.fx` 换成广告账户币种；词的出价默认用 Keyword Planner 的首页出价低位；月搜索不到 50 的词、出价为 0 的词不算；品牌词只在联盟许竞价品牌词时才算。三个数都在 SOUL 参数里（`offer.bid_metric`、`offer.epc_basis`、`offer.min_keyword_searches`）。新增首发关键词插件 `plugins/keywords/google-ads`（suggest、volume，用户自己的 Google Ads 凭据），`judge.offer_economics` 算账，`launch.py offers` 对 EPC 前 N 家查词算账、输出每家一行账、选中的 offer 带出过线的词；`--pick` 只代表政策核过，账照样要过。CJ offers 带出商家网址。
