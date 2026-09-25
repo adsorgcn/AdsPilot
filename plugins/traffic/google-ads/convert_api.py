@@ -69,13 +69,35 @@ def to_rfc3339(s):
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def datamanager_body(client, conv, action_rn, validate_only):
-    dest = {"operatingAccount": {"product": "GOOGLE_ADS", "accountId": client.cid}, "productDestinationId": action_rn.split("/")[-1]}
+def datamanager_body(client, conv, action_rn, validate_only, account_field="accountType", event_source="WEB"):
+    """按官方字段映射（Google Ads API -> Data Manager API）：
+    customer_id -> operating_account.account_id（account_type GOOGLE_ADS）；login-customer-id -> login_account；
+    conversion_action -> product_destination_id（数字 id 不是 resource name）；order_id -> transaction_id；
+    conversion_date_time -> event_timestamp（RFC 3339）；conversion_value 用币值不用 micros；currency_code -> currency；gclid -> ad_identifiers.gclid。
+    ProductAccount 的 product 字段已废弃改 accountType；encoding 在有 UserData 时必填，这里没有 UserData，带 HEX 无害。
+    Data Manager 是整包快速失败：校验不过整个请求被拒，没有 partial failure；处理是异步的，响应只给 request_id。"""
+    acct = lambda cid: {account_field: "GOOGLE_ADS", "accountId": cid}  # noqa: E731
+    dest = {"operatingAccount": acct(client.cid), "productDestinationId": action_rn.split("/")[-1]}
     if client.login and client.login != client.cid:
-        dest["loginAccount"] = {"product": "GOOGLE_ADS", "accountId": client.login}
-    events = [{"transactionId": r["event_id"], "eventTimestamp": to_rfc3339(r["conversion_time"]), "adIdentifiers": {"gclid": r["gclid"]},
-               "conversionValue": float(r["value"]), "currency": r["currency"], "eventSource": "WEB"} for r in conv.get("rows", [])]
-    return {"destinations": [dest], "events": events, "validateOnly": bool(validate_only)}
+        dest["loginAccount"] = acct(client.login)
+    events = []
+    for r in conv.get("rows", []):
+        ev = {"transactionId": r["event_id"], "eventTimestamp": to_rfc3339(r["conversion_time"]), "adIdentifiers": {"gclid": r["gclid"]},
+              "conversionValue": float(r["value"]), "currency": r["currency"]}
+        if event_source:
+            ev["eventSource"] = event_source
+        events.append(ev)
+    return {"destinations": [dest], "events": events, "validateOnly": bool(validate_only), "encoding": "HEX"}
+
+
+def datamanager_send(client, conv, action_rn, validate_only):
+    """先按当前字段名发；Google 若回「Unknown name accountType」就退回旧字段名 product 再发一次。"""
+    try:
+        return client.datamanager_ingest(datamanager_body(client, conv, action_rn, validate_only, "accountType")), "accountType"
+    except GadsError as e:
+        if e.status == 400 and "accountType" in e.body and "Unknown name" in e.body:
+            return client.datamanager_ingest(datamanager_body(client, conv, action_rn, validate_only, "product")), "product"
+        raise
 
 
 def upload(client, conv, conversions, adjustments, action_rn, mode, transport="auto"):
@@ -88,9 +110,10 @@ def upload(client, conv, conversions, adjustments, action_rn, mode, transport="a
             if not client.has_scope(client.DATAMANAGER_SCOPE):
                 out["needs_reauth"] = {"scope": client.DATAMANAGER_SCOPE, "why": "Data Manager API 需要这个 scope；本人在 OAuth 同意屏幕重新授权一次，换新的 refresh token"}
             else:
-                res = client.datamanager_ingest(datamanager_body(client, conv, action_rn, mode == "validate"))
+                res, field = datamanager_send(client, conv, action_rn, mode == "validate")
                 out["conversions"] = {"transport": "datamanager", "sent": len(conversions), "request_id": res.get("requestId", ""),
-                                      "warnings": [w.get("description", "")[:160] for w in res.get("fieldWarnings", [])][:5]}
+                                      "account_field": field, "warnings": [json.dumps(w, ensure_ascii=False)[:200] for w in res.get("fieldWarnings", [])][:5],
+                                      "note": "Data Manager 异步处理，整包快速失败；用 request_id 去诊断接口查处理结果"}
         else:
             body = {"conversions": conversions, "partialFailure": True, "validateOnly": (mode == "validate")}
             res = client.call(":uploadClickConversions", body)
@@ -116,8 +139,11 @@ def selftest():
     ok = ok and op["create"]["type"] == "UPLOAD_CLICKS"
     cl = Client(env={"GOOGLE_ADS_CUSTOMER_ID": "1234567890", "GOOGLE_ADS_LOGIN_CUSTOMER_ID": "9999999999"})
     dm = datamanager_body(cl, conv, "customers/1234567890/conversionActions/77", True)
-    ok = ok and dm["destinations"][0]["productDestinationId"] == "77" and dm["destinations"][0]["loginAccount"]["accountId"] == "9999999999" \
-        and dm["events"][0]["eventTimestamp"] == "2026-09-11T03:12:44Z" and dm["events"][0]["adIdentifiers"]["gclid"].startswith("Cjw")
+    d0 = dm["destinations"][0]
+    ok = ok and d0["productDestinationId"] == "77" and d0["loginAccount"] == {"accountType": "GOOGLE_ADS", "accountId": "9999999999"} \
+        and d0["operatingAccount"]["accountId"] == "1234567890" and dm["encoding"] == "HEX" and dm["validateOnly"] is True \
+        and dm["events"][0]["eventTimestamp"] == "2026-09-11T03:12:44Z" and dm["events"][0]["adIdentifiers"]["gclid"].startswith("Cjw") \
+        and dm["events"][0]["currency"] == "USD" and dm["events"][0]["conversionValue"] == 18.4 and dm["events"][0]["transactionId"] == "e1"
     print("conversions=%d adjustments=%d unlinked=%s -> %s" % (len(c), len(a), u, "OK" if ok else "FAIL"))
     return 0 if ok else 1
 
@@ -175,11 +201,16 @@ def main(argv):
             out.update(upload(client, conv, conversions, adjustments, action_rn, mode, kv.get("transport", "auto")))
         out["applied"] = (mode == "apply") and "needs_reauth" not in out
     except GadsError as e:
-        out["error"] = client.error_summary(e)
+        if "ACCESS_TOKEN_SCOPE_INSUFFICIENT" in e.body:
+            out["needs_reauth"] = {"scope": client.DATAMANAGER_SCOPE, "why": "Data Manager 回 ACCESS_TOKEN_SCOPE_INSUFFICIENT：refresh token 缺 datamanager scope，本人重新授权一次"}
+        elif "SERVICE_DISABLED" in e.body or "has not been used in project" in e.body:
+            out["needs_human"] = {"what": "在生成 OAuth 凭据的 Google Cloud 项目里启用 Data Manager API（datamanager.googleapis.com）", "detail": client.error_summary(e)}
+        else:
+            out["error"] = client.error_summary(e)
     print(json.dumps(out, ensure_ascii=False, indent=2))
     if "error" in out:
         return 3
-    return 2 if "needs_reauth" in out else 0
+    return 2 if ("needs_reauth" in out or "needs_human" in out) else 0
 
 
 if __name__ == "__main__":
