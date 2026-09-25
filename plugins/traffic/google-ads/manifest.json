@@ -31,5 +31,5 @@
     "oauth2.googleapis.com token"
   ],
   "limits": { "max_cpc_default": 0.25, "first_day_budget_default": 5, "conversion_upload_window_days": 90 },
-  "unattended": { "accepted": false, "days": 0, "note": "api 路四个动作齐（2.0.3 在真实账号实测）；没有凭据自动退回 manual 路" }
+  "unattended": { "accepted": false, "days": 0, "note": "api 路四个动作齐，建改删与 Data Manager 转化上传（validate-only）都在真实账号实测通过；没有凭据自动退回 manual 路；七天无人值守验收待做" }
 }

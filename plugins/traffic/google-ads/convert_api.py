@@ -210,14 +210,17 @@ def main(argv):
             out.update(upload(client, conv, conversions, adjustments, action_rn, mode, kv.get("transport", "auto")))
         out["applied"] = (mode == "apply") and "needs_reauth" not in out
     except GadsError as e:
-        if "ACCESS_TOKEN_SCOPE_INSUFFICIENT" in e.body:
+        if "destination_references" in e.body and "NOT_FOUND" in e.body:
+            # 实测：新建的转化操作要传播一阵（3 分钟还查不到，52 分钟后通过）Data Manager 才看得到；下一轮循环会自动重试
+            out["retry_later"] = {"why": "Data Manager 还看不到这个转化操作（新建的要传播，实测一小时内）", "retry_after_minutes": 60, "detail": client.error_summary(e)[:200]}
+        elif "ACCESS_TOKEN_SCOPE_INSUFFICIENT" in e.body:
             out["needs_reauth"] = {"scope": client.DATAMANAGER_SCOPE, "why": "Data Manager 回 ACCESS_TOKEN_SCOPE_INSUFFICIENT：refresh token 缺 datamanager scope，本人重新授权一次"}
         elif "SERVICE_DISABLED" in e.body or "has not been used in project" in e.body:
             out["needs_human"] = {"what": "在生成 OAuth 凭据的 Google Cloud 项目里启用 Data Manager API（datamanager.googleapis.com）", "detail": client.error_summary(e)}
         else:
             out["error"] = client.error_summary(e)
     print(json.dumps(out, ensure_ascii=False, indent=2))
-    if "error" in out:
+    if "error" in out or "retry_later" in out:
         return 3
     return 2 if ("needs_reauth" in out or "needs_human" in out) else 0
 

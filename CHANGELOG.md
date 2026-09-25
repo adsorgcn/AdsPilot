@@ -2,6 +2,10 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。
 
+## 2.0.6（2026-09-25）
+
+Data Manager 转化上传在真实账号 validate-only 实测通过（HTTP 200，requestId 返回，无警告），Google Ads 插件 api 路到此全部核完。实测钉下一条：新建的「点击上传」转化操作要传播约一小时 Data Manager 才看得到，期间回 `destination_references NOT_FOUND`，`convert_api.py` 判为 `retry_later`，下一轮循环自动重试。测试用的转化操作、系列、预算、临时目录全部删净，账号恢复原样。
+
 ## 2.0.5（2026-09-25）
 
 Data Manager 上传按实测改正：事件带 `destinationReferences`、destination 带 `reference`；`eventSource` 必填（默认 WEB）；错误摘要能读 Google 通用 API 的 `fieldViolations`；建转化操作遇 `DUPLICATE_NAME`（删除后的名字仍被占用）自动加后缀。用带 adwords 加 datamanager 两个 scope 的 token 在真实账号上 validate-only 实测：scope、端点、账号与转化操作解析全通，只剩假 gclid 在 `events[0].destination_references` 回 `NOT_FOUND` 这一条，等首个真实点击的 gclid 再核。
