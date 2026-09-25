@@ -2,6 +2,10 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。
 
+## 2.0.7（2026-09-25）
+
+CJ 插件用真实发布者凭据只读实测并按实测改正：Commission Detail 的集合字段是 `records`，单次查询窗口不超过 31 天（脚本按 30 天切段并按 `payloadComplete` 翻页），GraphQL 错误原样带出；Advertiser Lookup 分页取齐；Link Search 要的是推广媒介 ID（新增 `CJ_WEBSITE_ID`），`offers.py --with-links` 批量取点击链接；四个动作全部通过。仓库旧分支各打 `archive/` tag 后删除，main 加保护（禁强推、禁删、线性历史）。
+
 ## 2.0.6（2026-09-25）
 
 Data Manager 转化上传在真实账号 validate-only 实测通过（HTTP 200，requestId 返回，无警告），Google Ads 插件 api 路到此全部核完。实测钉下一条：新建的「点击上传」转化操作要传播约一小时 Data Manager 才看得到，期间回 `destination_references NOT_FOUND`，`convert_api.py` 判为 `retry_later`，下一轮循环自动重试。测试用的转化操作、系列、预算、临时目录全部删净，账号恢复原样。

@@ -13,7 +13,8 @@ json 路：--json 读一份已按输出形状整理好的文件（用户从后�
    allowed_traffic, category, status}
 
 用法：
-  python3 offers.py [--advertiser-ids 100001,100002] [--out runs/<id>/offers.json]
+  python3 offers.py [--advertiser-ids 100001,100002] [--with-links] [--out runs/<id>/offers.json]
+  --with-links 需要 CJ_WEBSITE_ID（推广媒介 ID，9 位，accounts.cj.com/promotional-properties 里看），每家取一条 Text Link 的点击链接进 click_url
   python3 offers.py --json data/inbox/cj-offers.json --out ...
   python3 offers.py --selftest
 退出码：0 成功；3 API 失败；4 凭据缺失。
@@ -69,17 +70,51 @@ def parse_advertisers(root, policy):
     return out
 
 
-def fetch(advertiser_ids=None):
+def fetch(advertiser_ids=None, with_links=False, max_pages=10):
     miss = C.missing_creds()
     if miss:
         return None, "missing env: %s" % ", ".join(miss), 4
     _, pid = C.creds()
-    params = {"requestor-cid": pid, "advertiser-ids": advertiser_ids or "joined", "records-per-page": "100"}
-    try:
-        root = C.rest_xml(C.ADVERTISER_LOOKUP_URL, params)
-    except Exception as e:  # noqa: BLE001
-        return None, "api failed: %s" % str(e)[:200], 3
-    return parse_advertisers(root, load_policy()), "", 0
+    policy = load_policy()
+    rows = []
+    for page in range(1, max_pages + 1):
+        params = {"requestor-cid": pid, "advertiser-ids": advertiser_ids or "joined", "records-per-page": "100", "page-number": str(page)}
+        try:
+            root = C.rest_xml(C.ADVERTISER_LOOKUP_URL, params)
+        except Exception as e:  # noqa: BLE001
+            return None, "api failed: %s" % str(e)[:200], 3
+        chunk = parse_advertisers(root, policy)
+        rows.extend(chunk)
+        advs = root.find("advertisers")
+        total = int(advs.get("total-matched", "0") or 0) if advs is not None else 0
+        if not chunk or len(rows) >= total:
+            break
+    if with_links:
+        wid = C.website_id()
+        if not wid:
+            return rows, "CJ_WEBSITE_ID not set: 不取点击链接", 0
+        # 一次 Link Search 拉一页 100 条 joined 商家的 Text Link，按商家归并；不逐家打（187 家逐家打要几分钟）
+        by_adv = {}
+        for page in range(1, 6):
+            try:
+                lr = C.rest_xml(C.LINK_SEARCH_URL, {"website-id": wid, "advertiser-ids": advertiser_ids or "joined", "link-type": "Text Link",
+                                                     "records-per-page": "100", "page-number": str(page)})
+            except Exception as e:  # noqa: BLE001
+                return rows, "link-search failed: %s" % str(e)[:160], 0
+            links = lr.findall(".//link")
+            for l in links:
+                aid = (l.findtext("advertiser-id") or "").strip()
+                if aid and aid not in by_adv:
+                    by_adv[aid] = {"click_url": (l.findtext("clickUrl") or "").strip(), "link_id": (l.findtext("link-id") or "").strip()}
+            if len(links) < 100:
+                break
+        for r in rows:
+            hit = by_adv.get(r["advertiser_id"], {})
+            r["click_url"] = hit.get("click_url", "")
+            r["link_id"] = hit.get("link_id", "")
+            if r["link_id"]:
+                r["offer_ref"] = "cj:%s:%s" % (r["advertiser_id"], r["link_id"])
+    return rows, "", 0
 
 
 def selftest():
@@ -100,9 +135,11 @@ def main(argv):
     if "json" in kv:
         rows = json.load(open(kv["json"], encoding="utf-8"))
     else:
-        rows, msg, rc = fetch(kv.get("advertiser-ids"))
+        rows, msg, rc = fetch(kv.get("advertiser-ids"), with_links=("--with-links" in argv))
         if rc:
             print(msg); return rc
+        if msg:
+            sys.stderr.write(msg + "\n")
     if kv.get("out"):
         os.makedirs(os.path.dirname(os.path.abspath(kv["out"])), exist_ok=True)
         json.dump(rows, open(kv["out"], "w", encoding="utf-8"), ensure_ascii=False, indent=2)

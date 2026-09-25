@@ -27,9 +27,11 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, HERE)
 import cj_common as C  # noqa: E402
 
-QUERY = """{ publisherCommissions(forPublishers: ["%s"], sincePostingDate: "%s", beforePostingDate: "%s") {
-  count payloads { commissionId actionStatus actionType advertiserId advertiserName aid clickDate eventDate postingDate orderId original originalActionId
+QUERY = """{ publisherCommissions(forPublishers: ["%s"], sincePostingDate: "%s", beforePostingDate: "%s"%s) {
+  count limit maxCommissionId payloadComplete
+  records { commissionId actionStatus actionType advertiserId advertiserName aid clickDate eventDate postingDate orderId original originalActionId
     pubCommissionAmountUsd saleAmountUsd shopperId correctionReason websiteId } } }"""
+# 2026-09-25 对着真接口核过：集合字段叫 records（不是 payloads）；分页用 payloadComplete 加 sinceCommissionId
 
 CSV_ALIASES = {"event_id": ["commission id", "action id"], "event_time": ["event date", "posting date"], "click_time": ["click date"],
                "sub_id": ["shopper id", "sid"], "status": ["action status", "status"], "amount": ["publisher commission usd", "commission amount", "publisher commission"],
@@ -44,16 +46,31 @@ def fetch_api(days):
     _, pid = C.creds()
     until = datetime.now(timezone.utc)
     since = until - timedelta(days=days)
-    q = QUERY % (pid, since.strftime("%Y-%m-%dT%H:%M:%SZ"), until.strftime("%Y-%m-%dT%H:%M:%SZ"))
-    try:
-        res = C.graphql(q)
-    except Exception as e:  # noqa: BLE001
-        return None, "api failed: %s" % str(e)[:200], 3
-    if res.get("errors"):
-        return None, "api errors: %s" % json.dumps(res["errors"])[:300], 3
-    payloads = res.get("data", {}).get("publisherCommissions", {}).get("payloads", [])
+    # 实测：CJ 单次查询的 postingDate 窗口不能超过 31 天（"Unable to query commissions for date range over 31 days"），超过就切段
+    rows, pages, seen = [], 0, set()
+    seg_start = since
+    while seg_start < until:
+        seg_end = min(seg_start + timedelta(days=30), until)
+        since_id = None
+        while True:
+            extra = ', sinceCommissionId: "%s"' % since_id if since_id else ""
+            q = QUERY % (pid, seg_start.strftime("%Y-%m-%dT%H:%M:%SZ"), seg_end.strftime("%Y-%m-%dT%H:%M:%SZ"), extra)
+            try:
+                res = C.graphql(q)
+            except Exception as e:  # noqa: BLE001
+                return None, "api failed: %s" % str(e)[:300], 3
+            pc = res.get("data", {}).get("publisherCommissions", {}) or {}
+            for p in pc.get("records", []) or []:
+                r = C.commission_row(p)
+                if r["event_id"] not in seen:
+                    seen.add(r["event_id"]); rows.append(r)
+            pages += 1
+            if pc.get("payloadComplete", True) or not pc.get("maxCommissionId") or pages >= 100:
+                break
+            since_id = pc["maxCommissionId"]
+        seg_start = seg_end
     return {"network": "cj", "publisher_id": pid, "window": {"since": since.strftime("%Y-%m-%d"), "until": until.strftime("%Y-%m-%d")},
-            "rows": [C.commission_row(p) for p in payloads]}, "", 0
+            "rows": rows, "pages": pages}, "", 0
 
 
 def parse_csv(text):

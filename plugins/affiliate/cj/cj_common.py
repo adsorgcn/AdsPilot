@@ -3,6 +3,7 @@
 """CJ 插件公用：凭据、HTTP、字段翻译。只用标准库。凭据只从环境变量读，不打印。"""
 import json
 import os
+import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -20,17 +21,37 @@ def creds():
     return tok, pid
 
 
+def website_id():
+    """推广媒介（网站）ID，9 位，在 accounts.cj.com/promotional-properties 看；Link Search 的 website-id 要的是它，不是 CID。"""
+    return os.environ.get("CJ_WEBSITE_ID", "")
+
+
 def missing_creds():
     tok, pid = creds()
     return [k for k, v in (("CJ_ACCESS_TOKEN", tok), ("CJ_PUBLISHER_ID", pid)) if not v]
+
+
+class CJError(Exception):
+    pass
 
 
 def graphql(query, timeout=30):
     tok, _ = creds()
     req = urllib.request.Request(COMMISSIONS_URL, data=json.dumps({"query": query}).encode(),
                                  headers={"Authorization": "Bearer " + tok, "Content-Type": "application/json", "User-Agent": "adspilot-cj"}, method="POST")
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.loads(r.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            body = json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode("utf-8", "ignore")
+        try:
+            msg = "; ".join(x.get("message", "")[:160] for x in json.loads(raw).get("errors", []))
+        except Exception:  # noqa: BLE001
+            msg = raw[:200]
+        raise CJError("HTTP %s: %s" % (e.code, msg or "no body"))
+    if body.get("errors"):
+        raise CJError("; ".join(x.get("message", "")[:160] for x in body["errors"]))
+    return body
 
 
 def rest_xml(url, params, timeout=30):

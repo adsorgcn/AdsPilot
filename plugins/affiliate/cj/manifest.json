@@ -14,7 +14,8 @@
   },
   "credentials": [
     { "env": "CJ_ACCESS_TOKEN", "required": true, "note": "CJ 开发者门户里用户自己生成的 personal access token" },
-    { "env": "CJ_PUBLISHER_ID", "required": true, "note": "发布者 CID" }
+    { "env": "CJ_PUBLISHER_ID", "required": true, "note": "发布者 CID（7 位，账户下拉里看）" },
+    { "env": "CJ_WEBSITE_ID", "required": false, "note": "推广媒介 ID（9 位，accounts.cj.com/promotional-properties）；Link Search 要它，取点击链接时必填" }
   ],
   "external_apis": [
     "commissions.api.cj.com (GraphQL Commission Detail)",
@@ -23,5 +24,5 @@
     "CJ 后台（csv 退路）"
   ],
   "limits": { "sub_id_param": "sid", "sub_id_readback": "shopperId", "token_max_len": 32, "commission_detail_window_days": 31 },
-  "unattended": { "accepted": false, "days": 0, "note": "api 路可全自动；csv 退路需要 Agent 导出" }
+  "unattended": { "accepted": false, "days": 0, "note": "四个动作 2026-09-25 用真凭据实测通过（只读）；csv 退路需要 Agent 导出" }
 }
