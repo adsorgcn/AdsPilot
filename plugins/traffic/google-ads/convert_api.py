@@ -77,15 +77,14 @@ def datamanager_body(client, conv, action_rn, validate_only, account_field="acco
     ProductAccount 的 product 字段已废弃改 accountType；encoding 在有 UserData 时必填，这里没有 UserData，带 HEX 无害。
     Data Manager 是整包快速失败：校验不过整个请求被拒，没有 partial failure；处理是异步的，响应只给 request_id。"""
     acct = lambda cid: {account_field: "GOOGLE_ADS", "accountId": cid}  # noqa: E731
-    dest = {"operatingAccount": acct(client.cid), "productDestinationId": action_rn.split("/")[-1]}
+    dest = {"reference": "d1", "operatingAccount": acct(client.cid), "productDestinationId": action_rn.split("/")[-1]}
     if client.login and client.login != client.cid:
         dest["loginAccount"] = acct(client.login)
     events = []
     for r in conv.get("rows", []):
-        ev = {"transactionId": r["event_id"], "eventTimestamp": to_rfc3339(r["conversion_time"]), "adIdentifiers": {"gclid": r["gclid"]},
-              "conversionValue": float(r["value"]), "currency": r["currency"]}
-        if event_source:
-            ev["eventSource"] = event_source
+        ev = {"destinationReferences": ["d1"], "transactionId": r["event_id"], "eventTimestamp": to_rfc3339(r["conversion_time"]),
+              "adIdentifiers": {"gclid": r["gclid"]}, "conversionValue": float(r["value"]), "currency": r["currency"],
+              "eventSource": event_source or "WEB"}  # eventSource 实测必填
         events.append(ev)
     return {"destinations": [dest], "events": events, "validateOnly": bool(validate_only), "encoding": "HEX"}
 
@@ -140,7 +139,8 @@ def selftest():
     cl = Client(env={"GOOGLE_ADS_CUSTOMER_ID": "1234567890", "GOOGLE_ADS_LOGIN_CUSTOMER_ID": "9999999999"})
     dm = datamanager_body(cl, conv, "customers/1234567890/conversionActions/77", True)
     d0 = dm["destinations"][0]
-    ok = ok and d0["productDestinationId"] == "77" and d0["loginAccount"] == {"accountType": "GOOGLE_ADS", "accountId": "9999999999"} \
+    ok = ok and d0["reference"] == "d1" and dm["events"][0]["destinationReferences"] == ["d1"] and dm["events"][0]["eventSource"] == "WEB" \
+        and d0["productDestinationId"] == "77" and d0["loginAccount"] == {"accountType": "GOOGLE_ADS", "accountId": "9999999999"} \
         and d0["operatingAccount"]["accountId"] == "1234567890" and dm["encoding"] == "HEX" and dm["validateOnly"] is True \
         and dm["events"][0]["eventTimestamp"] == "2026-09-11T03:12:44Z" and dm["events"][0]["adIdentifiers"]["gclid"].startswith("Cjw") \
         and dm["events"][0]["currency"] == "USD" and dm["events"][0]["conversionValue"] == 18.4 and dm["events"][0]["transactionId"] == "e1"
@@ -190,9 +190,18 @@ def main(argv):
                     out["conversion_action"] = "would create (validated)"
                     action_rn = "customers/%s/conversionActions/1" % client.cid
                 else:
-                    res = client.mutate("conversionActions", [action_operation(name, currency)])
-                    action_rn = res["results"][0]["resourceName"]
-                    out["conversion_action"] = "created"
+                    action_rn = None
+                    for cand in [name] + ["%s-%d" % (name, i) for i in range(2, 10)]:
+                        try:
+                            res = client.mutate("conversionActions", [action_operation(cand, currency)])
+                            action_rn = res["results"][0]["resourceName"]; name = cand
+                            out["conversion_action"] = "created:%s" % cand
+                            break
+                        except GadsError as e:
+                            if "DUPLICATE_NAME" not in e.body:  # 已删除的转化操作名字仍被占用，换个后缀
+                                raise
+                    if not action_rn:
+                        raise GadsError(400, "conversion action name exhausted: %s" % name)
             else:
                 out["conversion_action"] = "exists"
         conversions, adjustments, unlinked = build_uploads(conv, action_rn, tz)

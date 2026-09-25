@@ -122,6 +122,11 @@ class Client:
             details = d.get("error", {}).get("details", [])
             out = []
             for det in details:
+                # Data Manager 等 Google 通用 API 的错误体：google.rpc.BadRequest.fieldViolations
+                for fv in det.get("fieldViolations", []):
+                    out.append("%s: %s" % (fv.get("field", ""), (fv.get("description") or "")[:160]))
+                if det.get("@type", "").endswith("RequestInfo") and det.get("requestId"):
+                    out.append("requestId=%s" % det["requestId"])
                 for e in det.get("errors", []):
                     code = e.get("errorCode", {})
                     path = ".".join(p.get("fieldName", "") for p in e.get("location", {}).get("fieldPathElements", []))

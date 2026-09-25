@@ -2,6 +2,10 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。
 
+## 2.0.5（2026-09-25）
+
+Data Manager 上传按实测改正：事件带 `destinationReferences`、destination 带 `reference`；`eventSource` 必填（默认 WEB）；错误摘要能读 Google 通用 API 的 `fieldViolations`；建转化操作遇 `DUPLICATE_NAME`（删除后的名字仍被占用）自动加后缀。用带 adwords 加 datamanager 两个 scope 的 token 在真实账号上 validate-only 实测：scope、端点、账号与转化操作解析全通，只剩假 gclid 在 `events[0].destination_references` 回 `NOT_FOUND` 这一条，等首个真实点击的 gclid 再核。
+
 ## 2.0.4（2026-09-25）
 
 转化上传的 Data Manager 请求按官方字段映射核对并改正：`accountType`（`product` 已废弃）、`encoding`、数字 `productDestinationId`、RFC 3339 时间、币值金额；整包快速失败与异步处理写进使用方法；`ACCESS_TOKEN_SCOPE_INSUFFICIENT` 判为 needs_reauth，`SERVICE_DISABLED` 判为 needs_human（启用 Data Manager API）。在香港机上对真实端点做了 validate-only 探测：端点与 scope 要求与文档一致。
