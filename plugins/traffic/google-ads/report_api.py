@@ -4,11 +4,12 @@
 Google Ads 插件 · report 动作的 API 路（可选，用户自有凭据）
 
 只有当用户自己持有 Google Ads API 的 developer token、OAuth 客户端与 refresh token 时才走这条路；否则用 report_import.py 的 CSV 路。
-凭据全部从环境变量读，脚本不落盘、不打印。REST 版本从 GOOGLE_ADS_API_VERSION 取（Google 每季度下线旧版本，改一个环境变量即可）。
+凭据全部从环境变量读，脚本不落盘、不打印。REST 版本从 GOOGLE_ADS_API_VERSION 取（默认 v25；Google 每季度下线旧版本，改一个环境变量即可）。
+2026-09-09 起 developer token 已废弃，API 权限级别由生成 OAuth 凭据的 Google Cloud 项目决定；过渡期请求头仍可带 developer-token，没有就不带。
 
 环境变量：
-  GOOGLE_ADS_DEVELOPER_TOKEN  GOOGLE_ADS_CLIENT_ID  GOOGLE_ADS_CLIENT_SECRET  GOOGLE_ADS_REFRESH_TOKEN
-  GOOGLE_ADS_CUSTOMER_ID（不带横线）  GOOGLE_ADS_LOGIN_CUSTOMER_ID（经理账号时）  GOOGLE_ADS_API_VERSION（默认 v21）
+  GOOGLE_ADS_CLIENT_ID  GOOGLE_ADS_CLIENT_SECRET  GOOGLE_ADS_REFRESH_TOKEN  GOOGLE_ADS_CUSTOMER_ID（不带横线）
+  可选：GOOGLE_ADS_DEVELOPER_TOKEN（过渡期）  GOOGLE_ADS_LOGIN_CUSTOMER_ID（经理账号时）  GOOGLE_ADS_API_VERSION（默认 v25）
 
 用法：
   python3 report_api.py --out runs/<id>/traffic-report.json [--days 30] [--apply]
@@ -22,7 +23,7 @@ import time
 import urllib.parse
 import urllib.request
 
-NEEDED = ["GOOGLE_ADS_DEVELOPER_TOKEN", "GOOGLE_ADS_CLIENT_ID", "GOOGLE_ADS_CLIENT_SECRET", "GOOGLE_ADS_REFRESH_TOKEN", "GOOGLE_ADS_CUSTOMER_ID"]
+NEEDED = ["GOOGLE_ADS_CLIENT_ID", "GOOGLE_ADS_CLIENT_SECRET", "GOOGLE_ADS_REFRESH_TOKEN", "GOOGLE_ADS_CUSTOMER_ID"]
 GAQL = ("SELECT segments.date, campaign.id, campaign.name, campaign.status, ad_group.id, ad_group.name, "
         "ad_group_criterion.criterion_id, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, "
         "metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions, metrics.conversions_value "
@@ -39,9 +40,11 @@ def access_token(env):
 
 
 def search_stream(env, token, query):
-    ver = env.get("GOOGLE_ADS_API_VERSION", "v21")
+    ver = env.get("GOOGLE_ADS_API_VERSION") or "v25"
     url = "https://googleads.googleapis.com/%s/customers/%s/googleAds:searchStream" % (ver, env["GOOGLE_ADS_CUSTOMER_ID"])
-    headers = {"Authorization": "Bearer " + token, "developer-token": env["GOOGLE_ADS_DEVELOPER_TOKEN"], "Content-Type": "application/json"}
+    headers = {"Authorization": "Bearer " + token, "Content-Type": "application/json"}
+    if env.get("GOOGLE_ADS_DEVELOPER_TOKEN"):
+        headers["developer-token"] = env["GOOGLE_ADS_DEVELOPER_TOKEN"]
     if env.get("GOOGLE_ADS_LOGIN_CUSTOMER_ID"):
         headers["login-customer-id"] = env["GOOGLE_ADS_LOGIN_CUSTOMER_ID"]
     req = urllib.request.Request(url, data=json.dumps({"query": query}).encode(), headers=headers, method="POST")
@@ -68,13 +71,13 @@ def main(argv):
     kv = {argv[i][2:]: argv[i + 1] for i in range(0, len(argv) - 1) if argv[i].startswith("--") and not argv[i + 1].startswith("--")}
     apply = "--apply" in argv
     days = int(kv.get("days", 30))
-    env = {k: os.environ.get(k, "") for k in NEEDED + ["GOOGLE_ADS_LOGIN_CUSTOMER_ID", "GOOGLE_ADS_API_VERSION"]}
+    env = {k: os.environ.get(k, "") for k in NEEDED + ["GOOGLE_ADS_DEVELOPER_TOKEN", "GOOGLE_ADS_LOGIN_CUSTOMER_ID", "GOOGLE_ADS_API_VERSION"]}
     missing = [k for k in NEEDED if not env.get(k)]
     if missing:
         print("missing env: %s (走 CSV 路：report_import.py)" % ", ".join(missing)); return 4
     query = GAQL % days
     if not apply:
-        print("dry-run: POST googleads.googleapis.com/%s/customers/%s/googleAds:searchStream\n%s" % (env.get("GOOGLE_ADS_API_VERSION") or "v21", env["GOOGLE_ADS_CUSTOMER_ID"][:3] + "***", query))
+        print("dry-run: POST googleads.googleapis.com/%s/customers/%s/googleAds:searchStream\n%s" % (env.get("GOOGLE_ADS_API_VERSION") or "v25", env["GOOGLE_ADS_CUSTOMER_ID"][:3] + "***", query))
         return 0
     try:
         tok = access_token(env)

@@ -2,6 +2,10 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。
 
+## 2.0.2（2026-09-25）
+
+Google Ads api 路对齐 Google 新政策：developer token 2026-09-09 起废弃，权限级别由 OAuth 所属的 Google Cloud 项目决定；`report_api.py` 不再强制要 developer token（过渡期有就带），REST 版本默认 v25。契约、使用方法、manifest 同步改。
+
 ## 2.0.1（2026-09-25）
 
 拆掉回流通道：删除 `plugins/report/feishu` 与 report 这一类插件口子，循环不再往外发任何东西，哨兵只写本地日志。学员会不会用看社区机器人的对话日志；要看某个人跑得怎么样，让他贴 `runs/<id>/report.json` 与 `run.log`（老板 09-25 定）。架构总图第 6 节、README、config 模板、manifest schema、自测清单同步改。
