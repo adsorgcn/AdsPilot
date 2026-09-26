@@ -36,7 +36,7 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-09-26, version 2.0.12. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-09-26, version 2.0.13. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
@@ -45,7 +45,7 @@ As of 2026-09-26, version 2.0.12. Every part below has code, a usage method and 
 | Landing page | done | template and compliance check pass self-test; one page published on a real domain during launch |
 | Judgment (f_v5 frozen) | done | judgment blocks verified by the canonical iLang validator; providers are perception only |
 | Attribution & reconciliation | done | sample data only |
-| Unattended loop | done | sample data only; seven-day acceptance not run |
+| Unattended loop | done | sample data only; seven-day acceptance not run; user decisions expire and have a money limit |
 | Default SOUL | done | money defined in USD and converted to the account currency; thresholds copied from the SOP, not yet calibrated on real data |
 | Plugin Google Ads | **live-tested on a real account** | create campaign, adjust budget and bids, pause keyword, add negative, remove campaign, pull report, Data Manager conversion upload (validate-only): all pass |
 | Plugin CJ | **live-tested on a real account** | offers (187 advertisers, paged), link with sid, commissions in windows, chargebacks: all pass (read-only) |
@@ -58,6 +58,8 @@ As of 2026-09-26, version 2.0.12. Every part below has code, a usage method and 
 In one sentence: onboarding is now one action, hand over three keys (Cloudflare, Google Ads, CJ), then run launch and get a real campaign. The whole chain from landing site to campaign to ledger has closed once in the real world. The only part not yet touched by real data is the SOUL thresholds, which can only be calibrated by running. Next is the first student environment running seven unattended days, after which the plugins move from alpha to stable.
 
 ## Progress log
+
+**2026-09-26, 2.0.13.** User decisions now have an expiry and a money limit. Before, one sentence from the user such as "leave all these campaigns alone" was followed forever: no expiry, no matter how much was spent afterwards, even after a campaign passed the test spend total. Now each decision expires after 7 days by default (or on the date the user gave); if a campaign spends another $100 after the loop first saw the decision, or passes the test spend total, the decision lapses and the judgment decides again. The two spending nodes no longer accept "all" as a target; the user names each campaign or keyword. Each run's report lists which decisions were used, which lapsed and why. This release did not touch a real account; only self-tests and sample data were run.
 
 **2026-09-26, 2.0.12.** Money now has a unit and bids have one rule. SOUL amounts (bid 0.25, budgets 5 and 10, stop-loss 100 and 300) used to carry no unit, so in a HK$ account they were read as HK$: a profitable campaign averaging HK$3.5 per click was cut every day, and a HK$3.79 keyword that offer selection approved was then refused at campaign creation. SOUL amounts are now defined in USD and converted by `config.currency` and `config.fx`; the bid cap comes from what this offer earns per click, and offer selection, campaign creation and daily bid changes use the same number. `config.caps` is empty by default; filled values are absolute caps in the account currency. Dry-run of launch offers and campaign for Roborock on our HK$ account: bid cap HK$4.56, campaign bid 4.42 (low top-of-page bid of the first passing keyword), first-day budget $5 converted to HK$39, judgment go.
 

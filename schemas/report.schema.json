@@ -286,6 +286,94 @@
         }
       }
     },
+    "user_decisions": {
+      "description": "本轮用到的用户决定（data/inbox/user-decisions.json）：照做的、失效交回判断的、被忽略的。没有用户决定时省略。",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "applied": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "node",
+              "target",
+              "choice"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "node": {
+                "type": "string"
+              },
+              "target": {
+                "type": "string"
+              },
+              "choice": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "expired": {
+          "description": "到期或越过钱的边界，本节点按判断走。why: until_passed、extra_spend_<数额>、crossed_test_spend_total。",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "node",
+              "target",
+              "choice",
+              "why"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "node": {
+                "type": "string"
+              },
+              "target": {
+                "type": "string"
+              },
+              "choice": {
+                "type": "string"
+              },
+              "why": {
+                "type": "string",
+                "maxLength": 120
+              }
+            }
+          }
+        },
+        "ignored": {
+          "description": "写法不被接受，本节点按判断走。why: wildcard_not_allowed_on_money_node、bad_date。",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "node",
+              "target",
+              "choice",
+              "why"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "node": {
+                "type": "string"
+              },
+              "target": {
+                "type": "string"
+              },
+              "choice": {
+                "type": "string"
+              },
+              "why": {
+                "type": "string",
+                "maxLength": 120
+              }
+            }
+          }
+        }
+      }
+    },
     "status": {
       "description": "iLang ::STATUS 的状态值。",
       "enum": [
