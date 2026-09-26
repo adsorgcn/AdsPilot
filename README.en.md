@@ -36,7 +36,7 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-09-26, version 2.0.16. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-09-26, version 2.0.17. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
@@ -58,6 +58,8 @@ As of 2026-09-26, version 2.0.16. Every part below has code, a usage method and 
 In one sentence: onboarding is now one action, hand over three keys (Cloudflare, Google Ads, CJ), then run launch and get a real campaign. The whole chain from landing site to campaign to ledger has closed once in the real world. The only part not yet touched by real data is the SOUL thresholds, which can only be calibrated by running. Next is the first student environment running seven unattended days, after which the plugins move from alpha to stable.
 
 ## Progress log
+
+**2026-09-26, 2.0.17.** The Google budget recommendation calls were checked on a real account for the first time, and three guesses from the docs were wrong: the pre-launch request needs location IDs, the query for running campaigns must select the whole recommendation object, and amounts must be labeled with the account currency rather than the brief's. All three are fixed, and a recommendation in the wrong currency is not used. Google gave no recommendation that time, so the recommended values still wait for a check.
 
 **2026-09-26, 2.0.16.** Budgets follow Google's recommendation. Before, AdsPilot set budgets itself: USD 5 on day one, at most USD 10 a day, plus 20% when profitable, so a new account for which Google recommended HK$60 was blocked. There are no budget constants now: a new campaign gets Google's recommended budget, and a running campaign moves to Google's new recommendation when there is one; the user changes it if they want (a budget in the brief, or caps in the config); without a recommendation, launch asks the user and the daily loop leaves the budget alone. Loss-stopping rules still come first. This release did not touch a real account; the budget recommendation calls have not been checked on a real account yet.
 
