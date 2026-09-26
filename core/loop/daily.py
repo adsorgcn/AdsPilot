@@ -15,6 +15,7 @@
 退出码：0 正常；2 需要本人出手（有 M6/M8 或 needs_human）；3 自检或外部步骤失败；4 配置缺失；1 其他。
 只用标准库。
 """
+import hashlib
 import json
 import os
 import shutil
@@ -36,6 +37,16 @@ from validate import load_schema, validate  # noqa: E402
 VERSION = open(os.path.join(ROOT, "VERSION"), encoding="utf-8").read().strip()
 
 
+def anchor_key(entry):
+    """用户决定的锚点键：这条决定的 node、target、choice、until、created 一样，就是同一条。"""
+    return hashlib.sha1(json.dumps({k: entry.get(k) for k in ("node", "target", "choice", "until", "created")},
+                                   sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _date(s):
+    return datetime.strptime(str(s)[:10], "%Y-%m-%d").date()
+
+
 class Run:
     def __init__(self, cfg, run_id, apply):
         self.cfg, self.run_id, self.apply = cfg, run_id, apply
@@ -50,6 +61,7 @@ class Run:
         self.soul = J.load_soul(cfg.get("soul", "soul/default.soul.md"), cfg)   # 金额折成 config.currency
         self.judgments, self.actions, self.evidence, self.plugins_used = [], [], [], set()
         self.needs_human = []
+        self.ud_report, self._ud_seen = {"applied": [], "expired": [], "ignored": []}, set()
         self.started = subid.now_iso()
 
     def _abs(self, p):
@@ -160,27 +172,97 @@ class Run:
         self.log("reconcile: %s" % json.dumps(out["summary"]))
         return out
 
-    # ---------------------------------------------------------------- 判断
-    def user_decision(self, node, target):
-        """用户明确说过的：data/inbox/user-decisions.json
-        {"decisions":[{"node":"campaign.adjust","target":"AP X","choice":"keep","until":"2026-10-31","note":"先别停"}]}
-        target 写 * 表示这个节点全部。过了 until 就不算。"""
+    # ---------------------------------------------------------------- 用户决定
+    def _user_decision_params(self):
+        """SOUL.user_decision：默认天数、多花多少即失效（已按 config.fx 折成账户币种）、不许写 * 的花钱节点。
+        自定义 SOUL 没写这一段时用默认值：7 天、100 美元、campaign.adjust 与 keyword.action。"""
+        ud = self.soul["params"].get("user_decision") or {}
+        extra = ud.get("max_extra_spend")
+        if not isinstance(extra, (int, float)):
+            fx = self.cfg.get("fx") or {}
+            cur, unit = self.soul.get("currency"), self.soul.get("money_unit", "USD")
+            rate = float(fx[cur]) / float(fx[unit]) if fx.get(cur) and fx.get(unit) else 1.0
+            extra = round(100.0 * rate, 2)
+        return (int(ud.get("default_days", 7)), float(extra),
+                set(ud.get("no_wildcard_nodes") or ["campaign.adjust", "keyword.action"]))
+
+    def _ud_note(self, kind, node, target, choice, why=None):
+        rec = {"node": node, "target": target, "choice": choice}
+        if why:
+            rec["why"] = why
+        k = (kind, node, target, choice, why)
+        if k in self._ud_seen:
+            return
+        self._ud_seen.add(k)
+        self.ud_report[kind].append(rec)
+        if kind != "applied":
+            self.log("user_decision %s %s %s %s %s" % (node, target, choice, kind, why))
+
+    def user_decision(self, node, target, state=None):
+        """用户明确说过的：data/inbox/user-decisions.json（只读，循环不回写）
+        {"decisions":[{"node":"campaign.adjust","target":"AP X","choice":"keep","created":"2026-09-26","until":"2026-10-31","note":"先别停"}]}
+        用户回答的是说话那一刻的情况；情况变了这条就失效，交回判断：
+          花钱节点（SOUL.user_decision.no_wildcard_nodes）上 target 写 * ⇒ 忽略
+          过了 until（没写 until 就是 created 或第一次看到那天 + default_days）⇒ 失效
+          campaign.adjust：从第一次看到起多花 max_extra_spend，或越过 stop_loss.test_spend_total ⇒ 失效
+        锚点（第一次看到的日子与当时的 spend_total）只进 ledger 的 user_decision_anchor。"""
         if not hasattr(self, "_user_decisions"):
             self._user_decisions = []
             p = os.path.join(self.data_dir, "inbox", "user-decisions.json")
             if os.path.exists(p):
                 try:
-                    self._user_decisions = json.load(open(p, encoding="utf-8")).get("decisions") or []
+                    with open(p, encoding="utf-8") as f:
+                        self._user_decisions = [d for d in (json.load(f).get("decisions") or []) if isinstance(d, dict)]
                 except (ValueError, AttributeError):
                     self.log("user-decisions.json 读不了，忽略")
-        today = time.strftime("%Y-%m-%d")
+        days, max_extra, no_wild = self._user_decision_params()
+        test_total = float(self.soul["params"]["stop_loss"]["test_spend_total"])
+        today = datetime.now().date()
+        st = state or {}
         for d in self._user_decisions:
-            if d.get("node") == node and d.get("target") in (target, "*") and (not d.get("until") or d["until"] >= today):
-                return d.get("choice")
+            if d.get("node") != node or d.get("target") not in (target, "*"):
+                continue
+            choice = d.get("choice")
+            if not choice:
+                continue
+            if d.get("target") == "*" and node in no_wild:
+                self._ud_note("ignored", node, "*", choice, "wildcard_not_allowed_on_money_node")
+                continue
+            key = anchor_key(d)
+            row = self.con.execute("SELECT first_seen, spend_at FROM user_decision_anchor WHERE key=?", (key,)).fetchone()
+            if not row:
+                spend = st.get("spend_total")
+                row = (today.strftime("%Y-%m-%d"), float(spend) if isinstance(spend, (int, float)) and not isinstance(spend, bool) else None)
+                self.con.execute("INSERT INTO user_decision_anchor(key, first_seen, spend_at) VALUES(?,?,?)", (key,) + row)
+                self.con.commit()
+            first_seen, spend_at = row
+            try:
+                if d.get("until"):
+                    until_eff = _date(d["until"])
+                else:
+                    until_eff = _date(d.get("created") or first_seen) + timedelta(days=days)
+            except ValueError:
+                self._ud_note("ignored", node, target, choice, "bad_date")
+                continue
+            if today > until_eff:
+                self._ud_note("expired", node, target, choice, "until_passed")
+                continue
+            total = st.get("spend_total")
+            if node == "campaign.adjust" and spend_at is not None and isinstance(total, (int, float)):
+                total = float(total)
+                if total - spend_at + 1e-9 >= max_extra:
+                    self._ud_note("expired", node, target, choice, "extra_spend_%.2f" % (total - spend_at))
+                    continue
+                if spend_at < test_total <= total:
+                    self._ud_note("expired", node, target, choice, "crossed_test_spend_total")
+                    continue
+            self._ud_note("applied", node, target, choice)
+            return choice
         return None
 
+    # ---------------------------------------------------------------- 判断
     def decide(self, node, state, choices, target="", evidence=None):
-        user = self.user_decision(node, target)
+        user = self.user_decision(node, target, state)
         if user:
             state = dict(state or {}, user_decision=user)
         resp = J.judge(node, state, [{"id": c} if isinstance(c, str) else c for c in choices], cfg=self.cfg, soul=self.soul,
@@ -364,6 +446,8 @@ class Run:
                   "status": status, "exit_code": exit_code, "plugins": sorted(self.plugins_used), "soul": self.soul["id"]}
         if self.cfg.get("member"):
             report["member"] = self.cfg["member"]
+        if any(self.ud_report.values()):
+            report["user_decisions"] = self.ud_report
         errs = validate(load_schema("report.schema.json"), report)
         if errs:
             self.log("report schema errors: %s" % errs[:3])
@@ -419,32 +503,148 @@ def ack(cfg, run_id):
     return 0
 
 
-def selftest():
-    import tempfile
-    tmp = tempfile.mkdtemp(prefix="adspilot-selftest-")
+def _selftest_cfg(tmp, name, mappings=True):
+    """自测用的一套独立配置与账本：每个场景一份，互不串味（keep 会记成 applied，影响下一轮的 last_change_days）。"""
     cfg = json.load(open(os.path.join(ROOT, "config", "adspilot.example.json"), encoding="utf-8"))
-    cfg.update({"data_dir": os.path.join(tmp, "data"), "runs_dir": os.path.join(tmp, "runs")})
+    base = os.path.join(tmp, name)
+    cfg.update({"data_dir": os.path.join(base, "data"), "runs_dir": os.path.join(base, "runs")})
     cfg["traffic"]["report_csv"] = os.path.join(ROOT, "tests", "fixtures", "google-ads-report.csv")
     cfg["affiliate"]["commissions_source"] = "json"
     cfg["affiliate"]["commissions_json"] = os.path.join(ROOT, "tests", "fixtures", "commissions.cj.json")
     con = subid.open_db(os.path.join(cfg["data_dir"], "ledger.db"))
-    for row in json.load(open(os.path.join(ROOT, "tests", "fixtures", "mappings.json"), encoding="utf-8")):
-        subid.record(con, row)
+    if mappings:
+        for row in json.load(open(os.path.join(ROOT, "tests", "fixtures", "mappings.json"), encoding="utf-8")):
+            subid.record(con, row)
     con.commit(); con.close()
+    return cfg
+
+
+def _selftest_decisions(cfg, decisions):
+    p = os.path.join(cfg["data_dir"], "inbox", "user-decisions.json")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump({"decisions": decisions}, f, ensure_ascii=False)
+    return p
+
+
+def _selftest_sha1(p):
+    with open(p, "rb") as f:
+        return hashlib.sha1(f.read()).hexdigest()
+
+
+def _selftest_report(cfg, run_id):
+    return json.load(open(os.path.join(cfg["runs_dir"], run_id, "report.json"), encoding="utf-8"))
+
+
+def selftest():
+    import tempfile
+    tmp = tempfile.mkdtemp(prefix="adspilot-selftest-")
+    today = datetime.now().date()
+    ds = lambda n=0: (today - timedelta(days=n)).strftime("%Y-%m-%d")  # noqa: E731
+    schema = load_schema("report.schema.json")
+    results = []
+
+    def check(name, cond, detail=""):
+        results.append(bool(cond))
+        print("%s %s %s" % ("ok  " if cond else "FAIL", name, detail))
+
+    def ud_of(rep):
+        return rep.get("user_decisions") or {}
+
+    def by_target(rep, node):
+        return {a["target"]: a["choice"] for a in rep["actions"] if a["node"] == node}
+
+    def decided(rep, node):
+        return [j.get("decided_by") for j in rep["judgments"] if j["node"] == node]
+
+    # 第一轮：没有用户决定，判断自己走
+    cfg = _selftest_cfg(tmp, "a")
     rc = run_once(cfg, run_id="selftest", apply=False)
-    rep = json.load(open(os.path.join(cfg["runs_dir"], "selftest", "report.json"), encoding="utf-8"))
-    errs = validate(load_schema("report.schema.json"), rep)
+    rep = _selftest_report(cfg, "selftest")
+    errs = validate(schema, rep)
     ok = rc in (0, 2) and not errs and rep["summary"]["conversions"] >= 1 and any(a["node"] == "campaign.adjust" for a in rep["actions"])
-    # 第二轮：用户说「这些系列都别动」（keep），循环照做，判断的意见记成建议
-    adj = [a for a in rep["actions"] if a["node"] == "campaign.adjust" and a["choice"] != "keep"]
-    json.dump({"decisions": [{"node": "campaign.adjust", "target": "*", "choice": "keep", "note": "selftest"}]},
-              open(os.path.join(cfg["data_dir"], "inbox", "user-decisions.json"), "w", encoding="utf-8"))
+    base_adj = by_target(rep, "campaign.adjust")
+    adj = [t for t, c in base_adj.items() if c != "keep"]
+    targets = sorted(base_adj)
+
+    # T2-a 第二轮：用户对第一轮每个 campaign.adjust 目标逐条说 keep（带 created），循环照做，判断的意见记成建议
+    p = _selftest_decisions(cfg, [{"node": "campaign.adjust", "target": t, "choice": "keep", "created": ds(), "note": "selftest"} for t in targets])
+    h0 = _selftest_sha1(p)
     run_once(cfg, run_id="selftest-user", apply=False)
-    rep2 = json.load(open(os.path.join(cfg["runs_dir"], "selftest-user", "report.json"), encoding="utf-8"))
-    errs2 = validate(load_schema("report.schema.json"), rep2)
-    adj2 = [a for a in rep2["actions"] if a["node"] == "campaign.adjust"]
-    user_ok = not errs2 and adj2 and all(a["choice"] == "keep" for a in adj2) and any(j.get("decided_by") == "user" for j in rep2["judgments"])
-    ok = ok and user_ok
+    rep2 = _selftest_report(cfg, "selftest-user")
+    errs2 = validate(schema, rep2)
+    adj2 = by_target(rep2, "campaign.adjust")
+    by2 = decided(rep2, "campaign.adjust")
+    applied2 = sorted(x["target"] for x in ud_of(rep2).get("applied", []) if x["node"] == "campaign.adjust")
+    con = subid.open_db(os.path.join(cfg["data_dir"], "ledger.db"))
+    anchors = con.execute("SELECT first_seen, spend_at FROM user_decision_anchor").fetchall()
+    con.close()
+    user_ok = (not errs2 and sorted(adj2) == targets and all(c == "keep" for c in adj2.values()) and by2 and all(b == "user" for b in by2)
+               and applied2 == targets and len(anchors) == len(targets) and all(a[0] == ds() and a[1] is not None for a in anchors))
+    check("T2-a", user_ok, "targets=%s adjust=%s decided_by=%s applied=%s anchors=%d schema=%s" % (
+        targets, sorted(set(adj2.values())), sorted(set(by2)), applied2, len(anchors), "ok" if not errs2 else errs2[:2]))
+
+    # T2-b 花钱节点写 target:"*" ⇒ 忽略并写进报告，判断照常；非花钱节点的 * 照旧生效
+    cfg_b = _selftest_cfg(tmp, "b")
+    pb = _selftest_decisions(cfg_b, [{"node": "campaign.adjust", "target": "*", "choice": "keep", "created": ds()},
+                                     {"node": "keyword.action", "target": "*", "choice": "keep", "created": ds()},
+                                     {"node": "conversion.upload", "target": "*", "choice": "hold", "created": ds()}])
+    hb = _selftest_sha1(pb)
+    run_once(cfg_b, run_id="selftest-wild", apply=False)
+    rep3 = _selftest_report(cfg_b, "selftest-wild")
+    errs3 = validate(schema, rep3)
+    ig = ud_of(rep3).get("ignored", [])
+    log3 = open(os.path.join(cfg_b["runs_dir"], "selftest-wild", "run.log"), encoding="utf-8").read()
+    want_ig = [{"node": n, "target": "*", "choice": "keep", "why": "wildcard_not_allowed_on_money_node"} for n in ("campaign.adjust", "keyword.action")]
+    by3 = decided(rep3, "campaign.adjust") + decided(rep3, "keyword.action")
+    wild_ok = (not errs3 and all(w in ig for w in want_ig) and len(ig) == len(want_ig)
+               and by_target(rep3, "campaign.adjust") == base_adj and by_target(rep3, "keyword.action") == by_target(rep, "keyword.action")
+               and by3 and all(b == "judge" for b in by3)
+               and "user_decision campaign.adjust * keep ignored wildcard_not_allowed_on_money_node" in log3
+               and any(x["node"] == "conversion.upload" for x in ud_of(rep3).get("applied", [])))
+    check("T2-b", wild_ok, "ignored=%s adjust_same_as_round1=%s decided_by=%s nonmoney_applied=%s schema=%s" % (
+        [x["node"] for x in ig], by_target(rep3, "campaign.adjust") == base_adj, sorted(set(by3)),
+        [x["node"] for x in ud_of(rep3).get("applied", [])], "ok" if not errs3 else errs3[:2]))
+
+    # T2-c..e 直接在一轮里调 decide：到期、多花出一截、越过测试总额（USD 配置）
+    cfg_c = _selftest_cfg(tmp, "c", mappings=False)
+    uds = [{"node": "campaign.adjust", "target": "C-old", "choice": "keep", "created": ds(8)},
+           {"node": "campaign.adjust", "target": "C-spend", "choice": "keep", "created": ds()},
+           {"node": "campaign.adjust", "target": "C-cross", "choice": "keep", "created": ds()},
+           {"node": "campaign.adjust", "target": "C-ok", "choice": "keep", "created": ds()}]
+    pc = _selftest_decisions(cfg_c, uds)
+    hc = _selftest_sha1(pc)
+
+    def akey(d):  # 与原书 STEP 2.1 的定义逐字一致，独立于实现算一遍
+        return hashlib.sha1(json.dumps({k: d.get(k) for k in ("node", "target", "choice", "until", "created")}, sort_keys=True).encode("utf-8")).hexdigest()
+    con = subid.open_db(os.path.join(cfg_c["data_dir"], "ledger.db"))
+    for d, spend_at in ((uds[1], 100.0), (uds[2], 250.0), (uds[3], 100.0)):
+        con.execute("INSERT INTO user_decision_anchor(key, first_seen, spend_at) VALUES(?,?,?)", (akey(d), ds(), spend_at))
+    con.commit(); con.close()
+    r = Run(cfg_c, "selftest-unit", False)
+    ch = ["keep", "bid_down", "budget_up", "budget_down", "pause"]
+    st0 = {"days_running": 7, "spend_total": 140, "spend_window": 140, "clicks": 700, "avg_cpc": 0.2, "conversions": 3, "commission": 400,
+           "last_change_days": 3, "daily_budget": 5.0, "money_at_stake": 140, "disapproved": False, "bid_cap": None}
+    rc_old = r.decide("campaign.adjust", st0, ch, target="C-old", evidence=["selftest"])
+    rc_spend = r.decide("campaign.adjust", dict(st0, spend_total=250), ch, target="C-spend", evidence=["selftest"])
+    rc_cross = r.decide("campaign.adjust", dict(st0, spend_total=320), ch, target="C-cross", evidence=["selftest"])
+    rc_ok = r.decide("campaign.adjust", dict(st0, spend_total=150), ch, target="C-ok", evidence=["selftest"])
+    rep4, _ = r.build_report(None, None, 0)
+    r.finish(0, {})
+    errs4 = validate(schema, rep4)
+    exp = {x["target"]: x["why"] for x in ud_of(rep4).get("expired", [])}
+    log4 = open(os.path.join(cfg_c["runs_dir"], "selftest-unit", "run.log"), encoding="utf-8").read()
+    check("T2-c", exp.get("C-old") == "until_passed" and rc_old.get("decided_by") == "judge"
+          and "user_decision campaign.adjust C-old keep expired until_passed" in log4,
+          "why=%s decided_by=%s choice=%s" % (exp.get("C-old"), rc_old.get("decided_by"), rc_old["choice"]))
+    check("T2-d", str(exp.get("C-spend", "")).startswith("extra_spend_") and rc_spend.get("decided_by") == "judge"
+          and rc_ok.get("decided_by") == "user" and rc_ok["choice"] == "keep" and "C-ok" not in exp,
+          "why=%s decided_by=%s | 控制组 C-ok 多花50 decided_by=%s" % (exp.get("C-spend"), rc_spend.get("decided_by"), rc_ok.get("decided_by")))
+    check("T2-e", exp.get("C-cross") == "crossed_test_spend_total" and rc_cross.get("decided_by") == "judge" and rc_cross["choice"] == "pause",
+          "why=%s decided_by=%s choice=%s mode=%s" % (exp.get("C-cross"), rc_cross.get("decided_by"), rc_cross["choice"], rc_cross["mode_local"]))
+    check("T2-f", _selftest_sha1(p) == h0 and _selftest_sha1(pb) == hb and _selftest_sha1(pc) == hc,
+          "user-decisions.json 三份跑完字节不变")
+    ok = ok and all(results) and not errs4
     print("selftest rc=%d conversions=%d actions=%d judgments=%d schema=%s judge_changes=%d user_keep=%s -> %s" % (
         rc, rep["summary"]["conversions"], len(rep["actions"]), len(rep["judgments"]), "ok" if not errs else errs[:2], len(adj), bool(user_ok), "OK" if ok else "FAIL"))
     shutil.rmtree(tmp, ignore_errors=True)

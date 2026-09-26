@@ -52,6 +52,9 @@ CREATE TABLE IF NOT EXISTS actions (
   applied INTEGER NOT NULL DEFAULT 0, applied_at TEXT, note TEXT, created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_actions_target ON actions(target, applied_at);
+CREATE TABLE IF NOT EXISTS user_decision_anchor (
+  key TEXT PRIMARY KEY, first_seen TEXT, spend_at REAL
+);
 """
 
 

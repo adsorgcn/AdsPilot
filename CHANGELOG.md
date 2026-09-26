@@ -2,6 +2,12 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。本文件记细节，README 的「进度记录」记叙事，每版两处都写。
 
+## 2.0.13（2026-09-26）用户决定有时间边界和钱的边界
+
+按工程书 ADSPILOT-JUDGE-FIX-20260926 的 T2（续篇 ADSPILOT-JUDGE-FIX-20260926-PART2）。「用户说了就照做」不变，但用户回答的是说话那一刻的情况，情况变了这条就失效、交回判断。`daily.py` 的 `user_decision(node, target, state)` 逐条判：花钱节点（SOUL `user_decision.no_wildcard_nodes`，默认 campaign.adjust 与 keyword.action）上 `target:"*"` 忽略；过了 `until` 失效，没写 `until` 时按 `created`（或第一次看到那天）加 `default_days`（7 天）；campaign.adjust 从第一次看到起多花 `max_extra_spend`（100 美元，已按 fx 折算）或越过 `stop_loss.test_spend_total` 即失效。第一次看到的日子与当时的 `spend_total` 记进账本新表 `user_decision_anchor`（老账本打开时自动补表），`user-decisions.json` 只读不回写。失效与忽略不新增 needs_human、不改退出码。`report.json` 加可选字段 `user_decisions`（applied、expired、ignored，后两者带 why），schema 同步；run.log 每条失效或忽略一行。`core/loop/使用方法.md`「用户说了就照做」一节写字段、边界与 Agent 当场复述的话。自测：原第二轮的 `target:"*"` 无期限写法改为逐条带 `created`；新增 T2-a 到 T2-f（先在 2.0.12 逻辑上跑出 a 到 e 失败再修），另有一个未越界的控制组照做；T1 与既有判断用例不变。工程书外的两处：日期写坏的条目忽略（why `bad_date`），自定义 SOUL 没有 `user_decision` 段时用上述默认值。
+
+真实世界：本版没有碰真实账号，只跑了自测与样例数据；港币配置下核过 `max_extra_spend` 折成 780 港币、测试总额 2340 港币，只折一次。
+
 ## 2.0.12（2026-09-26）钱有单位，出价只有一条规则
 
 按工程书 ADSPILOT-JUDGE-FIX-20260926 的 T1。SOUL 参数加 `money_unit: USD`、`offer.max_bid_ratio: 1.0`、`user_decision`（T2 用），版本 2.1.0，正文加「金额单位」一节，四个节点里的 cpc.cap 改称「出价上限」并给出定义。`load_soul(path, cfg)` 按 `config.fx` 把 SOUL 金额（`MONEY_FIELDS`）从美元折成 `config.currency`，币种不在 fx 里就报错；`judge()` 发现 SOUL 币种与配置不一致就报错。`offer_economics` 过线条件改为「出价 < bid_cap = 每次点击赚的钱 × max_bid_ratio」并返回 `bid_cap`；新增 `bid_cap_for`（min(本 offer 的 bid_cap, caps.max_cpc)，都没有才用折算后的 cpc.cap）与 `cap`（null 用 SOUL 默认值），替换 campaign.launch、campaign.adjust、keyword.action、`_within_caps` 里的全部旧写法；campaign.launch 的新账号首日预算也走 `cap`（工程书没列，同类）。开局 offers 步核对关键词插件返回的币种与 `config.currency`，`picked` 带 `bid_cap`；campaign 步把 `bid_cap` 带进 brief 与判断状态，没写出价就取 min(第一个过线词出价, bid_cap)，建成后把预算、出价、出价上限、offer、每次点击赚多少、币种合并写进 `data/inbox/campaigns.json`。`spec.build` 出价上限取 min(brief.bid_cap, caps.max_cpc)，预算上限走 null 感知。日常循环 campaign.adjust 与 keyword.action 的状态带 `bid_cap`，首日预算走 `cap`，`actions-todo.json` 带 `caps_effective`，`deploy_api` 优先用它（caps 为 null 时不再等于没有上限）。配置模板 caps 四项改为 null 并加说明，schema 允许 null；自检加 `soul_money`（十二项）。自测 T1-a 到 T1-f 全过，既有 12 个判断用例与 5 个用户用例与 2.0.11 逐行一致。
