@@ -325,7 +325,11 @@ def main(argv):
         if os.path.exists(cp):
             cfg = json.load(open(cp, encoding="utf-8"))
         caps = cfg.get("caps") or {}
-        res = apply_actions(client, todo, mode, step_pct=float(caps.get("budget_step_pct", 20)), daily_cap=caps.get("daily_budget"))
+        # 日预算上限：主干算好的有效值（config.caps 为 null 时是 SOUL 默认值折算后）优先；caps 里是 null 就不能当成「没有上限」
+        daily_cap = (todo.get("caps_effective") or {}).get("daily_budget")
+        if daily_cap is None:
+            daily_cap = caps.get("daily_budget")
+        res = apply_actions(client, todo, mode, step_pct=float(caps.get("budget_step_pct") or 20), daily_cap=daily_cap)
         print(json.dumps({"mode": mode, "results": res}, ensure_ascii=False, indent=2))
         return 3 if any("error" in r for r in res) else 0
     if "remove-campaign" in kv:

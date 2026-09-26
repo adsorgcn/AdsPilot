@@ -34,12 +34,20 @@ sys.path.insert(0, os.path.join(ROOT, "core", "selfcheck"))
 VALUETRACK = "{lpurl}?c={campaignid}&a={adgroupid}&k={targetid}&n={network}"
 
 
+def _cap(caps, key, fallback):
+    v = (caps or {}).get(key)
+    return float(v) if v is not None else float(fallback)
+
+
 def build(brief, soul_params, caps):
+    """soul_params 是 load_soul(path, cfg) 折算后的（广告账户币种）；caps 是 config.caps（广告账户币种，null=用 SOUL 默认）。
+    出价上限 = min(brief.bid_cap（开局从选中 offer 带来）, caps.max_cpc)，两个都没有才用 SOUL 的 cpc.cap。"""
     caps = caps or {}
-    cpc_cap = float(caps.get("max_cpc", soul_params["cpc"]["cap"]))
-    budget_cap = float(caps.get("daily_budget", soul_params["budget"]["daily_cap"]))
-    first_day = float(caps.get("first_day_budget", soul_params["budget"]["first_day"]))
-    stop_loss = float(caps.get("stop_loss_spend", soul_params["stop_loss"]["test_spend_total"]))
+    cands = [float(x) for x in (brief.get("bid_cap"), caps.get("max_cpc")) if x is not None]
+    cpc_cap = min(cands) if cands else float(soul_params["cpc"]["cap"])
+    budget_cap = _cap(caps, "daily_budget", soul_params["budget"]["daily_cap"])
+    first_day = _cap(caps, "first_day_budget", soul_params["budget"]["first_day"])
+    stop_loss = _cap(caps, "stop_loss_spend", soul_params["stop_loss"]["test_spend_total"])
     max_cpc = float(brief.get("max_cpc", soul_params["cpc"]["start"]))
     budget = float(brief.get("daily_budget", first_day))
     host = urlparse(brief["final_url"]).netloc
@@ -104,8 +112,16 @@ def selftest():
     errs = validate(load_schema("traffic-spec.schema.json"), spec)
     bad = dict(brief); bad["max_cpc"] = 0.9; bad["keywords"] = [{"text": "x", "match": "broad"}]
     _, p2 = build(bad, soul["params"], {})
-    ok = not problems and not errs and len(p2) >= 2
-    print("spec problems=%d schema=%s bad_brief_problems=%d -> %s" % (len(problems), "ok" if not errs else errs[:2], len(p2), "OK" if ok else "FAIL"))
+    # 港币账户：出价上限来自 offer 的 bid_cap（4.56），3.79 的词能建；caps 全 null 时预算上限走 SOUL 折算值
+    hk = {"currency": "HKD", "fx": {"USD": 1.0, "HKD": 7.8}}
+    soul_hk = load_soul("soul/default.soul.md", hk)
+    b3 = dict(brief); b3.update({"max_cpc": 3.79, "bid_cap": 4.56, "daily_budget": 5})
+    _, p3 = build(b3, soul_hk["params"], {"max_cpc": None, "daily_budget": None, "first_day_budget": None, "stop_loss_spend": None})
+    b4 = dict(b3); b4["max_cpc"] = 4.8
+    _, p4 = build(b4, soul_hk["params"], {"max_cpc": None})
+    ok = not problems and not errs and len(p2) >= 2 and not p3 and any("max_cpc" in x for x in p4)
+    print("spec problems=%d schema=%s bad_brief_problems=%d hkd_bidcap_ok=%s hkd_over_bidcap=%s -> %s" % (
+        len(problems), "ok" if not errs else errs[:2], len(p2), not p3, any("max_cpc" in x for x in p4), "OK" if ok else "FAIL"))
     if problems:
         print(problems)
     return 0 if ok else 1
@@ -123,7 +139,7 @@ def main(argv):
     cp = kv.get("config", os.path.join(ROOT, "config", "adspilot.json"))
     if os.path.exists(cp):
         cfg = json.load(open(cp, encoding="utf-8"))
-    soul = load_soul(kv.get("soul", cfg.get("soul", "soul/default.soul.md")))
+    soul = load_soul(kv.get("soul", cfg.get("soul", "soul/default.soul.md")), cfg)
     brief = json.load(open(kv["brief"], encoding="utf-8"))
     spec, problems = build(brief, soul["params"], cfg.get("caps"))
     problems += validate(load_schema("traffic-spec.schema.json"), spec)

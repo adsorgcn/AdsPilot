@@ -143,6 +143,27 @@ def load_config():
     return cfg, _res("config", "pass", "apply=%s provider=%s" % (cfg.get("apply"), (cfg.get("judgment") or {}).get("provider")))
 
 
+def check_soul_money(cfg):
+    """SOUL 金额按 money_unit（美元）写，主干按 config.fx 折成 config.currency：两个币种都要在 fx 里。"""
+    if not cfg:
+        try:
+            cfg = json.load(open(os.path.join(ROOT, "config", "adspilot.example.json"), encoding="utf-8"))
+        except Exception as e:  # noqa: BLE001
+            return _res("soul_money", "fail", "读不到 config: %s" % e)
+    sys.path.insert(0, os.path.join(ROOT, "core", "judge"))
+    try:
+        import judge as J  # noqa: E402
+        soul = J.load_soul(cfg.get("soul", "soul/default.soul.md"))
+    except Exception as e:  # noqa: BLE001
+        return _res("soul_money", "fail", "SOUL 读不了: %s" % str(e)[:160])
+    cur, unit, fx = cfg.get("currency"), soul.get("money_unit", "USD"), cfg.get("fx") or {}
+    miss = [c for c in (cur, unit) if not isinstance(fx.get(c), (int, float))]
+    if not cur or miss:
+        return _res("soul_money", "fail", "config.currency=%s SOUL money_unit=%s，config.fx 缺 %s" % (cur, unit, ", ".join(str(m) for m in miss) or "currency"),
+                    "在 config.fx 里填这两个币种每 1 美元的汇率")
+    return _res("soul_money", "pass", "SOUL %s → 账户 %s，汇率 %s" % (unit, cur, round(float(fx[cur]) / float(fx[unit]), 4)))
+
+
 def check_secrets_in_repo():
     hits = []
     skip_dirs = {".git", "data", "runs", "node_modules", "__pycache__"}
@@ -200,7 +221,7 @@ def main(argv):
     cfg = cfg or {}
     results = [check_python(), check_shell(), check_write(cfg), check_scheduler(), check_long_run(),
                check_deploy_tools(), check_ilang_runtime(), cfg_res, check_version_consistency(),
-               check_secrets_in_repo()]
+               check_secrets_in_repo(), check_soul_money(cfg)]
     if not quick:
         results.append(check_network())
         results.append(check_plugins())

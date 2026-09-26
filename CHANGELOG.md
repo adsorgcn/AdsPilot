@@ -2,6 +2,12 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。本文件记细节，README 的「进度记录」记叙事，每版两处都写。
 
+## 2.0.12（2026-09-26）钱有单位，出价只有一条规则
+
+按工程书 ADSPILOT-JUDGE-FIX-20260926 的 T1。SOUL 参数加 `money_unit: USD`、`offer.max_bid_ratio: 1.0`、`user_decision`（T2 用），版本 2.1.0，正文加「金额单位」一节，四个节点里的 cpc.cap 改称「出价上限」并给出定义。`load_soul(path, cfg)` 按 `config.fx` 把 SOUL 金额（`MONEY_FIELDS`）从美元折成 `config.currency`，币种不在 fx 里就报错；`judge()` 发现 SOUL 币种与配置不一致就报错。`offer_economics` 过线条件改为「出价 < bid_cap = 每次点击赚的钱 × max_bid_ratio」并返回 `bid_cap`；新增 `bid_cap_for`（min(本 offer 的 bid_cap, caps.max_cpc)，都没有才用折算后的 cpc.cap）与 `cap`（null 用 SOUL 默认值），替换 campaign.launch、campaign.adjust、keyword.action、`_within_caps` 里的全部旧写法；campaign.launch 的新账号首日预算也走 `cap`（工程书没列，同类）。开局 offers 步核对关键词插件返回的币种与 `config.currency`，`picked` 带 `bid_cap`；campaign 步把 `bid_cap` 带进 brief 与判断状态，没写出价就取 min(第一个过线词出价, bid_cap)，建成后把预算、出价、出价上限、offer、每次点击赚多少、币种合并写进 `data/inbox/campaigns.json`。`spec.build` 出价上限取 min(brief.bid_cap, caps.max_cpc)，预算上限走 null 感知。日常循环 campaign.adjust 与 keyword.action 的状态带 `bid_cap`，首日预算走 `cap`，`actions-todo.json` 带 `caps_effective`，`deploy_api` 优先用它（caps 为 null 时不再等于没有上限）。配置模板 caps 四项改为 null 并加说明，schema 允许 null；自检加 `soul_money`（十二项）。自测 T1-a 到 T1-f 全过，既有 12 个判断用例与 5 个用户用例与 2.0.11 逐行一致。
+
+真实世界：港币账户配置（`config.currency=HKD`，caps 全 null）对 Roborock 跑开局 offers 与 campaign 两步 dry-run，出价上限 4.56 港币，系列出价 4.42（第一个过线词 roomba vacuum 的首页出价低位），首日预算 39 港币，判断 go M2，未 apply。
+
 ## 2.0.11（2026-09-26）判断是建议，不是闸门
 
 改正一处逻辑错：SOUL 早写了「用户明确说的排第一」，代码没实现，结果判断成了闸门，开局里 `--pick` 账没过就拒、页面检查没过不发、建系列判 hold 不建、没真点过不许启用，都在拦用户。现在一条规矩管全部：用户明确说了就照做，判断照算，作为建议（`advice`）写进输出与账本；用户没说，Agent 按判断走，M1、M2 执行，其余只提议。唯一不因用户一句话放行的是合规姿态（假流量、模拟点击、cloaking、绕资格或封禁、冒充身份、多账号、账号被停后继续或另开）。判断响应加 `decided_by`（user、judge、compliance）、`executes`、`advice`、`user_choice`；调用方只看 `executes`。开局每步加用户口子（`--pick`、`--user publish`、`--user go`、`go --user go`），账没过或政策没核照投，警告带出。日常循环读 `data/inbox/user-decisions.json`，用户说过的照做，判断意见记进账本与 `report.json`。SOUL 边界分成合规姿态与运营边界两组，优先级改为：合规姿态 > 用户明确 > 运营边界 > SOUL 规则。架构总图第 5 节、README、入口文件同步改。

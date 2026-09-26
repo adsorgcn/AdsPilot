@@ -36,17 +36,17 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-09-26, version 2.0.11. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-09-26, version 2.0.12. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
-| Agent adaptation & self-check | done | three identical entry files, eleven checks, pinned iLang runtime verification |
+| Agent adaptation & self-check | done | three identical entry files, twelve checks, pinned iLang runtime verification |
 | Launch (three keys in, one campaign out) | **live-tested on a real account** | on reviews.aixray.dev: landing site built from nothing, page published, campaign created, one real click into the ledger, no human in between, then torn down |
 | Landing page | done | template and compliance check pass self-test; one page published on a real domain during launch |
 | Judgment (f_v5 frozen) | done | judgment blocks verified by the canonical iLang validator; providers are perception only |
 | Attribution & reconciliation | done | sample data only |
 | Unattended loop | done | sample data only; seven-day acceptance not run |
-| Default SOUL | done | thresholds copied from the SOP, not yet calibrated on real data |
+| Default SOUL | done | money defined in USD and converted to the account currency; thresholds copied from the SOP, not yet calibrated on real data |
 | Plugin Google Ads | **live-tested on a real account** | create campaign, adjust budget and bids, pause keyword, add negative, remove campaign, pull report, Data Manager conversion upload (validate-only): all pass |
 | Plugin CJ | **live-tested on a real account** | offers (187 advertisers, paged), link with sid, commissions in windows, chargebacks: all pass (read-only) |
 | Plugin judgment llm / jev / soul-api | code complete | never connected to real endpoints; jev waits for docs; soul-api server not built |
@@ -58,6 +58,8 @@ As of 2026-09-26, version 2.0.11. Every part below has code, a usage method and 
 In one sentence: onboarding is now one action, hand over three keys (Cloudflare, Google Ads, CJ), then run launch and get a real campaign. The whole chain from landing site to campaign to ledger has closed once in the real world. The only part not yet touched by real data is the SOUL thresholds, which can only be calibrated by running. Next is the first student environment running seven unattended days, after which the plugins move from alpha to stable.
 
 ## Progress log
+
+**2026-09-26, 2.0.12.** Money now has a unit and bids have one rule. SOUL amounts (bid 0.25, budgets 5 and 10, stop-loss 100 and 300) used to carry no unit, so in a HK$ account they were read as HK$: a profitable campaign averaging HK$3.5 per click was cut every day, and a HK$3.79 keyword that offer selection approved was then refused at campaign creation. SOUL amounts are now defined in USD and converted by `config.currency` and `config.fx`; the bid cap comes from what this offer earns per click, and offer selection, campaign creation and daily bid changes use the same number. `config.caps` is empty by default; filled values are absolute caps in the account currency. Dry-run of launch offers and campaign for Roborock on our HK$ account: bid cap HK$4.56, campaign bid 4.42 (low top-of-page bid of the first passing keyword), first-day budget $5 converted to HK$39, judgment go.
 
 **2026-09-26, 2.0.11.** Fixed a logic error: judgment had been built as a gate and blocked what the user wanted (a picked offer that failed the math was refused, a page that failed the check was not published, a hold stopped campaign creation). Now judgment only advises: when the user says, it is done, with the judgment still computed and recorded as advice; when the user has not said, the agent decides by the judgment. The daily loop works the same way: "don't pause this one" means the loop does not pause it and logs the judgment's view. Only the first-screen compliance posture is not unlocked by a word.
 

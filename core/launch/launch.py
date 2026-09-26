@@ -153,7 +153,7 @@ def keyword_data(cfg, rows, kv):
 
 def step_offers(cfg, kv, apply):
     st = state()
-    soul = J.load_soul(cfg.get("soul", "soul/default.soul.md"))
+    soul = J.load_soul(cfg.get("soul", "soul/default.soul.md"), cfg)
     p = soul["params"]
     os.makedirs(os.path.join(ROOT, "runs", "launch"), exist_ok=True)
     d, m = plugin(cfg, "affiliate")
@@ -177,6 +177,8 @@ def step_offers(cfg, kv, apply):
     kw_errors = {}
     if not all(r.get("keywords") for r in rows):
         cur, kw, kw_errors = keyword_data(cfg, rows, kv)
+        if cur and cfg.get("currency") and cur != cfg["currency"]:
+            return out({"step": "offers", "error": "config.currency=%s 与广告账户币种 %s 不一致，改 config.currency" % (cfg["currency"], cur)}, 4)
         fx_table = cfg.get("fx") or {}
         fx = fx_table.get(cur) if cur else None
         if cur and fx is None:
@@ -213,7 +215,8 @@ def step_offers(cfg, kv, apply):
         metric = p["offer"].get("bid_metric", "cpc_low")
         cands = [k for k in (r.get("keywords") or []) if float(k.get(metric) or 0) > 0 and (r.get("brand_bidding_allowed") is True or not k.get("brand"))]
         words = [{"text": k["text"], "volume": k.get("volume"), metric: k.get(metric), "brand": k.get("brand", False)} for k in sorted(cands, key=lambda k: float(k[metric]))[:20]]
-    res["picked"] = {"offer_ref": r["offer_ref"], "advertiser": r["advertiser"], "epc": r.get("epc"), "earn_per_click": e.get("epc_per_click"), "currency": r.get("kw_currency"),
+    res["picked"] = {"offer_ref": r["offer_ref"], "advertiser": r["advertiser"], "epc": r.get("epc"), "earn_per_click": e.get("epc_per_click"), "bid_cap": e.get("bid_cap"),
+                     "currency": r.get("kw_currency"),
                      "keywords": words, "by": resp.get("decided_by")}
     warnings = []
     if not e["ok"]:
@@ -229,7 +232,7 @@ def step_offers(cfg, kv, apply):
 
 def step_page(cfg, kv, apply):
     st = state()
-    soul = J.load_soul(cfg.get("soul", "soul/default.soul.md"))
+    soul = J.load_soul(cfg.get("soul", "soul/default.soul.md"), cfg)
     if not kv.get("content"):
         return out({"error": "--content <json> 必填：模板占位符的值（TITLE、DESCRIPTION、H2_WHAT、P_WHAT …），tests/fixtures/lp-content.example.json 是样子"}, 4)
     content = json.load(open(kv["content"], encoding="utf-8"))
@@ -268,12 +271,22 @@ def step_page(cfg, kv, apply):
 
 def step_campaign(cfg, kv, apply, enable=False):
     st = state()
-    soul = J.load_soul(cfg.get("soul", "soul/default.soul.md"))
+    soul = J.load_soul(cfg.get("soul", "soul/default.soul.md"), cfg)
     if not kv.get("brief"):
         return out({"error": "--brief <json> 必填（tests/fixtures/brief.example.json 是样子；final_url 与 offer_ref 不填就用开局状态里的）"}, 4)
     brief = json.load(open(kv["brief"], encoding="utf-8"))
     brief.setdefault("final_url", st.get("page_url", ""))
     brief.setdefault("offer_ref", (st.get("offer") or {}).get("offer_ref", ""))
+    brief.setdefault("currency", cfg.get("currency", "USD"))
+    # 出价上限从选中的 offer 带过来；没写出价就用第一个过线词的出价，且不超过出价上限（选品第一条与出价同一个数）
+    offer = st.get("offer") or {}
+    if offer.get("bid_cap") is not None:
+        brief.setdefault("bid_cap", offer["bid_cap"])
+    if brief.get("max_cpc") is None and offer.get("keywords"):
+        metric = soul["params"]["offer"].get("bid_metric", "cpc_low")
+        first = offer["keywords"][0].get(metric)
+        if first is not None:
+            brief["max_cpc"] = round(min(float(first), float(brief["bid_cap"])) if brief.get("bid_cap") is not None else float(first), 2)
     if not brief.get("final_url"):
         return out({"error": "brief 没有 final_url 且开局状态里没有已发布的页（先跑 page --apply）"}, 4)
     import spec as S  # noqa: E402
@@ -290,7 +303,8 @@ def step_campaign(cfg, kv, apply, enable=False):
         except ValueError:
             pass
     jst = {"spec_valid": not problems and not errs, "lp_published": bool(st.get("page_url")) or bool(kv.get("brief") and not apply), "account_status": acct,
-           "max_cpc": spec["campaign"]["bidding"]["max_cpc"], "daily_budget": spec["campaign"]["daily_budget"], "is_new_account": bool(brief.get("is_new_account"))}
+           "max_cpc": spec["campaign"]["bidding"]["max_cpc"], "daily_budget": spec["campaign"]["daily_budget"], "is_new_account": bool(brief.get("is_new_account")),
+           "bid_cap": brief.get("bid_cap")}
     resp, ok = decide(cfg, soul, "campaign.launch", jst, ["go", "hold"], ["runs/launch/spec.json"], user=kv.get("user"))
     res = {"step": "campaign", "spec": os.path.relpath(spec_path, ROOT), "problems": problems, "schema_errors": errs[:3], "state": jst, "judge": judged(resp)}
     if not (ok and resp["choice"] == "go"):
@@ -306,6 +320,21 @@ def step_campaign(cfg, kv, apply, enable=False):
     if apply and j.get("campaign_id"):
         st.update({"campaign_id": j["campaign_id"], "campaign_name": spec["campaign"]["name"], "adgroup_ids": j.get("adgroup_ids"), "campaign_created_at": time.strftime("%Y-%m-%dT%H:%M:%S"), "enabled": bool(enable)})
         save(st)
+        # 日常循环读系列设置的地方：把出价上限一起记下，循环调价与选品用同一个数
+        cp = os.path.join(ROOT, cfg.get("data_dir", "data"), "inbox", "campaigns.json")
+        os.makedirs(os.path.dirname(cp), exist_ok=True)
+        cc = {}
+        if os.path.exists(cp):
+            try:
+                cc = json.load(open(cp, encoding="utf-8"))
+            except ValueError:
+                cc = {}
+        row = cc.get(spec["campaign"]["name"]) or {}
+        row.update({"daily_budget": spec["campaign"]["daily_budget"], "max_cpc": spec["campaign"]["bidding"]["max_cpc"], "bid_cap": brief.get("bid_cap"),
+                    "offer_ref": brief.get("offer_ref"), "earn_per_click": offer.get("earn_per_click"), "currency": cfg.get("currency", "USD")})
+        cc[spec["campaign"]["name"]] = row
+        json.dump(cc, open(cp, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+        res["campaigns_json"] = os.path.relpath(cp, ROOT)
     return out(res, 0)
 
 
@@ -385,8 +414,8 @@ def step_status(cfg, kv, apply):
 
 # ------------------------------------------------------------------ 自测（离线）
 def selftest():
-    soul = J.load_soul("soul/default.soul.md")
     cfg = load_cfg(os.path.join(ROOT, "config", "adspilot.example.json"))
+    soul = J.load_soul("soul/default.soul.md", cfg)
     content = json.load(open(os.path.join(ROOT, "tests", "fixtures", "lp-content.example.json"), encoding="utf-8"))
     html = fill(open(TEMPLATE, encoding="utf-8").read(), content)
     chk = lp_check.summarize(lp_check.check_html(html))
@@ -410,7 +439,17 @@ def selftest():
     t5 = r5["choice"] == "cj:9:9" and ok5 and r5["decided_by"] == "user" and r5["advice"]["choice"] == "none"
     r6, ok6 = decide(cfg, soul, "lp.publish", {"lp_check_passed": False}, ["publish", "fix"], ["x"], user="publish")
     t6 = r6["choice"] == "publish" and ok6
-    good = t1 and t2 and t3 and t4 and t5 and t6
+    # T1：港币账户，选中 offer 的 bid_cap 带到系列；过线词出价 3.79 < bid_cap 4.56 ⇒ go
+    hk = dict(cfg, currency="HKD")
+    soul_hk = J.load_soul("soul/default.soul.md", hk)
+    e = J.offer_economics({"epc": 117.34, "epc_3m": 58.43, "fx": 7.8, "keywords": [{"text": "vacuum mop", "volume": 14800, "cpc_low": 3.79}]}, soul_hk["params"])
+    b7 = dict(brief, bid_cap=e["bid_cap"], max_cpc=round(min(3.79, e["bid_cap"]), 2), currency="HKD")
+    sp7, p7 = S.build(b7, soul_hk["params"], hk.get("caps") or {})
+    r7, ok7 = decide(hk, soul_hk, "campaign.launch", {"spec_valid": not p7, "lp_published": True, "account_status": "ok", "max_cpc": sp7["campaign"]["bidding"]["max_cpc"],
+                                                      "daily_budget": sp7["campaign"]["daily_budget"], "is_new_account": True, "bid_cap": e["bid_cap"]}, ["go", "hold"], ["x"])
+    t7 = e["ok"] and abs(e["bid_cap"] - 4.56) < 0.01 and not p7 and r7["choice"] == "go" and ok7
+    print("hkd: bid_cap=%s spec_problems=%s launch=%s/%s" % (e["bid_cap"], p7, r7["choice"], r7["mode_local"]))
+    good = t1 and t2 and t3 and t4 and t5 and t6 and t7
     print("lp=%s/%s offer=%s launch=%s hold=%s user_pick=%s/%s user_publish=%s -> %s" % (chk["verdict"], resp["mode_local"], r2["choice"], r3["mode_local"], r4["choice"],
           r5["choice"], r5["decided_by"], r6["choice"], "OK" if good else "FAIL"))
     if chk["fail"]:

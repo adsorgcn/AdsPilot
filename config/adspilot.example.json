@@ -7,6 +7,7 @@
   "line": "L2",
   "member": "",
   "currency": "USD",
+  "currency_note": "必须等于 Google Ads 账户币种；开局 offers 步会核对",
   "fx": { "USD": 1.0, "HKD": 7.8, "note": "广告账户币种每 1 美元；联盟 EPC 是美元，算选品账要换成广告账户币种" },
   "soul": "soul/default.soul.md",
   "judgment": {
@@ -40,10 +41,11 @@
     "export_key_env": "ADSPILOT_EXPORT_KEY"
   },
   "caps": {
-    "max_cpc": 0.25,
-    "daily_budget": 10.0,
-    "first_day_budget": 5.0,
-    "stop_loss_spend": 300.0,
+    "note": "不填=用SOUL默认值（美元，按fx折成账户币种）；填了=广告账户币种的绝对上限",
+    "max_cpc": null,
+    "daily_budget": null,
+    "first_day_budget": null,
+    "stop_loss_spend": null,
     "budget_step_pct": 20,
     "autonomy": "within_caps"
   }

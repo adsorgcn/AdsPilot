@@ -47,7 +47,7 @@ class Run:
         os.makedirs(os.path.join(self.data_dir, "outbox"), exist_ok=True)
         self.log_fp = open(os.path.join(self.dir, "run.log"), "a", encoding="utf-8")
         self.con = subid.open_db(os.path.join(self.data_dir, "ledger.db"))
-        self.soul = J.load_soul(cfg.get("soul", "soul/default.soul.md"))
+        self.soul = J.load_soul(cfg.get("soul", "soul/default.soul.md"), cfg)   # 金额折成 config.currency
         self.judgments, self.actions, self.evidence, self.plugins_used = [], [], [], set()
         self.needs_human = []
         self.started = subid.now_iso()
@@ -254,7 +254,9 @@ class Run:
                 camp_cfg = json.load(open(cp, encoding="utf-8"))
             except Exception:  # noqa: BLE001
                 camp_cfg = {}
-        default_budget = float((self.cfg.get("caps") or {}).get("first_day_budget", self.soul["params"]["budget"]["first_day"]))
+        caps = self.cfg.get("caps") or {}
+        default_budget = J.cap(caps, "first_day_budget", self.soul["params"]["budget"]["first_day"])
+        self.caps_effective = {"daily_budget": J.cap(caps, "daily_budget", self.soul["params"]["budget"]["daily_cap"])}
         for c, rs in by_c.items():
             if halt:
                 break
@@ -265,7 +267,7 @@ class Run:
                   "clicks": clicks_w, "avg_cpc": round(cost_w / clicks_w, 4) if clicks_w else 0.0,
                   "conversions": conv_by_c[c][0], "commission": round(conv_by_c[c][1], 2), "last_change_days": self.last_change_days(c),
                   "daily_budget": float((camp_cfg.get(c) or {}).get("daily_budget", default_budget)), "money_at_stake": round(cost_w, 2),
-                  "disapproved": any(r.get("disapproved") for r in rs)}
+                  "disapproved": any(r.get("disapproved") for r in rs), "bid_cap": (camp_cfg.get(c) or {}).get("bid_cap")}
             resp = self.decide("campaign.adjust", st, ["keep", "bid_down", "budget_up", "budget_down", "pause"], target=c)
             if resp["choice"] == "keep":
                 self.record_action("campaign.adjust", c, resp, applied=True, note="no_change")
@@ -288,7 +290,8 @@ class Run:
             clicks = sum(r["clicks"] for r in rs); cost = sum(r["cost"] for r in rs)
             if clicks == 0:
                 continue
-            st = {"clicks": clicks, "conversions": conv_by_k[key], "avg_cpc": round(cost / clicks, 4), "cost": round(cost, 2), "money_at_stake": round(cost, 2)}
+            st = {"clicks": clicks, "conversions": conv_by_k[key], "avg_cpc": round(cost / clicks, 4), "cost": round(cost, 2), "money_at_stake": round(cost, 2),
+                  "bid_cap": (camp_cfg.get(key[0]) or {}).get("bid_cap")}
             tgt = "%s/%s/%s" % key
             resp = self.decide("keyword.action", st, ["keep", "pause", "bid_down", "negative"], target=tgt)
             if resp["choice"] != "keep" and J.executes(resp):
@@ -311,7 +314,8 @@ class Run:
         t = self.cfg.get("traffic") or {}
         d, m = self.plugin("traffic", t.get("plugin", "google-ads"))
         if todo:
-            json.dump({"run_id": self.run_id, "actions": todo}, open(self.path("actions-todo.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+            json.dump({"run_id": self.run_id, "caps_effective": getattr(self, "caps_effective", {}), "actions": todo},
+                      open(self.path("actions-todo.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
             api_mode = m["actions"].get("deploy") != "manual" and (self.cfg.get("traffic") or {}).get("deploy_mode", "api") == "api"
             self.log("actions-todo: %d 项（%s 模式）" % (len(todo), "api" if api_mode else "manual"))
             if api_mode and self.apply:

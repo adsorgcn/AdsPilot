@@ -15,6 +15,7 @@ AdsPilot 判断接口（主干，判断部件）
 
 只用标准库。f_v5 的常数抄自 ilang-spec 的 ilang_judge_validator.py（MIT），不得改动。
 """
+import copy
 import json
 import os
 import re
@@ -69,17 +70,51 @@ def r2(x):
 
 
 # ------------------------------------------------------------------ SOUL
-def load_soul(path):
-    """读 *.soul.md：json soul-params 围栏 + ::BOUNDARY 行。"""
+# SOUL 里按 money_unit（美元）写的金额；读 SOUL 时按 config.fx 折成广告账户币种。
+# offer.min_epc 不折算：它和联盟给的 EPC 同一币种（美元），offer_economics 里已经用 fx 换过。
+MONEY_FIELDS = [("cpc", "start"), ("cpc", "cap"), ("cpc", "watch"), ("budget", "first_day"), ("budget", "daily_cap"),
+                ("stop_loss", "spend_no_conversion"), ("stop_loss", "test_spend_total"), ("user_decision", "max_extra_spend")]
+
+
+def load_soul(path, cfg=None):
+    """读 *.soul.md：json soul-params 围栏 + ::BOUNDARY 行。
+    cfg 为 None（或不带 currency）：金额原样，soul["currency"] = money_unit（兼容旧调用与单测）。
+    否则按 cfg["fx"] 把 MONEY_FIELDS 从 money_unit 折成 cfg["currency"]；币种不在 fx 里就报错，不带着错的钱跑。"""
     p = path if os.path.isabs(path) else os.path.join(ROOT, path)
     txt = open(p, "r", encoding="utf-8").read()
     m = re.search(r"```json soul-params\s*\n(.*?)\n```", txt, re.S)
     if not m:
         raise ValueError("SOUL 缺 ```json soul-params 围栏: %s" % path)
-    params = json.loads(m.group(1))
+    params_usd = json.loads(m.group(1))
+    unit = params_usd.get("money_unit", "USD")
     boundaries = re.findall(r"^::BOUNDARY\{never:([^|}]+)", txt, re.M)
-    return {"path": path, "params": params, "boundaries": [b.strip() for b in boundaries],
-            "id": "%s@%s" % (params.get("soul", "?"), params.get("version", "?"))}
+    if not cfg or not cfg.get("currency"):
+        params, cur = params_usd, unit
+    else:
+        cur = cfg["currency"]
+        fx = cfg.get("fx") or {}
+        for c in (cur, unit):
+            if not isinstance(fx.get(c), (int, float)) or float(fx[c]) <= 0:
+                raise ValueError("config.fx 缺 %s" % c)
+        rate = float(fx[cur]) / float(fx[unit])
+        params = copy.deepcopy(params_usd)
+        for sec, key in MONEY_FIELDS:
+            if isinstance(params.get(sec), dict) and isinstance(params[sec].get(key), (int, float)):
+                params[sec][key] = round(float(params[sec][key]) * rate, 2)
+    return {"path": path, "params": params, "params_usd": params_usd, "currency": cur, "money_unit": unit,
+            "boundaries": [b.strip() for b in boundaries], "id": "%s@%s" % (params_usd.get("soul", "?"), params_usd.get("version", "?"))}
+
+
+def cap(caps, key, fallback):
+    """用户的绝对上限（广告账户币种）；没填（缺或 null）就用 fallback（SOUL 折算后的默认值）。"""
+    v = (caps or {}).get(key)
+    return float(v) if v is not None else float(fallback)
+
+
+def bid_cap_for(state, caps, p):
+    """出价上限 = min(本 offer 的 bid_cap, config.caps.max_cpc)；两个都没有时用 SOUL 的 cpc.cap（已折算）。"""
+    cands = [float(x) for x in ((state or {}).get("bid_cap"), (caps or {}).get("max_cpc")) if x is not None]
+    return min(cands) if cands else float(p["cpc"]["cap"])
 
 
 # ------------------------------------------------------------------ 边界
@@ -121,11 +156,11 @@ REQUIRED_FIELDS = {
 def _within_caps(node, state, choice, caps, p):
     caps = caps or {}
     if choice in ("go",):
-        return float(state.get("daily_budget", 0)) <= float(caps.get("daily_budget", p["budget"]["daily_cap"])) and \
-            float(state.get("max_cpc", 0)) <= float(caps.get("max_cpc", p["cpc"]["cap"]))
+        return float(state.get("daily_budget", 0)) <= cap(caps, "daily_budget", p["budget"]["daily_cap"]) and \
+            float(state.get("max_cpc", 0)) <= bid_cap_for(state, caps, p)
     if choice == "budget_up":
         nb = float(state.get("daily_budget", 0)) * (1 + p["budget"]["step_pct"] / 100.0)
-        return nb <= float(caps.get("daily_budget", p["budget"]["daily_cap"]))
+        return nb <= cap(caps, "daily_budget", p["budget"]["daily_cap"])
     return True
 
 
@@ -133,7 +168,8 @@ def offer_economics(d, p):
     """offer.select 第一条：词的出价 < 每次点击赚的钱。
     d：offer 的 data，含 epc、epc_3m（联盟给的每百次点击收益，联盟币种）、fx（广告账户币种每 1 联盟币种）、
        keywords（关键词插件的行：text、volume、cpc_low、cpc_high，广告账户币种）。
-    返回 {epc_per_click, passing:[词], checked, best, ok, why}。"""
+    返回 {epc_per_click, bid_cap, passing:[词], checked, best, ok, why}。
+    过线条件：词的出价 < bid_cap = 每次点击赚的钱 × max_bid_ratio。bid_cap 也是这个 offer 的系列出价上限，两处同一个数。"""
     o = p["offer"]
     e7, e3 = d.get("epc"), d.get("epc_3m")
     vals = [float(x) for x in (e7, e3) if x is not None]
@@ -142,23 +178,24 @@ def offer_economics(d, p):
     basis = o.get("epc_basis", "min_7d_3m")
     epc = min(vals) if basis == "min_7d_3m" else (float(e3) if basis == "3m" and e3 is not None else float(vals[0]))
     epc_per_click = epc / 100.0 * float(d.get("fx") or 1.0)
+    bid_cap = epc_per_click * float(o.get("max_bid_ratio", 1.0))
     kws = d.get("keywords")
     if not kws:
-        return {"ok": False, "why": "no_keyword_data", "epc_per_click": round(epc_per_click, 2), "passing": [], "checked": 0}
+        return {"ok": False, "why": "no_keyword_data", "epc_per_click": round(epc_per_click, 2), "bid_cap": round(bid_cap, 2), "passing": [], "checked": 0}
     metric = o.get("bid_metric", "cpc_low")
     min_vol = int(o.get("min_keyword_searches", 50))
     brand_ok = d.get("brand_bidding_allowed") is True
     checked = [k for k in kws if float(k.get(metric) or 0) > 0 and int(k.get("volume") or 0) >= min_vol and (brand_ok or not k.get("brand"))]
-    passing = sorted([k for k in checked if float(k[metric]) < epc_per_click], key=lambda k: (-int(k.get("volume") or 0), float(k[metric])))
+    passing = sorted([k for k in checked if float(k[metric]) < bid_cap], key=lambda k: (-int(k.get("volume") or 0), float(k[metric])))
     best = passing[0] if passing else (min(checked, key=lambda k: float(k[metric])) if checked else None)
-    why = "bid_below_epc_%d_of_%d" % (len(passing), len(checked)) if passing else ("cheapest_bid_%.2f_over_epc_%.2f" % (float(best[metric]), epc_per_click) if best else "no_keyword_with_bid_and_volume")
-    return {"ok": bool(passing), "why": why, "epc_per_click": round(epc_per_click, 2), "metric": metric, "checked": len(checked),
+    why = "bid_below_epc_%d_of_%d" % (len(passing), len(checked)) if passing else ("cheapest_bid_%.2f_over_epc_%.2f" % (float(best[metric]), bid_cap) if best else "no_keyword_with_bid_and_volume")
+    return {"ok": bool(passing), "why": why, "epc_per_click": round(epc_per_click, 2), "bid_cap": round(bid_cap, 2), "metric": metric, "checked": len(checked),
             "passing": [{"text": k["text"], "volume": k.get("volume"), metric: k[metric], "brand": k.get("brand", False)} for k in passing],
             "best": {"text": best["text"], metric: best[metric], "volume": best.get("volume")} if best else None}
 
 
-def local_choice(node, state, choices, soul):
-    """默认 SOUL 的规则，按 soul/default.soul.md 节点一节的顺序。返回 (choice_id, reason)。"""
+def local_choice(node, state, choices, soul, caps=None):
+    """默认 SOUL 的规则，按 soul/default.soul.md 节点一节的顺序。返回 (choice_id, reason)。金额都是广告账户币种（load_soul 已折算）。"""
     p = soul["params"]
     ids = [c["id"] for c in choices]
     st = state or {}
@@ -198,16 +235,16 @@ def local_choice(node, state, choices, soul):
         ok = st.get("spec_valid") and st.get("lp_published") and str(st.get("account_status", "")).lower() == "ok"
         if not ok:
             return pick("hold", "spec_or_lp_or_account_not_ready")
-        if float(st.get("max_cpc", 0)) > p["cpc"]["cap"]:
+        if float(st.get("max_cpc", 0)) > bid_cap_for(st, caps, p):
             return pick("hold", "max_cpc_over_cap")
-        if st.get("is_new_account") and float(st.get("daily_budget", 0)) > p["budget"]["first_day"]:
+        if st.get("is_new_account") and float(st.get("daily_budget", 0)) > cap(caps, "first_day_budget", p["budget"]["first_day"]):
             return pick("hold", "new_account_budget_over_first_day")
         return pick("go", "spec_valid_lp_published_within_caps")
 
     if node == "campaign.adjust":
         if float(st.get("spend_total", 0)) >= p["stop_loss"]["test_spend_total"]:
             return pick("pause", "test_spend_total_reached_escalate")
-        if float(st.get("avg_cpc", 0)) > p["cpc"]["cap"]:
+        if float(st.get("avg_cpc", 0)) > bid_cap_for(st, caps, p):
             return pick("bid_down", "avg_cpc_over_cap")
         if float(st.get("spend_total", 0)) >= p["stop_loss"]["spend_no_conversion"] and float(st.get("conversions", 0)) == 0:
             return pick("pause", "stop_loss_no_conversion")
@@ -220,7 +257,7 @@ def local_choice(node, state, choices, soul):
         return pick("keep", "no_rule_hit")
 
     if node == "keyword.action":
-        if float(st.get("avg_cpc", 0)) > p["cpc"]["cap"]:
+        if float(st.get("avg_cpc", 0)) > bid_cap_for(st, caps, p):
             return pick("bid_down", "avg_cpc_over_cap")
         if int(st.get("clicks", 0)) >= p["keyword"]["pause_after_clicks_no_conv"] and float(st.get("conversions", 0)) == 0:
             return pick("pause", "clicks_without_conversion")
@@ -276,7 +313,7 @@ def local_vector(node, state, choice, caps, evidence, cfg, soul):
 
 
 def judge_local(node, state, choices, caps, evidence, cfg, soul):
-    choice, reason = local_choice(node, state, choices, soul)
+    choice, reason = local_choice(node, state, choices, soul, caps)
     v = local_vector(node, state, choice, caps, evidence, cfg, soul)
     return {"v": v, "choice": choice, "conf": 0.70, "reason": reason[:120]}
 
@@ -313,7 +350,9 @@ def normalize_vector(v):
 # ------------------------------------------------------------------ 主入口
 def judge(node, state, choices, cfg=None, soul=None, caps=None, evidence=None, provider=None, req_id=None):
     cfg = cfg or {}
-    soul = soul or load_soul(cfg.get("soul", "soul/default.soul.md"))
+    soul = soul or load_soul(cfg.get("soul", "soul/default.soul.md"), cfg)
+    if cfg.get("currency") and soul.get("currency") and soul["currency"] != cfg["currency"]:
+        raise ValueError("SOUL 金额是 %s，config.currency 是 %s：load_soul 要带上 cfg" % (soul["currency"], cfg["currency"]))
     if node not in NODES:
         raise ValueError("unknown node %s" % node)
     if not choices or len(choices) > 255:
@@ -426,10 +465,12 @@ def selftest(soul_path="soul/default.soul.md"):
                              {"id": "c", "data": {"epc": 50, "ppc_allowed": True, "category": "gambling"}}], "a", ("M1", "M2")),
     ]
     fails = 0
+    seen = []   # (choice, mode, decided_by, executes) 逐条，给 T1-d 对照
     for node, st, ch, want_choice, want_modes in cases:
         choices = [c if isinstance(c, dict) else {"id": c} for c in ch]
         evidence = ev if len(st) > 2 or node == "offer.select" else []
         r = judge(node, st, choices, cfg=cfg, soul=soul, evidence=evidence, provider="local")
+        seen.append((r["choice"], r["mode_local"], r.get("decided_by"), r.get("executes")))
         ok = (want_choice is None or r["choice"] == want_choice) and r["mode_local"] in want_modes
         if not ok:
             fails += 1
@@ -451,10 +492,59 @@ def selftest(soul_path="soul/default.soul.md"):
     for name, node, st, ch, (wc, wby, wex, wadv) in u_cases:
         choices = [c if isinstance(c, dict) else {"id": c} for c in ch]
         r = judge(node, st, choices, cfg=cfg, soul=soul, evidence=ev, provider="local")
+        seen.append((r["choice"], r["mode_local"], r.get("decided_by"), r.get("executes")))
         ok = r["choice"] == wc and r["decided_by"] == wby and (wex is None or r["executes"] is wex) and (wadv is None or (r.get("advice") or {}).get("choice") == wadv)
         if not ok:
             fails += 1
         print("%s %-40s choice=%-10s by=%-10s executes=%s advice=%s" % ("ok  " if ok else "FAIL", name, r["choice"], r["decided_by"], r["executes"], (r.get("advice") or {}).get("choice")))
+    # ---- T1：钱有单位，出价只有一条规则 ----
+    def t(name, ok, detail=""):
+        nonlocal fails
+        if not ok:
+            fails += 1
+        print("%s %-44s %s" % ("ok  " if ok else "FAIL", name, detail))
+    base_cfg = json.load(open(os.path.join(ROOT, "config", "adspilot.example.json"), encoding="utf-8"))
+    hk = dict(base_cfg, currency="HKD")
+    soul_hk = load_soul(soul_path, hk)
+    C = lambda *x: [{"id": i} for i in x]  # noqa: E731
+    r1_state = {"days_running": 7, "spend_total": 140, "spend_window": 140, "clicks": 40, "avg_cpc": 3.5, "conversions": 3, "commission": 400,
+                "last_change_days": 3, "bid_cap": 4.56}
+    r1 = judge("campaign.adjust", r1_state, C("keep", "bid_down", "budget_up", "budget_down", "pause"), cfg=hk, soul=soul_hk, evidence=["r"], provider="local")
+    t("T1-a HKD 赚钱的系列 ⇒ budget_up", r1["choice"] == "budget_up" and r1["mode_local"] in ("M1", "M2"), "%s %s %s" % (r1["choice"], r1["mode_local"], r1["judge"]["reason"]))
+    r2_ = judge("campaign.launch", {"spec_valid": True, "lp_published": True, "account_status": "ok", "daily_budget": 5, "max_cpc": 3.79, "is_new_account": True,
+                                    "bid_cap": 4.56}, C("go", "hold"), cfg=hk, soul=soul_hk, evidence=["r"], provider="local")
+    t("T1-b HKD 过线词出价建系列 ⇒ go", r2_["choice"] == "go" and r2_["mode_local"] in ("M1", "M2"), "%s %s %s" % (r2_["choice"], r2_["mode_local"], r2_["judge"]["reason"]))
+    r1c = judge("campaign.adjust", {k: v for k, v in r1_state.items() if k != "bid_cap"}, C("keep", "bid_down", "budget_up", "budget_down", "pause"),
+                cfg=hk, soul=soul_hk, evidence=["r"], provider="local")
+    t("T1-c HKD 无 bid_cap ⇒ 兜底 cpc.cap 折算后 bid_down", r1c["choice"] == "bid_down" and r1c["judge"]["reason"] == "avg_cpc_over_cap" and abs(soul_hk["params"]["cpc"]["cap"] - 1.95) < 0.001,
+      "%s %s cap=%s" % (r1c["choice"], r1c["judge"]["reason"], soul_hk["params"]["cpc"]["cap"]))
+    # T1-d：USD 配置（fx.USD=1.0）重跑上面 12 个判断用例与 5 个用户用例，逐条与无配置时一致
+    usd = {"currency": "USD", "fx": {"USD": 1.0}, "caps": cfg["caps"], "judgment": cfg["judgment"]}
+    soul_usd = load_soul(soul_path, usd)
+    again = []
+    for node, st, ch, _, _ in cases:
+        choices = [c if isinstance(c, dict) else {"id": c} for c in ch]
+        evidence = ev if len(st) > 2 or node == "offer.select" else []
+        r_ = judge(node, st, choices, cfg=usd, soul=soul_usd, evidence=evidence, provider="local")
+        again.append((r_["choice"], r_["mode_local"], r_.get("decided_by"), r_.get("executes")))
+    for _, node, st, ch, _ in u_cases:
+        choices = [c if isinstance(c, dict) else {"id": c} for c in ch]
+        r_ = judge(node, st, choices, cfg=usd, soul=soul_usd, evidence=ev, provider="local")
+        again.append((r_["choice"], r_["mode_local"], r_.get("decided_by"), r_.get("executes")))
+    diff = [i for i, (a, b) in enumerate(zip(seen, again)) if a != b]
+    t("T1-d USD 配置下 %d+%d 个用例逐条不变" % (len(cases), len(u_cases)), len(seen) == len(again) == len(cases) + len(u_cases) and not diff, "diff=%s" % diff)
+    try:
+        load_soul(soul_path, {"currency": "EUR", "fx": {"USD": 1.0, "HKD": 7.8}})
+        t("T1-e currency 不在 fx ⇒ ValueError", False, "没有抛")
+    except ValueError as e:
+        t("T1-e currency 不在 fx ⇒ ValueError", "EUR" in str(e), str(e))
+    offer = {"epc": 117.34, "epc_3m": 58.43, "fx": 7.8, "keywords": [{"text": "a", "volume": 900, "cpc_low": 3.5}, {"text": "b", "volume": 900, "cpc_low": 3.79},
+                                                                   {"text": "c", "volume": 900, "cpc_low": 4.0}]}
+    e10 = offer_economics(offer, soul_hk["params"])
+    p08 = copy.deepcopy(soul_hk["params"]); p08["offer"]["max_bid_ratio"] = 0.8
+    e08 = offer_economics(offer, p08)
+    t("T1-f max_bid_ratio 0.8 ⇒ 过线词与 bid_cap 一起收紧", len(e10["passing"]) == 3 and abs(e10["bid_cap"] - 4.56) < 0.01 and len(e08["passing"]) == 1 and abs(e08["bid_cap"] - 3.65) < 0.01,
+      "1.0: %d 词 cap %s | 0.8: %d 词 cap %s" % (len(e10["passing"]), e10["bid_cap"], len(e08["passing"]), e08["bid_cap"]))
     # schema 校验
     try:
         from validate import load_schema, validate as _validate
