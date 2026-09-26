@@ -417,8 +417,8 @@ def local_choice(node, state, choices, soul, caps=None):
         return pick("keep", "no_rule_hit")
 
     if node == "keyword.action":
-        bc = bid_cap_for(st, caps, p)   # 出价上限未知 ⇒ 这条不看
-        if bc is not None and float(st.get("avg_cpc", 0)) > bc:
+        bc = bid_cap_for(st, caps, p)   # 出价上限未知 ⇒ 这条不看；系列是尽可能多点击 ⇒ 词级出价不生效，这条也不看（由系列的每次点击上限管）
+        if bc is not None and st.get("bidding") != "maximize_clicks" and float(st.get("avg_cpc", 0)) > bc:
             return pick("bid_down", "avg_cpc_over_cap")
         if int(st.get("clicks", 0)) >= p["keyword"]["pause_after_clicks_no_conv"] and float(st.get("conversions", 0)) == 0:
             return pick("pause", "clicks_without_conversion")
@@ -755,6 +755,18 @@ def selftest(soul_path="soul/default.soul.md"):
         return ok, "无参照=%s %s executes=%s | 谷歌3.9=%s %s | 谷歌3.5=%s %s" % (
             none_["choice"], none_["mode_local"], executes(none_), ok_g["choice"], ok_g["mode_local"], over["choice"], over["judge"]["reason"])
     t4("T4-e 开局：没有出价参照只提议不执行", t4e)
+
+    def t7f():
+        # T7-f（2.0.18）：系列是尽可能多点击时词级出价不生效，词的「高于出价上限 ⇒ 降价」这条不看（由系列的每次点击上限管）；手动出价照旧
+        base = {"clicks": 12, "conversions": 0, "avg_cpc": 6.0, "bid_cap": 4.56}
+        KW = C("keep", "pause", "bid_down", "negative")
+        ts = judge("keyword.action", dict(base, bidding="maximize_clicks"), KW, cfg=hk, soul=soul_hk, evidence=["r"], provider="local")
+        mc = judge("keyword.action", dict(base, bidding="manual_cpc"), KW, cfg=hk, soul=soul_hk, evidence=["r"], provider="local")
+        old = judge("keyword.action", base, KW, cfg=hk, soul=soul_hk, evidence=["r"], provider="local")
+        ts_p = judge("keyword.action", dict(base, bidding="maximize_clicks", clicks=40), KW, cfg=hk, soul=soul_hk, evidence=["r"], provider="local")
+        ok = ts["choice"] == "keep" and mc["choice"] == "bid_down" and old["choice"] == "bid_down" and ts_p["choice"] == "pause"
+        return ok, "尽可能多点击=%s 手动=%s 没标(老系列)=%s 尽可能多点击且40次点击无转化=%s" % (ts["choice"], mc["choice"], old["choice"], ts_p["choice"])
+    t4("T7-f 词：尽可能多点击时不按词降价", t7f)
     # ---- T5：预算照谷歌推荐；用户设了按用户的；自己不定预算常数 ----
     def t5a():
         return ("budget" not in soul_hk["params"] and not any(sec == "budget" for sec, _ in MONEY_FIELDS),

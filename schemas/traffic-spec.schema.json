@@ -35,8 +35,8 @@
           "type": "object",
           "required": ["strategy", "max_cpc"],
           "properties": {
-            "strategy": { "enum": ["manual_cpc"] },
-            "max_cpc": { "type": "number", "exclusiveMinimum": 0 }
+            "strategy": { "description": "默认 maximize_clicks（尽可能多点击，谷歌叫 TARGET_SPEND，max_cpc 是每次点击上限）；用户明确要手动出价才用 manual_cpc。", "enum": ["maximize_clicks", "manual_cpc"] },
+            "max_cpc": { "description": "maximize_clicks 时是每次点击上限（出价上限）；manual_cpc 时是广告组出价。", "type": "number", "exclusiveMinimum": 0 }
           }
         },
         "daily_budget": { "type": "number", "exclusiveMinimum": 0 },

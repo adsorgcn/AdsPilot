@@ -2,6 +2,18 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。本文件记细节，README 的「进度记录」记叙事，每版两处都写。
 
+## 2.0.18（2026-09-26）出价方式默认尽可能多点击
+
+老板 2026-09-26 定的。第二轮真实账号核验查明：谷歌对手动 CPC 不给推荐预算，换成尽可能多点击（TARGET_SPEND）就给。预算照谷歌推荐，所以默认出价方式改成尽可能多点击，系列的每次点击上限就是出价上限（min(offer 的 bid_cap, caps.max_cpc)，都没有用谷歌推荐出价），选品第一条的账不变。用户明确要手动出价就在 brief 写 `bidding: manual_cpc`，照旧，这时谷歌不给推荐预算，预算由用户定。
+
+改动：traffic-spec schema 的 `bidding.strategy` 允许 `maximize_clicks`（默认）与 `manual_cpc`，样例 spec 改成默认。`spec.build` 读 `brief.bidding`：尽可能多点击时 `max_cpc` 是每次点击上限（用户写的，没写就是出价上限），广告组不写出价；不认的出价方式报问题。`deploy_api` 建系列时尽可能多点击发 `targetSpend.cpcBidCeilingMicros`，广告组与词不发出价。日常降价先查系列真实的出价方式：尽可能多点击把每次点击上限设成动作带的出价上限，已不高于它就不动（报表窗口是 7 天，改完几天里均价还会高于上限，设成同一个数不会一天天往下砍）；手动 CPC 照旧降广告组出价；别的出价方式跳过。尽可能多点击的系列上词的降价跳过并写明原因。`budget_api --new` 的出价方式跟要建的系列一致（默认 TARGET_SPEND）；谷歌会把请求里的当前预算也当一档返回，现在剔掉。判断：keyword.action 在系列是尽可能多点击时不看「高于出价上限 ⇒ 降价」这条（词级出价不生效，由系列的每次点击上限管）；默认 SOUL 2.4.0 加「出价方式」一节，改 campaign.adjust 与 keyword.action 各一条规则，顺序守卫照过，f_v5 冻结区逐字不变。开局：尽可能多点击时不再拿第一个过线词的出价当上限（这段拆成 `bid_defaults`），`data/inbox/campaigns.json` 记 `bidding`。日常循环：词与系列的状态带 `bidding`（老系列没写就是手动），系列降价的动作带 `bid_cap`。契约与使用方法同步：manual 路在后台出价选「点击次数」并设每次点击费用上限。
+
+另修一处：`deploy_api --spec --validate-only` 原来逐步校验，给系列填的占位预算 `campaignBudgets/1` 不存在，谷歌在引用上就退回 RESOURCE_NOT_FOUND，出价等字段根本没校验到。现在整条系列（预算、系列、地理语言与否定词、广告组、关键词、广告）放进一个 `googleAds:mutate`，用临时 ID 互相引用，一批校验。
+
+自测：T7-a 到 T7-i 先在 2.0.17 上跑出失败再修（默认仍是手动、预算请求仍是 MANUAL_CPC、当前预算混在几档里、尽可能多点击的系列仍按词降价、validate 模式在预算引用上退回；手动出价的对照组在 2.0.17 上本来就过），修后全过。T7-i 有一处断言写宽了，把跟踪模板里 ValueTrack 的花括号也当成没填的占位符，改成只查步骤占位符。既有判断用例、用户用例与日常循环样例的判断逐行不变。
+
+真实世界：2026-09-26 在真实账号上只读加 validate-only 核过，没建也没改任何东西。默认请求下谷歌给新系列推荐预算 84.76 港币（几档 67.81、84.76、101.71，当前预算已剔掉），带不带 isNewCustomer 一样，写 manual_cpc 时照旧不给；spec 出 {maximize_clicks，每次点击上限 4.56 港币}；整条尽可能多点击的系列 validate-only 一批通过；降价要用的系列查询与词查询（带出价方式与每次点击上限字段）谷歌收下。没核的：改已有系列的每次点击上限要一条真系列才核得了；`--campaigns` 仍是 0 行，`parse_existing` 的取值还等有推荐时再核。
+
 ## 2.0.17（2026-09-26）谷歌推荐预算：按真实账号核出的三处改
 
 CC 在真实账号上只读核了 2.0.15 与 2.0.16 没核过的接口，核出三处，照改：`budget_api.py --new` 只给国家代码会被拒（CAMPAIGN_BUDGET_RECOMMENDATION_TYPE_REQUIRES_EITHER_POSITIVE_OR_NEGATIVE_LOCATION_IDS_FOR_SEARCH_CHANNEL），现在按国家查地区常量填 `positiveLocationsIds`；`--campaigns` 的查询单选了 `campaign_budget_recommendation` 的子字段，v25 报 UNRECOGNIZED_FIELD，现在整个选，从对象里取推荐值（只有一档没标推荐时取那一档）；两个输出的 `currency` 原来取自 brief，现在查账户币种（谷歌返回的金额是账户币种）。开局与日常循环发现推荐预算的币种与 `config.currency` 不一致就不用，提示改配置。主流程拆成 `run_new`、`run_campaigns`，离线可测。

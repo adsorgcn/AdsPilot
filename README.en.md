@@ -20,7 +20,7 @@ Humans appear in exactly three places: identity and KYC, payment and card bindin
 
 ## A student's day
 
-At half past six the scheduler starts `core/loop/daily.py`. It self-checks, pulls yesterday's click mappings back from the relay on your own domain, reads the Google Ads report, pulls CJ commission detail, matches commissions to gclid and keyword by token, and writes a conversion file ready to go back into Google Ads. Then it walks every campaign and keyword through judgment: this campaign's average CPC is over the cap, lower the bid; that one spent a hundred with no conversion, pause it; this one has had commissions three days running, raise budget twenty percent. Actions are executed through the API when credentials are present, conversions go up through Data Manager; without credentials they become a to-do list the agent works through in the back office. Finally it leaves `report.json` and `run.log` in `runs/<id>/`; exit code 0 is normal, 2 means a human is needed, and a coach who wants to look asks for those two files. Nothing is sent anywhere automatically.
+At half past six the scheduler starts `core/loop/daily.py`. It self-checks, pulls yesterday's click mappings back from the relay on your own domain, reads the Google Ads report, pulls CJ commission detail, matches commissions to gclid and keyword by token, and writes a conversion file ready to go back into Google Ads. Then it walks every campaign and keyword through judgment: this campaign's average CPC is over the cap, lower the bid; that one spent a hundred with no conversion, pause it; this one has a new recommended budget from Google, follow it. Actions are executed through the API when credentials are present, conversions go up through Data Manager; without credentials they become a to-do list the agent works through in the back office. Finally it leaves `report.json` and `run.log` in `runs/<id>/`; exit code 0 is normal, 2 means a human is needed, and a coach who wants to look asks for those two files. Nothing is sent anywhere automatically.
 
 ## The skeleton at a glance
 
@@ -36,7 +36,7 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-09-26, version 2.0.17. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-09-26, version 2.0.18. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
@@ -46,8 +46,8 @@ As of 2026-09-26, version 2.0.17. Every part below has code, a usage method and 
 | Judgment (f_v5 frozen) | done | judgment blocks verified by the canonical iLang validator; providers are perception only |
 | Attribution & reconciliation | done | sample data only |
 | Unattended loop | done | sample data only; seven-day acceptance not run; user decisions expire and have a money limit |
-| Default SOUL | done | money defined in USD and converted to the account currency; no bid or budget constants, the bid fallback and budgets follow Google's recommendation; custom boundaries are enforced by code and judgment plugins follow the configured SOUL; thresholds copied from the SOP, not yet calibrated on real data |
-| Plugin Google Ads | **live-tested on a real account** | create campaign, adjust budget and bids, pause keyword, add negative, remove campaign, pull report, Data Manager conversion upload (validate-only): all pass |
+| Default SOUL | done | money defined in USD and converted to the account currency; no bid or budget constants, the bid fallback and budgets follow Google's recommendation; bidding defaults to maximize clicks with the per-click limit set to the bid cap; custom boundaries are enforced by code and judgment plugins follow the configured SOUL; thresholds copied from the SOP, not yet calibrated on real data |
+| Plugin Google Ads | **live-tested on a real account** | create campaign, adjust budget and bids, pause keyword, add negative, remove campaign, pull report, Data Manager conversion upload (validate-only): all pass; under maximize clicks Google's budget recommendation comes through and the whole campaign passes validate-only in one batch |
 | Plugin CJ | **live-tested on a real account** | offers (187 advertisers, paged), link with sid, commissions in windows, chargebacks: all pass (read-only) |
 | Plugin judgment llm / jev / soul-api | code complete | never connected to real endpoints; jev waits for docs; soul-api server not built |
 | Plugin Cloudflare landing site | **live-tested on a real account** | one key builds KV, Worker, domain and certificate; page 200, /go 302 with sid, /export into the ledger: all pass |
@@ -58,6 +58,8 @@ As of 2026-09-26, version 2.0.17. Every part below has code, a usage method and 
 In one sentence: onboarding is now one action, hand over three keys (Cloudflare, Google Ads, CJ), then run launch and get a real campaign. The whole chain from landing site to campaign to ledger has closed once in the real world. The only part not yet touched by real data is the SOUL thresholds, which can only be calibrated by running. Next is the first student environment running seven unattended days, after which the plugins move from alpha to stable.
 
 ## Progress log
+
+**2026-09-26, 2.0.18.** Bidding now defaults to maximize clicks. The second real-account check showed Google gives no budget recommendation for manual CPC campaigns but does for maximize clicks (84.76 HKD a day for the same keywords). Budgets follow Google's recommendation, so the default follows too: Google bids automatically within the budget to get the most clicks, the campaign's per-click limit is the bid cap, a click still never costs more than it earns, and the offer math is unchanged. A user who wants manual bidding writes it in the brief and it is done, with the budget then set by the user. Daily bid-downs change with it: a maximize-clicks campaign gets its per-click limit set to the bid cap, and keywords are no longer bid down one by one. Also fixed: validate-only campaign creation used to be rejected on the budget reference before the bidding fields were ever checked; now the whole campaign is validated in one batch. Checked on a real account: the default request gets a recommended budget and a whole maximize-clicks campaign passes validation; changing the per-click limit of an existing campaign needs a real campaign to check.
 
 **2026-09-26, 2.0.17.** The Google budget recommendation calls were checked on a real account for the first time, and three guesses from the docs were wrong: the pre-launch request needs location IDs, the query for running campaigns must select the whole recommendation object, and amounts must be labeled with the account currency rather than the brief's. All three are fixed, and a recommendation in the wrong currency is not used. Google gave no recommendation that time, so the recommended values still wait for a check.
 

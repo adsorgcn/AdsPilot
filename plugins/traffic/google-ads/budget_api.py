@@ -7,7 +7,8 @@
 谷歌没给推荐，主干不编数，交给用户定。
 
   --new <brief.json> [--new-customer]   建系列前：RecommendationService.GenerateRecommendations，类型 CAMPAIGN_BUDGET，
-                                         渠道 SEARCH，带关键词、国家、语言、出价方式与最终网址；新账号带 isNewCustomer
+                                         渠道 SEARCH，带关键词、国家、语言、出价方式与最终网址；新账号带 isNewCustomer。
+                                         出价方式跟要建的系列一致：默认尽可能多点击（TARGET_SPEND），brief.bidding 为 manual_cpc 时 MANUAL_CPC
   --campaigns                            已有系列：GAQL FROM recommendation WHERE recommendation.type = 'CAMPAIGN_BUDGET'
   --out <file>                           结果写这里；不写就打到 stdout
   默认 dry-run 只打印请求；--apply 才调接口（只读，不改账号）。
@@ -20,7 +21,9 @@
 
 退出码：0 成功；3 调用失败；4 凭据缺失。只用标准库。
 2026-09-26 加。同日真实账号核过一轮（CC）：--new 必须带地区 ID；--campaigns 在 v25 只能整个选 campaign_budget_recommendation；
-金额是账户币种。改后两条请求都能调通，那次谷歌没给推荐（返回空），推荐的取值还等有推荐时再核。
+金额是账户币种。改后两条请求都能调通，那次谷歌没给推荐（返回空）。
+同日第二轮（2.0.17 之上）：谷歌对 MANUAL_CPC 不给推荐预算；TARGET_SPEND 与 MAXIMIZE_CONVERSIONS 都给（同一组词 84.76 港币，三档 67.81、84.76、101.71），
+带不带网址、isNewCustomer 数值一样；请求带了当前预算时谷歌把它也当一档返回。2.0.18 起默认尽可能多点击，几档里剔掉当前预算。
 """
 import json
 import os
@@ -33,6 +36,7 @@ sys.path.insert(0, HERE)
 from gads_api import Client, GadsError  # noqa: E402
 
 MATCH = {"phrase": "PHRASE", "exact": "EXACT", "broad": "BROAD"}
+BIDDING = {"maximize_clicks": "TARGET_SPEND", "manual_cpc": "MANUAL_CPC"}   # spec 的出价方式 ⇒ 谷歌的出价策略类型
 # v25 里 campaign_budget_recommendation 只能整个选，子字段单选会报 UNRECOGNIZED_FIELD（2026-09-26 真实账号核出）
 GAQL_EXISTING = ("SELECT recommendation.resource_name, recommendation.campaign, recommendation.campaign_budget_recommendation "
                  "FROM recommendation WHERE recommendation.type = 'CAMPAIGN_BUDGET'")
@@ -47,12 +51,14 @@ def _money(micros):
 
 
 def _budget_from(cb):
-    """一条 CampaignBudgetRecommendation：谷歌标的推荐预算；没标但只有一档就是它；几档都没标 ⇒ None，几档交给用户。"""
-    options = [x for x in (_money(o.get("budgetAmountMicros")) for o in (cb or {}).get("budgetOptions") or []) if x is not None]
+    """一条 CampaignBudgetRecommendation：谷歌标的推荐预算；没标但只有一档就是它；几档都没标 ⇒ None，几档交给用户。
+    谷歌会把当前预算也当一档放进 budgetOptions（2026-09-26 真实账号核出），它不是推荐，剔掉。"""
+    cur = _money((cb or {}).get("currentBudgetAmountMicros"))
+    options = [x for x in (_money(o.get("budgetAmountMicros")) for o in (cb or {}).get("budgetOptions") or []) if x is not None and x != cur]
     rec = _money((cb or {}).get("recommendedBudgetAmountMicros"))
     if rec is None and len(options) == 1:
         rec = options[0]
-    return rec, options, _money((cb or {}).get("currentBudgetAmountMicros"))
+    return rec, options, cur
 
 
 def account_currency(client):
@@ -70,7 +76,7 @@ def generate_body(brief, new_customer=False, location_ids=None):
     body = {"recommendationTypes": ["CAMPAIGN_BUDGET"], "advertisingChannelType": "SEARCH",
             "countryCodes": [str(brief.get("country", "US")).upper()], "languageCodes": [str(brief.get("language", "en")).lower()],
             "adGroupInfo": [{"keywords": [{"text": k["text"], "matchType": MATCH.get(k.get("match", "phrase"), "PHRASE")} for k in brief.get("keywords", [])]}],
-            "biddingInfo": {"biddingStrategyType": "MANUAL_CPC"}}
+            "biddingInfo": {"biddingStrategyType": BIDDING.get(str(brief.get("bidding") or "maximize_clicks").lower(), "TARGET_SPEND")}}
     if location_ids:
         body["positiveLocationsIds"] = [int(x) for x in location_ids]
     if brief.get("final_url"):
@@ -172,6 +178,24 @@ def selftest():
         t6["error"] = "%s: %s" % (type(e).__name__, str(e)[:120])
     print("T6 %s -> %s" % (t6, "OK" if t6 and all(v is True for v in t6.values()) else "FAIL"))
     ok = ok and bool(t6) and all(v is True for v in t6.values())
+    # T7（2.0.18）：c 请求的出价方式跟要建的系列一致，默认尽可能多点击（谷歌对手动 CPC 不给推荐预算，2026-09-26 真实账号核出）；
+    # d 请求带了当前预算时谷歌把它也放进几档里，要剔掉（真实账号返回的形状）
+    t7 = {}
+    try:
+        t7["c 默认TARGET_SPEND"] = generate_body(brief)["biddingInfo"] == {"biddingStrategyType": "TARGET_SPEND"}
+        t7["c 手动出价跟着brief"] = generate_body(dict(brief, bidding="manual_cpc"))["biddingInfo"] == {"biddingStrategyType": "MANUAL_CPC"}
+        opts = [{"budgetAmountMicros": m} for m in ("50000000", "67810000", "84760000", "101707090")]
+        real = parse_generate({"recommendations": [{"campaignBudgetRecommendation": {"currentBudgetAmountMicros": "50000000",
+                                                                                    "recommendedBudgetAmountMicros": "84760000", "budgetOptions": opts}}]})
+        t7["d 剔掉当前预算"] = real == {"recommended": 84.76, "options": [67.81, 84.76, 101.71], "current": 50.0}
+        norec = parse_generate({"recommendations": [{"campaignBudgetRecommendation": {"currentBudgetAmountMicros": "50000000",
+                                                                                     "budgetOptions": [opts[0], opts[1], opts[3]]}}]})
+        t7["d 没标推荐时几档里没有当前预算"] = norec["recommended"] is None and norec["options"] == [67.81, 101.71]
+    except Exception as e:  # noqa: BLE001
+        t7["error"] = "%s: %s" % (type(e).__name__, str(e)[:120])
+    t7ok = bool(t7) and all(v is True for v in t7.values())
+    print("T7-c/d %s -> %s" % (t7, "OK" if t7ok else "FAIL"))
+    ok = ok and t7ok
     return 0 if ok else 1
 
 

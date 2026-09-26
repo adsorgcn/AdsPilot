@@ -15,7 +15,7 @@
 ```json soul-params
 {
   "soul": "default",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "money_unit": "USD",
   "stop_loss": { "spend_no_conversion": 100.0, "test_spend_total": 300.0, "days_before_budget_down": 7, "roi_floor": 0.5 },
   "offer": {
@@ -53,6 +53,13 @@
 
 ::RULE{预算⇒用户说了按用户的 否则按谷歌推荐 都没有⇒交给用户定}
 ::RULE{config.caps.daily_budget或first_day_budget⇒用户自己设的上限 谷歌推荐超过它就用它}
+
+## 出价方式
+
+默认尽可能多点击（谷歌叫 TARGET_SPEND）：谷歌在预算内自动出价，争取最多点击；系列的每次点击上限设成出价上限（定义见 offer.select 一节），买一次点击的钱永远不超过它能赚的钱。谷歌只对这类自动出价给推荐预算，对手动 CPC 不给（2026-09-26 真实账号核过），所以预算照谷歌推荐靠的就是这个默认。按转化出价（尽可能多转化、目标 CPA）要转化数据，新账号没有，默认不用。用户明确要手动出价，就在 brief 写 `bidding: manual_cpc`，照做，这时谷歌不给推荐预算，预算由用户定。
+
+::RULE{出价方式⇒默认尽可能多点击 每次点击上限=出价上限|用户明确要手动出价⇒manual_cpc 预算由用户定}
+::RULE{尽可能多点击的系列⇒词级出价不生效 降价只动系列的每次点击上限}
 
 ## 谁拿主意
 
@@ -105,7 +112,7 @@
 规则按顺序，第一条命中即停（与 `core/judge/judge.py` 的 `local_choice` 同序，自测里有顺序守卫）：
 
 ::RULE{spend_total≥stop_loss.test_spend_total⇒这条线的测试期结束 pause并escalate 让本人决定要不要继续}
-::RULE{avg_cpc>出价上限⇒bid_down 幅度keyword.bid_down_pct|出价上限未知⇒这条不看}
+::RULE{avg_cpc>出价上限⇒bid_down 尽可能多点击的系列把每次点击上限设成出价上限 手动出价的系列降广告组出价keyword.bid_down_pct|出价上限未知⇒这条不看}
 ::RULE{spend_total≥stop_loss.spend_no_conversion且conversions=0⇒pause}
 ::RULE{days_running≥stop_loss.days_before_budget_down且commission<spend_window×roi_floor⇒budget_down}
 ::RULE{谷歌对这条系列有推荐预算且与当前不同⇒按推荐改 高了budget_up 低了budget_down|用户设了caps.daily_budget⇒不超过它|没有推荐⇒预算不动}
@@ -113,7 +120,7 @@
 
 ### keyword.action（每词）
 
-::RULE{avg_cpc>出价上限⇒bid_down|出价上限未知⇒这条不看}
+::RULE{avg_cpc>出价上限⇒bid_down|出价上限未知⇒这条不看|系列是尽可能多点击⇒这条不看 词级出价不生效 由系列的每次点击上限管}
 ::RULE{clicks≥keyword.pause_after_clicks_no_conv且conversions=0⇒pause}
 ::RULE{搜索词与offer无关⇒negative|本地规则判不了相关性 这条只有判断插件能给 本地一律keep}
 ::RULE{其余⇒keep}
