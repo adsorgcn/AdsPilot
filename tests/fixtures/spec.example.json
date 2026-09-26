@@ -17,7 +17,7 @@
     },
     "language": "en",
     "bidding": {
-      "strategy": "manual_cpc",
+      "strategy": "maximize_clicks",
       "max_cpc": 0.25
     },
     "daily_budget": 5.0,
@@ -34,7 +34,6 @@
   "adgroups": [
     {
       "name": "Widget X Review AG1",
-      "max_cpc": 0.25,
       "final_url": "https://example.com/widget-x-review",
       "keywords": [
         {

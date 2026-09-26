@@ -269,6 +269,22 @@ def step_page(cfg, kv, apply):
     return out(res, 0)
 
 
+def bid_defaults(brief, offer, soul):
+    """出价上限从选中的 offer 带过来（选品第一条与出价同一个数）；谷歌推荐出价取第一个过线词的首页出价（Keyword Planner）。
+    出价方式默认尽可能多点击：每次点击上限就是出价上限，spec 里算，这里不写 max_cpc。
+    用户写了 bidding: manual_cpc 才照旧：没写出价就用第一个过线词的出价，且不超过出价上限。"""
+    if offer.get("bid_cap") is not None:
+        brief.setdefault("bid_cap", offer["bid_cap"])
+    if brief.get("max_cpc") is None and offer.get("keywords"):
+        metric = soul["params"]["offer"].get("bid_metric", "cpc_low")
+        first = offer["keywords"][0].get(metric)
+        if first is not None:
+            brief.setdefault("google_bid", round(float(first), 2))
+            if str(brief.get("bidding") or "maximize_clicks").lower() == "manual_cpc":
+                brief["max_cpc"] = round(min(float(first), float(brief["bid_cap"])) if brief.get("bid_cap") is not None else float(first), 2)
+    return brief
+
+
 def step_campaign(cfg, kv, apply, enable=False):
     st = state()
     soul = J.load_soul(cfg.get("soul", "soul/default.soul.md"), cfg)
@@ -278,16 +294,8 @@ def step_campaign(cfg, kv, apply, enable=False):
     brief.setdefault("final_url", st.get("page_url", ""))
     brief.setdefault("offer_ref", (st.get("offer") or {}).get("offer_ref", ""))
     brief.setdefault("currency", cfg.get("currency", "USD"))
-    # 出价上限从选中的 offer 带过来；没写出价就用第一个过线词的出价，且不超过出价上限（选品第一条与出价同一个数）
     offer = st.get("offer") or {}
-    if offer.get("bid_cap") is not None:
-        brief.setdefault("bid_cap", offer["bid_cap"])
-    if brief.get("max_cpc") is None and offer.get("keywords"):
-        metric = soul["params"]["offer"].get("bid_metric", "cpc_low")
-        first = offer["keywords"][0].get(metric)
-        if first is not None:
-            brief.setdefault("google_bid", round(float(first), 2))   # 谷歌推荐出价：Keyword Planner 的首页出价
-            brief["max_cpc"] = round(min(float(first), float(brief["bid_cap"])) if brief.get("bid_cap") is not None else float(first), 2)
+    bid_defaults(brief, offer, soul)
     if not brief.get("final_url"):
         return out({"error": "brief 没有 final_url 且开局状态里没有已发布的页（先跑 page --apply）"}, 4)
     # 预算：用户写了就用；没写取谷歌推荐预算（新账号走新客户推荐）；谷歌没给就交给用户定，不编数
@@ -349,6 +357,7 @@ def step_campaign(cfg, kv, apply, enable=False):
                 cc = {}
         row = cc.get(spec["campaign"]["name"]) or {}
         row.update({"daily_budget": spec["campaign"]["daily_budget"], "max_cpc": spec["campaign"]["bidding"]["max_cpc"], "bid_cap": brief.get("bid_cap"),
+                    "bidding": spec["campaign"]["bidding"]["strategy"],
                     "offer_ref": brief.get("offer_ref"), "earn_per_click": offer.get("earn_per_click"), "google_bid": brief.get("google_bid"),
                     "currency": cfg.get("currency", "USD")})
         cc[spec["campaign"]["name"]] = row
@@ -472,7 +481,23 @@ def selftest():
                                                       "daily_budget": sp7["campaign"]["daily_budget"], "is_new_account": True, "bid_cap": e["bid_cap"]}, ["go", "hold"], ["x"])
     t7 = e["ok"] and abs(e["bid_cap"] - 4.56) < 0.01 and not p7 and r7["choice"] == "go" and ok7
     print("hkd: bid_cap=%s spec_problems=%s launch=%s/%s" % (e["bid_cap"], p7, r7["choice"], r7["mode_local"]))
-    good = t1 and t2 and t3 and t4 and t5 and t6 and t7
+    # T7-h（2.0.18）：尽可能多点击时开局不拿第一个过线词的出价当上限，每次点击上限就是出价上限；用户写 manual_cpc 才照旧取第一个过线词的出价
+    t8 = False
+    try:
+        off8 = {"bid_cap": 4.56, "keywords": [{"text": "vacuum mop", "cpc_low": 3.79}]}
+        b8 = {k: v for k, v in brief.items() if k not in ("max_cpc", "google_bid")}
+        bts = bid_defaults(dict(b8), off8, soul_hk)
+        bmc = bid_defaults(dict(b8, bidding="manual_cpc"), off8, soul_hk)
+        sp8, p8 = S.build(dict(bts, currency="HKD"), soul_hk["params"], {})
+        r8, ok8 = decide(hk, soul_hk, "campaign.launch", {"spec_valid": not p8, "lp_published": True, "account_status": "ok", "max_cpc": sp8["campaign"]["bidding"]["max_cpc"],
+                                                          "daily_budget": sp8["campaign"]["daily_budget"], "is_new_account": True, "bid_cap": bts.get("bid_cap")}, ["go", "hold"], ["x"])
+        t8 = (bts.get("max_cpc") is None and bts.get("bid_cap") == 4.56 and bts.get("google_bid") == 3.79 and bmc.get("max_cpc") == 3.79
+              and sp8["campaign"]["bidding"] == {"strategy": "maximize_clicks", "max_cpc": 4.56} and not p8 and r8["choice"] == "go" and ok8)
+        print("T7-h 尽可能多点击 brief=%s 手动=%s spec出价=%s launch=%s -> %s" % ({k: bts.get(k) for k in ("max_cpc", "bid_cap", "google_bid")}, bmc.get("max_cpc"),
+                                                                        sp8["campaign"]["bidding"], r8["choice"], "OK" if t8 else "FAIL"))
+    except Exception as e:  # noqa: BLE001
+        print("T7-h error %s: %s -> FAIL" % (type(e).__name__, str(e)[:160]))
+    good = t1 and t2 and t3 and t4 and t5 and t6 and t7 and t8
     print("lp=%s/%s offer=%s launch=%s hold=%s user_pick=%s/%s user_publish=%s -> %s" % (chk["verdict"], resp["mode_local"], r2["choice"], r3["mode_local"], r4["choice"],
           r5["choice"], r5["decided_by"], r6["choice"], "OK" if good else "FAIL"))
     if chk["fail"]:

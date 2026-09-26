@@ -4,8 +4,8 @@
 Google Ads 插件 · spec 动作（生成投放规格）
 
 输入一个简短的 brief JSON（offer、落地页、关键词、文案），输出 schemas/traffic-spec.schema.json 形状的规格，
-硬限从 SOUL 参数与 config.caps 取，逐条核对：只许词组或精确、Search Partners 与 Display 关、只投「位于」目标市场、Manual CPC、
-Final URL 在自有域名下。不满足的直接列出并退出码 1。
+硬限从 SOUL 参数与 config.caps 取，逐条核对：只许词组或精确、Search Partners 与 Display 关、只投「位于」目标市场、出价方式
+（默认尽可能多点击，每次点击上限 = 出价上限；用户明确要才手动 CPC）、Final URL 在自有域名下。不满足的直接列出并退出码 1。
 
 brief 示例（tests/fixtures/brief.example.json）：
 {
@@ -32,6 +32,8 @@ sys.path.insert(0, os.path.join(ROOT, "core", "judge"))
 sys.path.insert(0, os.path.join(ROOT, "core", "selfcheck"))
 
 VALUETRACK = "{lpurl}?c={campaignid}&a={adgroupid}&k={targetid}&n={network}"
+# 出价方式：默认尽可能多点击（谷歌 TARGET_SPEND，谷歌只对它这类自动出价给推荐预算，2026-09-26 真实账号核出）；用户明确要手动出价才 manual_cpc
+BIDDING = ("maximize_clicks", "manual_cpc")
 
 
 def _cap(caps, key, fallback):
@@ -46,7 +48,8 @@ def _r2(x):
 def build(brief, soul_params, caps):
     """soul_params 是 load_soul(path, cfg) 折算后的（广告账户币种）；caps 是 config.caps（广告账户币种，null=用 SOUL 默认）。
     出价上限 = min(brief.bid_cap（开局从选中 offer 带来）, caps.max_cpc)；两个都没有用谷歌推荐出价 brief.google_bid；
-    出价 = brief.max_cpc，没写用 brief.google_bid。都没有就报问题、出价留空（spec 结构不合格，建不了），不拿常数顶。"""
+    出价方式 brief.bidding，默认 maximize_clicks：每次点击上限 = brief.max_cpc（用户写的），没写就是出价上限；
+    manual_cpc：出价 = brief.max_cpc，没写用 brief.google_bid。都没有就报问题、出价留空（spec 结构不合格，建不了），不拿常数顶。"""
     caps = caps or {}
     cands = [float(x) for x in (brief.get("bid_cap"), caps.get("max_cpc")) if x is not None]
     gb = float(brief["google_bid"]) if brief.get("google_bid") is not None else None
@@ -55,7 +58,11 @@ def build(brief, soul_params, caps):
     budget_cap = float(caps["daily_budget"]) if caps.get("daily_budget") is not None else None
     first_day = float(caps["first_day_budget"]) if caps.get("first_day_budget") is not None else None
     stop_loss = _cap(caps, "stop_loss_spend", soul_params["stop_loss"]["test_spend_total"])
-    max_cpc = float(brief["max_cpc"]) if brief.get("max_cpc") is not None else gb
+    strategy = str(brief.get("bidding") or "maximize_clicks").lower()
+    if brief.get("max_cpc") is not None:
+        max_cpc = float(brief["max_cpc"])
+    else:
+        max_cpc = cpc_cap if strategy == "maximize_clicks" else gb   # 尽可能多点击：每次点击上限就是出价上限；手动：谷歌推荐出价
     if cpc_cap is None:
         cpc_cap = max_cpc   # 没有 offer 上限、用户上限与谷歌出价：上限就是用户自己写的出价，不往上加
     if brief.get("daily_budget") is not None:
@@ -74,7 +81,7 @@ def build(brief, soul_params, caps):
             "networks": {"search_partners": False, "display": False},
             "geo": {"countries": [brief.get("country", "US").upper()], "presence": "living_in"},
             "language": brief.get("language", "en").lower(),
-            "bidding": {"strategy": "manual_cpc", "max_cpc": _r2(max_cpc)},
+            "bidding": {"strategy": strategy, "max_cpc": _r2(max_cpc)},
             "daily_budget": _r2(budget),
             "currency": brief.get("currency", "USD"),
             "final_url_domain": host,
@@ -84,7 +91,6 @@ def build(brief, soul_params, caps):
         },
         "adgroups": [{
             "name": brief.get("adgroup") or (brief.get("name") or "ag") + " AG1",
-            "max_cpc": _r2(max_cpc),
             "final_url": brief["final_url"],
             "keywords": [{"text": k["text"], "match": k.get("match", "phrase")} for k in brief["keywords"]],
             "ads": [{"headlines": brief["headlines"], "descriptions": brief["descriptions"],
@@ -94,8 +100,14 @@ def build(brief, soul_params, caps):
         "offer_ref": brief.get("offer_ref", ""),
         "sub_id_form": "landing_first_party",
     }
+    if strategy == "manual_cpc":
+        spec["adgroups"][0]["max_cpc"] = _r2(max_cpc)   # 尽可能多点击时广告组与词的出价不生效，不写
     problems = []
-    if max_cpc is None:
+    if strategy not in BIDDING:
+        problems.append("出价方式 %r 不认：默认 maximize_clicks（尽可能多点击），用户明确要手动出价写 manual_cpc" % strategy)
+    if max_cpc is None and strategy == "maximize_clicks":
+        problems.append("缺出价上限：没有 offer 的出价上限、caps.max_cpc 与谷歌推荐出价 google_bid，brief 也没写 max_cpc；不拿常数顶")
+    elif max_cpc is None:
         problems.append("缺出价：brief 没有 max_cpc，也没有谷歌推荐出价 google_bid（关键词插件的首页出价）；不拿常数顶")
     elif max_cpc > cpc_cap:
         problems.append("max_cpc %.2f > cap %.2f" % (max_cpc, cpc_cap))
@@ -161,7 +173,26 @@ def selftest():
            and any("daily_budget" in x for x in p11) and not p12 and s12["campaign"]["daily_budget"] == 60 and "budget" not in soul["params"])
     print("T5-d 谷歌推荐12⇒%s 用户上限10⇒%s 都没有=%s 用户写15超上限=%s 新账号推荐60⇒%s %s -> %s" % (
         s8["campaign"]["daily_budget"], s9["campaign"]["daily_budget"], p10, bool(p11), s12["campaign"]["daily_budget"], p12, "OK" if t5d else "FAIL"))
-    ok = not problems and not errs and len(p2) >= 2 and not p3 and any("max_cpc" in x for x in p4) and t4f and t5d
+    # T7-a（2.0.18）：出价方式默认尽可能多点击（谷歌叫 TARGET_SPEND），每次点击上限 = 出价上限；用户明确写 manual_cpc 才手动出价
+    t7 = {}
+    try:
+        b7a = {k: v for k, v in brief.items() if k != "max_cpc"}
+        b7a.update({"bid_cap": 4.56, "google_bid": 3.79, "currency": "HKD"})
+        s7a, p7a = build(b7a, soul_hk["params"], {"max_cpc": None})
+        t7["默认尽可能多点击 上限=出价上限"] = s7a["campaign"]["bidding"] == {"strategy": "maximize_clicks", "max_cpc": 4.56} and not p7a and "max_cpc" not in s7a["adgroups"][0]
+        s7b, p7b = build(dict(b7a, bidding="manual_cpc", max_cpc=3.79), soul_hk["params"], {"max_cpc": None})
+        t7["用户写手动出价照旧"] = s7b["campaign"]["bidding"] == {"strategy": "manual_cpc", "max_cpc": 3.79} and s7b["adgroups"][0].get("max_cpc") == 3.79 and not p7b
+        _, p7c = build(dict(b7a, bidding="target_cpa"), soul_hk["params"], {})
+        t7["不认的出价方式报问题"] = any("出价方式" in x for x in p7c)
+        s7d, p7d = build(dict(b7a, max_cpc=4.0), soul_hk["params"], {})
+        t7["用户写了上限按用户的"] = s7d["campaign"]["bidding"] == {"strategy": "maximize_clicks", "max_cpc": 4.0} and not p7d
+        sch = load_schema("traffic-spec.schema.json")
+        t7["schema"] = not validate(sch, s7a) and not validate(sch, s7b)
+    except Exception as e:  # noqa: BLE001
+        t7["error"] = "%s: %s" % (type(e).__name__, str(e)[:120])
+    t7a = bool(t7) and all(v is True for v in t7.values())
+    print("T7-a %s -> %s" % (t7, "OK" if t7a else "FAIL"))
+    ok = not problems and not errs and len(p2) >= 2 and not p3 and any("max_cpc" in x for x in p4) and t4f and t5d and t7a
     print("spec problems=%d schema=%s bad_brief_problems=%d hkd_bidcap_ok=%s hkd_over_bidcap=%s -> %s" % (
         len(problems), "ok" if not errs else errs[:2], len(p2), not p3, any("max_cpc" in x for x in p4), "OK" if ok else "FAIL"))
     if problems:

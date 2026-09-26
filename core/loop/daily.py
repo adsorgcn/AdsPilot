@@ -396,7 +396,8 @@ class Run:
                   "clicks": clicks_w, "avg_cpc": round(cost_w / clicks_w, 4) if clicks_w else 0.0,
                   "conversions": conv_by_c[c][0], "commission": round(conv_by_c[c][1], 2), "last_change_days": self.last_change_days(c),
                   "daily_budget": float(cur_budget) if cur_budget is not None else None, "google_budget": brec.get("recommended"), "money_at_stake": round(cost_w, 2),
-                  "disapproved": any(r.get("disapproved") for r in rs), "bid_cap": (camp_cfg.get(c) or {}).get("bid_cap"), "google_bid": gbid}
+                  "disapproved": any(r.get("disapproved") for r in rs), "bid_cap": (camp_cfg.get(c) or {}).get("bid_cap"), "google_bid": gbid,
+                  "bidding": (camp_cfg.get(c) or {}).get("bidding")}
             if st["bid_cap"] is None and caps.get("max_cpc") is None and gbid is None:
                 self.log("出价上限未知 %s：没有 offer 的 bid_cap、caps.max_cpc 与谷歌推荐出价，本轮不按出价调" % c)
             resp = self.decide("campaign.adjust", st, ["keep", "bid_down", "budget_up", "budget_down", "pause"], target=c)
@@ -408,6 +409,8 @@ class Run:
                 if resp["choice"] in ("budget_up", "budget_down") and tb is not None and st["daily_budget"] is not None \
                         and (tb > st["daily_budget"]) == (resp["choice"] == "budget_up"):
                     item["new_budget"] = tb
+                if resp["choice"] == "bid_down":   # 尽可能多点击的系列：执行端把每次点击上限设成这个数
+                    item["bid_cap"] = J.bid_cap_for(st, caps)
                 todo.append(item)
                 self.record_action("campaign.adjust", c, resp, applied=False, note="todo: 由流量插件 deploy 动作或 Agent 在后台执行")
             else:
@@ -427,7 +430,8 @@ class Run:
             if clicks == 0:
                 continue
             st = {"clicks": clicks, "conversions": conv_by_k[key], "avg_cpc": round(cost / clicks, 4), "cost": round(cost, 2), "money_at_stake": round(cost, 2),
-                  "bid_cap": (camp_cfg.get(key[0]) or {}).get("bid_cap"), "google_bid": latest_google_bid(rs)}
+                  "bid_cap": (camp_cfg.get(key[0]) or {}).get("bid_cap"), "google_bid": latest_google_bid(rs),
+                  "bidding": (camp_cfg.get(key[0]) or {}).get("bidding")}   # 老系列没写就是手动出价
             tgt = "%s/%s/%s" % key
             resp = self.decide("keyword.action", st, ["keep", "pause", "bid_down", "negative"], target=tgt)
             if resp["choice"] != "keep" and J.executes(resp):
@@ -766,6 +770,28 @@ def selftest():
     recs_ok = rc7.budget_recs()
     rc7.finish(0, {})
     check("T6-d", recs_bad == {} and recs_ok.get("C1", {}).get("recommended") == 60.0, "USD 配置读 HKD 推荐=%s | HKD 配置=%s" % (recs_bad, recs_ok))
+    # T7-g（2.0.18）：词的状态带系列的出价方式（campaigns.json 的 bidding，老系列没写就是手动）；系列降价的动作带出价上限给执行端
+    cfg_t7 = _selftest_cfg(tmp, "t7", mappings=False)
+    os.makedirs(os.path.join(cfg_t7["data_dir"], "inbox"), exist_ok=True)
+    json.dump({"TS": {"daily_budget": 50.0, "bid_cap": 4.56, "bidding": "maximize_clicks"}, "MC": {"daily_budget": 50.0, "bid_cap": 4.56}},
+              open(os.path.join(cfg_t7["data_dir"], "inbox", "campaigns.json"), "w", encoding="utf-8"))
+    r7 = Run(cfg_t7, "selftest-bidding", False)
+    seen7 = []
+    orig7 = r7.decide
+
+    def spy7(node, state, choices, target="", evidence=None):
+        resp_ = orig7(node, state, choices, target=target, evidence=evidence)
+        seen7.append((node, target, dict(state or {}), resp_["choice"]))
+        return resp_
+    r7.decide = spy7
+    r7.evidence.append({"id": "e-traffic", "deliverable": "traffic_report", "kind": "report", "ref": "selftest", "result": "pass"})
+    rows7 = [{"date": ds(k), "campaign": c_, "adgroup": "A", "keyword": "k", "impressions": 100, "clicks": 5, "cost": 30.0} for k in range(4) for c_ in ("TS", "MC")]
+    todo7, _ = r7.step_judgments({"rows": rows7}, None)
+    r7.finish(0, {})
+    kw7 = {t_: (s_.get("bidding"), ch_) for n_, t_, s_, ch_ in seen7 if n_ == "keyword.action"}
+    bd7 = {a["target"]: a.get("bid_cap") for a in todo7 if a["node"] == "campaign.adjust" and a["choice"] == "bid_down"}
+    check("T7-g", kw7.get("TS/A/k") == ("maximize_clicks", "keep") and kw7.get("MC/A/k") == (None, "bid_down") and bd7 == {"TS": 4.56, "MC": 4.56},
+          "词(出价方式,判断)=%s 系列降价带的出价上限=%s" % (kw7, bd7))
     check("T2-f", f_ok_round2 and _selftest_sha1(p) == h0 and _selftest_sha1(pb) == hb and _selftest_sha1(pc) == hc,
           "user-decisions.json 三份跑完字节不变")
     ok = ok and all(results) and not errs4
