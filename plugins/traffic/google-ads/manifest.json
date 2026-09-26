@@ -11,6 +11,7 @@
     "deploy": "deploy_api.py",
     "report": "report_import.py",
     "report_api": "report_api.py",
+    "budget": "budget_api.py",
     "convert": "convert_export.py",
     "convert_api": "convert_api.py"
   },

@@ -12,6 +12,7 @@ run python3 core/ledger/reconcile.py --selftest
 run python3 core/lp/lp_check.py --selftest
 run python3 plugins/traffic/google-ads/report_import.py --selftest
 run python3 plugins/traffic/google-ads/report_api.py --selftest
+run python3 plugins/traffic/google-ads/budget_api.py --selftest
 run python3 plugins/traffic/google-ads/spec.py --selftest
 run python3 plugins/traffic/google-ads/convert_export.py --selftest
 run python3 plugins/traffic/google-ads/deploy_api.py --selftest

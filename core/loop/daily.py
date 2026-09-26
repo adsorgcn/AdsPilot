@@ -316,6 +316,27 @@ class Run:
                           subid.now_iso() if applied else None, note, subid.now_iso()))
         self.actions.append({"node": node, "target": target, "choice": resp["choice"], "applied": applied, "note": note[:200]})
 
+    def budget_recs(self):
+        """谷歌推荐预算：本轮插件拉的（api 路）优先，其次 data/inbox/budget-recommendations.json（manual 路 Agent 从后台抄）。
+        {"campaigns": {"<系列名或 campaign id>": {"recommended": 金额, "current": 金额}}}，广告账户币种。"""
+        for p in (self.path("budget-recommendations.json"), os.path.join(self.data_dir, "inbox", "budget-recommendations.json")):
+            if os.path.exists(p):
+                try:
+                    return json.load(open(p, encoding="utf-8")).get("campaigns") or {}
+                except (ValueError, AttributeError):
+                    self.log("budget-recommendations.json 读不了，忽略")
+        return {}
+
+    def step_budget_recs(self):
+        t = self.cfg.get("traffic") or {}
+        if t.get("report_source", "csv_export") != "api":
+            return
+        d, m = self.plugin("traffic", t.get("plugin", "google-ads"))
+        if not m["actions"].get("budget"):
+            return
+        rc, _ = self.run_script(os.path.join(d, m["actions"]["budget"]), ["--campaigns", "--out", self.path("budget-recommendations.json")] + (["--apply"] if self.apply else []))
+        self.log("budget recommendations rc=%s" % rc)
+
     def step_judgments(self, rep, rec):
         acct = {}
         sp = os.path.join(self.data_dir, "inbox", "account-status.json")
@@ -354,19 +375,23 @@ class Run:
             except Exception:  # noqa: BLE001
                 camp_cfg = {}
         caps = self.cfg.get("caps") or {}
-        default_budget = J.cap(caps, "first_day_budget", self.soul["params"]["budget"]["first_day"])
-        self.caps_effective = {"daily_budget": J.cap(caps, "daily_budget", self.soul["params"]["budget"]["daily_cap"])}
+        # 预算照谷歌推荐（data/inbox 或本轮插件拉的 budget-recommendations.json）；预算上限只有用户在 caps 里设的
+        brecs = self.budget_recs()
+        self.caps_effective = {"daily_budget": caps.get("daily_budget")}
         for c, rs in by_c.items():
             if halt:
                 break
             dates = sorted({r["date"] for r in rs})
             w = [r for r in rs if r["date"] in win7]
             gbid = google_bid_of(w) if google_bid_of(w) is not None else (camp_cfg.get(c) or {}).get("google_bid")
+            cid = next((r.get("campaign_id") for r in rs if r.get("campaign_id")), None)
+            brec = brecs.get(c) or (brecs.get(str(cid)) if cid else None) or {}
+            cur_budget = (camp_cfg.get(c) or {}).get("daily_budget", brec.get("current"))
             clicks_w = sum(r["clicks"] for r in w); cost_w = sum(r["cost"] for r in w)
             st = {"days_running": len(dates), "spend_total": round(sum(r["cost"] for r in rs), 2), "spend_window": round(cost_w, 2),
                   "clicks": clicks_w, "avg_cpc": round(cost_w / clicks_w, 4) if clicks_w else 0.0,
                   "conversions": conv_by_c[c][0], "commission": round(conv_by_c[c][1], 2), "last_change_days": self.last_change_days(c),
-                  "daily_budget": float((camp_cfg.get(c) or {}).get("daily_budget", default_budget)), "money_at_stake": round(cost_w, 2),
+                  "daily_budget": float(cur_budget) if cur_budget is not None else None, "google_budget": brec.get("recommended"), "money_at_stake": round(cost_w, 2),
                   "disapproved": any(r.get("disapproved") for r in rs), "bid_cap": (camp_cfg.get(c) or {}).get("bid_cap"), "google_bid": gbid}
             if st["bid_cap"] is None and caps.get("max_cpc") is None and gbid is None:
                 self.log("出价上限未知 %s：没有 offer 的 bid_cap、caps.max_cpc 与谷歌推荐出价，本轮不按出价调" % c)
@@ -374,7 +399,12 @@ class Run:
             if resp["choice"] == "keep":
                 self.record_action("campaign.adjust", c, resp, applied=True, note="no_change")
             elif J.executes(resp):
-                todo.append({"node": "campaign.adjust", "target": c, "choice": resp["choice"], "state": st, "reason": resp["judge"]["reason"]})
+                item = {"node": "campaign.adjust", "target": c, "choice": resp["choice"], "state": st, "reason": resp["judge"]["reason"]}
+                tb = J.budget_target(st, caps)   # 预算动作照谷歌推荐的数（用户上限封顶）；方向对不上就不带，执行端按 budget_step_pct
+                if resp["choice"] in ("budget_up", "budget_down") and tb is not None and st["daily_budget"] is not None \
+                        and (tb > st["daily_budget"]) == (resp["choice"] == "budget_up"):
+                    item["new_budget"] = tb
+                todo.append(item)
                 self.record_action("campaign.adjust", c, resp, applied=False, note="todo: 由流量插件 deploy 动作或 Agent 在后台执行")
             else:
                 self.record_action("campaign.adjust", c, resp, applied=False, note="proposal only (%s)" % resp["mode_local"])
@@ -498,6 +528,7 @@ def run_once(cfg, run_id=None, apply=False):
             run.finish(3, {"error": "selfcheck"}); return 3
         run.step_pull_mappings()
         rep = run.step_traffic_report()
+        run.step_budget_recs()
         com = run.step_commissions()
         rec = run.step_reconcile(com)
         todo, upload = run.step_judgments(rep, rec)
@@ -693,6 +724,31 @@ def selftest():
     want_g = {("campaign.adjust", "C1"): 3.5, ("campaign.adjust", "C2"): 2.5, ("keyword.action", "C1/A/k1"): 2.0, ("keyword.action", "C1/A/k2"): 4.0,
               ("keyword.action", "C2/B/k3"): None}
     check("T4-g", all(gb.get(k) == v for k, v in want_g.items()), "google_bid=%s" % {("%s %s" % k): gb.get(k) for k in want_g})
+    # T5-f 日常循环带上谷歌推荐预算（data/inbox/budget-recommendations.json，api 路由插件拉，manual 路 Agent 从后台抄）
+    cfg_b5 = _selftest_cfg(tmp, "b5", mappings=False)
+    os.makedirs(os.path.join(cfg_b5["data_dir"], "inbox"), exist_ok=True)
+    json.dump({"campaigns": {"C1": {"recommended": 20.0, "current": 10.0}, "cid-2": {"recommended": 6.0, "current": 9.0}}},
+              open(os.path.join(cfg_b5["data_dir"], "inbox", "budget-recommendations.json"), "w", encoding="utf-8"))
+    rb = Run(cfg_b5, "selftest-gbudget", False)
+    seen_b = []
+    orig_b = rb.decide
+
+    def spy_b(node, state, choices, target="", evidence=None):
+        seen_b.append((node, target, dict(state or {})))
+        return orig_b(node, state, choices, target=target, evidence=evidence)
+    rb.decide = spy_b
+    rb.evidence.append({"id": "e-traffic", "deliverable": "traffic_report", "kind": "report", "ref": "selftest", "result": "pass"})
+    rows_b = [dict(r_, date=ds(k)) for k in range(4) for r_ in (
+        {"campaign": "C1", "impressions": 100, "clicks": 40, "cost": 8.0, "top_of_page_bid": 0.5},
+        {"campaign": "C2", "campaign_id": "cid-2", "impressions": 100, "clicks": 40, "cost": 8.0, "top_of_page_bid": 0.5},
+        {"campaign": "C3", "impressions": 100, "clicks": 40, "cost": 8.0, "top_of_page_bid": 0.5})]
+    todo_b, _ = rb.step_judgments({"rows": rows_b}, None)
+    rb.finish(0, {})
+    sb = {t: (s_.get("google_budget"), s_.get("daily_budget")) for n, t, s_ in seen_b if n == "campaign.adjust"}
+    nb = {a["target"]: a.get("new_budget") for a in todo_b if a["node"] == "campaign.adjust"}
+    check("T5-f", sb.get("C1") == (20.0, 10.0) and sb.get("C2") == (6.0, 9.0) and sb.get("C3") == (None, None)
+          and nb.get("C1") == 20.0 and nb.get("C2") == 6.0 and rb.caps_effective.get("daily_budget") is None,
+          "state(推荐,当前)=%s new_budget=%s caps_effective=%s" % (sb, nb, rb.caps_effective))
     check("T2-f", f_ok_round2 and _selftest_sha1(p) == h0 and _selftest_sha1(pb) == hb and _selftest_sha1(pc) == hc,
           "user-decisions.json 三份跑完字节不变")
     ok = ok and all(results) and not errs4

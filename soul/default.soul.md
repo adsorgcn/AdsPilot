@@ -15,9 +15,8 @@
 ```json soul-params
 {
   "soul": "default",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "money_unit": "USD",
-  "budget": { "first_day": 5.0, "daily_cap": 10.0, "step_pct": 20, "ramp_min_days": 3, "min_days_between_changes": 2 },
   "stop_loss": { "spend_no_conversion": 100.0, "test_spend_total": 300.0, "days_before_budget_down": 7, "roi_floor": 0.5 },
   "offer": {
     "bid_metric": "cpc_low", "epc_basis": "min_7d_3m", "min_keyword_searches": 50, "max_bid_ratio": 1.0,
@@ -40,13 +39,20 @@
 
 ## 金额单位
 
-这份 SOUL 里的金额一律按美元写（`money_unit: USD`）：`budget.first_day` `budget.daily_cap`、`stop_loss.spend_no_conversion` `stop_loss.test_spend_total`、`user_decision.max_extra_spend`。主干读 SOUL 时按 `config.currency` 与 `config.fx` 把它们折成广告账户币种，判断里比的都是折算后的数。`offer.min_epc` 不折算，它和联盟给的 EPC 同是美元。
+这份 SOUL 里的金额一律按美元写（`money_unit: USD`）：`stop_loss.spend_no_conversion` `stop_loss.test_spend_total`、`user_decision.max_extra_spend`。主干读 SOUL 时按 `config.currency` 与 `config.fx` 把它们折成广告账户币种，判断里比的都是折算后的数。`offer.min_epc` 不折算，它和联盟给的 EPC 同是美元。
 
 `config.caps` 是用户自己设的绝对上限，用广告账户币种写；不填就用这里的默认值（美元按 fx 折算）。
 
 出价上限的定义见 offer.select 一节：一个 offer 能出的最高价，由它每次点击赚的钱推出来，选品第一条与建系列、日常调价用同一个数。
 
 ::RULE{config.currency或money_unit不在config.fx里⇒读SOUL就报错 不带着错的钱跑}
+
+## 预算
+
+预算照谷歌推荐。建系列时用谷歌给这条系列的推荐预算（新账号走谷歌的新客户推荐），跑起来以后谷歌推荐新预算就改成推荐的数。用户要改自己改：开局在 brief 里写 `daily_budget`，平时在 `config.caps` 里设 `daily_budget` 或 `first_day_budget` 上限，或者直接告诉 Agent 写进用户决定。谷歌没给推荐、用户也没说，主干不编数，交给用户定。这份 SOUL 不写预算常数。
+
+::RULE{预算⇒用户说了按用户的 否则按谷歌推荐 都没有⇒交给用户定}
+::RULE{config.caps.daily_budget或first_day_budget⇒用户自己设的上限 谷歌推荐超过它就用它}
 
 ## 谁拿主意
 
@@ -91,7 +97,7 @@
 ### campaign.launch
 
 ::RULE{spec过schema且hard_limits逐条满足且lp已publish且账号状态正常⇒go|否则hold}
-::RULE{新账号首次⇒daily_budget不超过budget.first_day 否则hold并把预算改到first_day再判}
+::RULE{预算⇒brief.daily_budget（用户写的）或谷歌推荐预算|都没有⇒spec不合格 交给用户定|用户设了caps.first_day_budget且新账号预算超过它⇒hold}
 ::RULE{max_cpc>出价上限⇒hold|出价上限未知⇒不算在上限之内 只提议不执行}
 
 ### campaign.adjust（每日）
@@ -102,7 +108,7 @@
 ::RULE{avg_cpc>出价上限⇒bid_down 幅度keyword.bid_down_pct|出价上限未知⇒这条不看}
 ::RULE{spend_total≥stop_loss.spend_no_conversion且conversions=0⇒pause}
 ::RULE{days_running≥stop_loss.days_before_budget_down且commission<spend_window×roi_floor⇒budget_down}
-::RULE{conversions>0且commission≥spend_window且days_running≥budget.ramp_min_days且last_change_days≥budget.min_days_between_changes⇒budget_up 每次step_pct 不超过daily_cap}
+::RULE{谷歌对这条系列有推荐预算且与当前不同⇒按推荐改 高了budget_up 低了budget_down|用户设了caps.daily_budget⇒不超过它|没有推荐⇒预算不动}
 ::RULE{其余⇒keep}
 
 ### keyword.action（每词）

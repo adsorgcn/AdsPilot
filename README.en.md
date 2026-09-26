@@ -36,7 +36,7 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-09-26, version 2.0.15. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-09-26, version 2.0.16. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
@@ -46,7 +46,7 @@ As of 2026-09-26, version 2.0.15. Every part below has code, a usage method and 
 | Judgment (f_v5 frozen) | done | judgment blocks verified by the canonical iLang validator; providers are perception only |
 | Attribution & reconciliation | done | sample data only |
 | Unattended loop | done | sample data only; seven-day acceptance not run; user decisions expire and have a money limit |
-| Default SOUL | done | money defined in USD and converted to the account currency; no bid constants, the bid cap falls back to Google's recommended bid; custom boundaries are enforced by code and judgment plugins follow the configured SOUL; thresholds copied from the SOP, not yet calibrated on real data |
+| Default SOUL | done | money defined in USD and converted to the account currency; no bid or budget constants, the bid fallback and budgets follow Google's recommendation; custom boundaries are enforced by code and judgment plugins follow the configured SOUL; thresholds copied from the SOP, not yet calibrated on real data |
 | Plugin Google Ads | **live-tested on a real account** | create campaign, adjust budget and bids, pause keyword, add negative, remove campaign, pull report, Data Manager conversion upload (validate-only): all pass |
 | Plugin CJ | **live-tested on a real account** | offers (187 advertisers, paged), link with sid, commissions in windows, chargebacks: all pass (read-only) |
 | Plugin judgment llm / jev / soul-api | code complete | never connected to real endpoints; jev waits for docs; soul-api server not built |
@@ -58,6 +58,8 @@ As of 2026-09-26, version 2.0.15. Every part below has code, a usage method and 
 In one sentence: onboarding is now one action, hand over three keys (Cloudflare, Google Ads, CJ), then run launch and get a real campaign. The whole chain from landing site to campaign to ledger has closed once in the real world. The only part not yet touched by real data is the SOUL thresholds, which can only be calibrated by running. Next is the first student environment running seven unattended days, after which the plugins move from alpha to stable.
 
 ## Progress log
+
+**2026-09-26, 2.0.16.** Budgets follow Google's recommendation. Before, AdsPilot set budgets itself: USD 5 on day one, at most USD 10 a day, plus 20% when profitable, so a new account for which Google recommended HK$60 was blocked. There are no budget constants now: a new campaign gets Google's recommended budget, and a running campaign moves to Google's new recommendation when there is one; the user changes it if they want (a budget in the brief, or caps in the config); without a recommendation, launch asks the user and the daily loop leaves the budget alone. Loss-stopping rules still come first. This release did not touch a real account; the budget recommendation calls have not been checked on a real account yet.
 
 **2026-09-26, 2.0.15.** The bid fallback is now Google's recommended bid. Before, a campaign without an offer-derived bid cap was held to a USD 0.25 constant written into the SOUL, so a profitable campaign averaging HK$3.5 per click was cut every day. The SOUL no longer carries bid constants: without an offer cap or a user cap, the cap is Google's top-of-page bid estimate (Keyword Planner at launch, each keyword's estimate in the daily report); if even that is missing, bids are not touched and launch only proposes. Also fixed an old issue: once a campaign was judged "keep", its change clock reset every day and it could never get a budget increase; keep no longer counts as a change. This release did not touch a real account; only self-tests and sample data were run.
 

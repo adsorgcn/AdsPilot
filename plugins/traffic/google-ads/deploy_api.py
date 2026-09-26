@@ -176,7 +176,10 @@ def apply_actions(client, todo, mode, step_pct=20, bid_down_pct=10, daily_cap=No
                 elif choice in ("budget_up", "budget_down"):
                     b = client.search("SELECT campaign_budget.resource_name, campaign_budget.amount_micros FROM campaign_budget WHERE campaign_budget.resource_name = '%s'" % camp["campaignBudget"])
                     cur = int(b[0]["campaignBudget"]["amountMicros"])
-                    new = int(cur * (1 + step_pct / 100.0)) if choice == "budget_up" else int(cur * (1 - step_pct / 100.0))
+                    if a.get("new_budget") is not None:   # 谷歌推荐预算（主干已按用户上限封顶）
+                        new = client.micros(a["new_budget"])
+                    else:
+                        new = int(cur * (1 + step_pct / 100.0)) if choice == "budget_up" else int(cur * (1 - step_pct / 100.0))
                     if daily_cap and new > client.micros(daily_cap):
                         new = client.micros(daily_cap)
                     ops = [{"update": {"resourceName": camp["campaignBudget"], "amountMicros": new}, "updateMask": "amount_micros"}]
@@ -285,6 +288,23 @@ def selftest():
     out = run_steps(c, steps, "dry")
     ok = ok and len(out["plan"]) == 6
     todo = {"actions": [{"node": "campaign.adjust", "target": "X", "choice": "pause"}]}
+
+    # T5-g：预算动作带 new_budget（谷歌推荐预算，用户上限已封顶）就设成这个数；没带（止损的 budget_down）才按 budget_step_pct
+    class Fake:
+        micros = staticmethod(Client.micros)
+
+        def search(self, q):
+            if "FROM campaign_budget" in q:
+                return [{"campaignBudget": {"resourceName": "customers/1/campaignBudgets/7", "amountMicros": "10000000"}}]
+            return [{"campaign": {"resourceName": "customers/1/campaigns/9", "campaignBudget": "customers/1/campaignBudgets/7"}}]
+    acts = {"actions": [{"node": "campaign.adjust", "target": "C1", "choice": "budget_up", "new_budget": 20.0},
+                        {"node": "campaign.adjust", "target": "C2", "choice": "budget_down", "new_budget": 6.0},
+                        {"node": "campaign.adjust", "target": "C3", "choice": "budget_down"}]}
+    res = apply_actions(Fake(), acts, "dry", step_pct=20, daily_cap=None)
+    to = [r_.get("budget_micros", {}).get("to") for r_ in res]
+    t5g = to == [20_000_000, 6_000_000, 8_000_000]
+    print("T5-g 预算动作 目标=%s -> %s" % (to, "OK" if t5g else "FAIL"))
+    ok = ok and t5g
     print("steps=%s dry_plan=%d -> %s" % (tags, len(out["plan"]), "OK" if ok else "FAIL"))
     return 0 if ok else 1
 
