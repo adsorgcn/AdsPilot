@@ -322,9 +322,13 @@ class Run:
         for p in (self.path("budget-recommendations.json"), os.path.join(self.data_dir, "inbox", "budget-recommendations.json")):
             if os.path.exists(p):
                 try:
-                    return json.load(open(p, encoding="utf-8")).get("campaigns") or {}
-                except (ValueError, AttributeError):
-                    self.log("budget-recommendations.json 读不了，忽略")
+                    data = json.load(open(p, encoding="utf-8"))
+                except ValueError:
+                    self.log("budget-recommendations.json 读不了，忽略"); continue
+                cur = data.get("currency") if isinstance(data, dict) else None
+                if cur and cur != self.cfg.get("currency", "USD"):
+                    self.log("谷歌推荐预算是 %s，config.currency 是 %s，不用（改 config.currency）" % (cur, self.cfg.get("currency"))); continue
+                return (data.get("campaigns") if isinstance(data, dict) else None) or {}
         return {}
 
     def step_budget_recs(self):
@@ -749,6 +753,19 @@ def selftest():
     check("T5-f", sb.get("C1") == (20.0, 10.0) and sb.get("C2") == (6.0, 9.0) and sb.get("C3") == (None, None)
           and nb.get("C1") == 20.0 and nb.get("C2") == 6.0 and rb.caps_effective.get("daily_budget") is None,
           "state(推荐,当前)=%s new_budget=%s caps_effective=%s" % (sb, nb, rb.caps_effective))
+    # T6-d 谷歌推荐预算的币种与 config.currency 不一致 ⇒ 不用（金额是账户币种，标错了就是错的钱）
+    cfg_c6 = _selftest_cfg(tmp, "c6", mappings=False)
+    os.makedirs(os.path.join(cfg_c6["data_dir"], "inbox"), exist_ok=True)
+    json.dump({"currency": "HKD", "campaigns": {"C1": {"recommended": 60.0, "current": 39.0}}},
+              open(os.path.join(cfg_c6["data_dir"], "inbox", "budget-recommendations.json"), "w", encoding="utf-8"))
+    rc6 = Run(cfg_c6, "selftest-bcur", False)
+    recs_bad = rc6.budget_recs()
+    rc6.finish(0, {})
+    cfg_c6["currency"] = "HKD"
+    rc7 = Run(cfg_c6, "selftest-bcur2", False)
+    recs_ok = rc7.budget_recs()
+    rc7.finish(0, {})
+    check("T6-d", recs_bad == {} and recs_ok.get("C1", {}).get("recommended") == 60.0, "USD 配置读 HKD 推荐=%s | HKD 配置=%s" % (recs_bad, recs_ok))
     check("T2-f", f_ok_round2 and _selftest_sha1(p) == h0 and _selftest_sha1(pb) == hb and _selftest_sha1(pc) == hc,
           "user-decisions.json 三份跑完字节不变")
     ok = ok and all(results) and not errs4

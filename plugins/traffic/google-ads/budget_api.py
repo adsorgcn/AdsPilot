@@ -19,7 +19,8 @@
   只给了几档、没标推荐的那一档时，recommended 为 null，options 列出几档，由用户定。
 
 退出码：0 成功；3 调用失败；4 凭据缺失。只用标准库。
-2026-09-26 加，还没在真实账号上核过请求形状（接口：POST customers/{id}/recommendations:generate）。
+2026-09-26 加。同日真实账号核过一轮（CC）：--new 必须带地区 ID；--campaigns 在 v25 只能整个选 campaign_budget_recommendation；
+金额是账户币种。改后两条请求都能调通，那次谷歌没给推荐（返回空），推荐的取值还等有推荐时再核。
 """
 import json
 import os
@@ -32,9 +33,8 @@ sys.path.insert(0, HERE)
 from gads_api import Client, GadsError  # noqa: E402
 
 MATCH = {"phrase": "PHRASE", "exact": "EXACT", "broad": "BROAD"}
-GAQL_EXISTING = ("SELECT recommendation.resource_name, recommendation.campaign, "
-                 "recommendation.campaign_budget_recommendation.current_budget_amount_micros, "
-                 "recommendation.campaign_budget_recommendation.recommended_budget_amount_micros "
+# v25 里 campaign_budget_recommendation 只能整个选，子字段单选会报 UNRECOGNIZED_FIELD（2026-09-26 真实账号核出）
+GAQL_EXISTING = ("SELECT recommendation.resource_name, recommendation.campaign, recommendation.campaign_budget_recommendation "
                  "FROM recommendation WHERE recommendation.type = 'CAMPAIGN_BUDGET'")
 
 
@@ -46,12 +46,33 @@ def _money(micros):
     return round(v / 1e6, 2) if v > 0 else None
 
 
-def generate_body(brief, new_customer=False):
-    """建系列前的预算推荐请求：搜索系列要带关键词与国家；语言、出价方式、最终网址一并带上。"""
+def _budget_from(cb):
+    """一条 CampaignBudgetRecommendation：谷歌标的推荐预算；没标但只有一档就是它；几档都没标 ⇒ None，几档交给用户。"""
+    options = [x for x in (_money(o.get("budgetAmountMicros")) for o in (cb or {}).get("budgetOptions") or []) if x is not None]
+    rec = _money((cb or {}).get("recommendedBudgetAmountMicros"))
+    if rec is None and len(options) == 1:
+        rec = options[0]
+    return rec, options, _money((cb or {}).get("currentBudgetAmountMicros"))
+
+
+def account_currency(client):
+    """谷歌返回的金额是广告账户币种；标签取账户的，不取 brief 的。查不到就 None。"""
+    try:
+        rows = client.search("SELECT customer.currency_code FROM customer")
+        return rows[0]["customer"]["currencyCode"] if rows else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def generate_body(brief, new_customer=False, location_ids=None):
+    """建系列前的预算推荐请求：搜索系列要带关键词、国家与地区 ID（只给国家代码会报
+    CAMPAIGN_BUDGET_RECOMMENDATION_TYPE_REQUIRES_EITHER_POSITIVE_OR_NEGATIVE_LOCATION_IDS_FOR_SEARCH_CHANNEL）；语言、出价方式、最终网址一并带上。"""
     body = {"recommendationTypes": ["CAMPAIGN_BUDGET"], "advertisingChannelType": "SEARCH",
             "countryCodes": [str(brief.get("country", "US")).upper()], "languageCodes": [str(brief.get("language", "en")).lower()],
             "adGroupInfo": [{"keywords": [{"text": k["text"], "matchType": MATCH.get(k.get("match", "phrase"), "PHRASE")} for k in brief.get("keywords", [])]}],
             "biddingInfo": {"biddingStrategyType": "MANUAL_CPC"}}
+    if location_ids:
+        body["positiveLocationsIds"] = [int(x) for x in location_ids]
     if brief.get("final_url"):
         body["assetGroupInfo"] = [{"finalUrl": brief["final_url"]}]
     if new_customer:
@@ -65,11 +86,8 @@ def parse_generate(resp):
         cb = r.get("campaignBudgetRecommendation")
         if not cb:
             continue
-        options = [x for x in (_money(o.get("budgetAmountMicros")) for o in cb.get("budgetOptions") or []) if x is not None]
-        rec = _money(cb.get("recommendedBudgetAmountMicros"))
-        if rec is None and len(options) == 1:
-            rec = options[0]
-        return {"recommended": rec, "options": options, "current": _money(cb.get("currentBudgetAmountMicros"))}
+        rec, options, cur = _budget_from(cb)
+        return {"recommended": rec, "options": options, "current": cur}
     return {"recommended": None, "options": [], "current": None}
 
 
@@ -79,11 +97,24 @@ def parse_existing(rows):
     for row in rows or []:
         rec = row.get("recommendation") or {}
         cid = str(rec.get("campaign", "")).rsplit("/", 1)[-1]
-        cb = rec.get("campaignBudgetRecommendation") or {}
-        amt = _money(cb.get("recommendedBudgetAmountMicros"))
+        amt, _, cur = _budget_from(rec.get("campaignBudgetRecommendation"))
         if cid and amt is not None:
-            out[cid] = {"recommended": amt, "current": _money(cb.get("currentBudgetAmountMicros"))}
+            out[cid] = {"recommended": amt, "current": cur}
     return out
+
+
+def run_new(client, brief, new_customer=False):
+    """建系列前取谷歌推荐预算：国家 ⇒ 地区 ID，调 recommendations:generate，金额标账户币种。"""
+    loc = client.geo_constant(str(brief.get("country", "US")))
+    body = generate_body(brief, new_customer=new_customer, location_ids=[str(loc).rsplit("/", 1)[-1]])
+    res = parse_generate(client.call("/recommendations:generate", body))
+    return dict({"type": "adspilot.budget_recommendation", "currency": account_currency(client), "pulled_at": time.strftime("%Y-%m-%dT%H:%M:%S")}, **res)
+
+
+def run_campaigns(client):
+    """已有系列的谷歌推荐预算，按 campaign id，金额标账户币种。"""
+    camps = parse_existing(client.search(GAQL_EXISTING))
+    return {"type": "adspilot.budget_recommendations", "currency": account_currency(client), "pulled_at": time.strftime("%Y-%m-%dT%H:%M:%S"), "campaigns": camps}
 
 
 def selftest():
@@ -104,6 +135,43 @@ def selftest():
     print("T5-e 请求形状 ok=%s 推荐=%s 单档=%s 多档无推荐=%s/%s 空=%s 已有系列=%s -> %s" % (
         body["advertisingChannelType"] == "SEARCH", one["recommended"], single["recommended"], several["recommended"], several["options"],
         empty["recommended"], existing, "OK" if ok else "FAIL"))
+    # T6：2026-09-26 真实账号核出的三处（CC 回报）
+    class Fake:
+        cid = "1234567890"
+        missing = []
+
+        def __init__(self, resp=None, rows=None):
+            self.resp, self.rows, self.sent = resp or {}, rows or [], []
+
+        def geo_constant(self, cc):
+            return {"US": "geoTargetConstants/2840", "HK": "geoTargetConstants/2344"}[cc.upper()]
+
+        def search(self, q):
+            self.sent.append(q)
+            if "FROM customer" in q:
+                return [{"customer": {"currencyCode": "HKD"}}]
+            return self.rows
+
+        def call(self, path, body):
+            self.sent.append((path, body))
+            return self.resp
+    t6 = {}
+    try:
+        f1 = Fake(resp={"recommendations": [{"campaignBudgetRecommendation": {"recommendedBudgetAmountMicros": "60000000"}}]})
+        o1 = run_new(f1, dict(brief, currency="USD"), new_customer=True)
+        sent_body = [b for x in f1.sent if isinstance(x, tuple) for b in [x[1]]][0]
+        t6["a 带地区ID"] = sent_body.get("positiveLocationsIds") == [2840] and sent_body.get("countryCodes") == ["US"]
+        t6["c 币种取账户"] = o1["currency"] == "HKD" and o1["recommended"] == 60.0
+        f2 = Fake(rows=[{"recommendation": {"campaign": "customers/1/campaigns/42", "campaignBudgetRecommendation": {
+            "currentBudgetAmountMicros": "10000000", "budgetOptions": [{"budgetAmountMicros": "25000000"}]}}}])
+        o2 = run_campaigns(f2)
+        q = [x for x in f2.sent if isinstance(x, str) and "FROM recommendation" in x][0]
+        t6["b 选整个推荐对象"] = ("recommendation.campaign_budget_recommendation " in q + " " and ".current_budget_amount_micros" not in q
+                            and o2["campaigns"] == {"42": {"recommended": 25.0, "current": 10.0}} and o2["currency"] == "HKD")
+    except Exception as e:  # noqa: BLE001
+        t6["error"] = "%s: %s" % (type(e).__name__, str(e)[:120])
+    print("T6 %s -> %s" % (t6, "OK" if t6 and all(v is True for v in t6.values()) else "FAIL"))
+    ok = ok and bool(t6) and all(v is True for v in t6.values())
     return 0 if ok else 1
 
 
@@ -115,26 +183,27 @@ def main(argv):
     client = Client()
     if "new" in kv:
         brief = json.load(open(kv["new"], encoding="utf-8"))
-        body = generate_body(brief, new_customer="--new-customer" in argv)
         if not apply:
-            print(json.dumps({"dry_run": "POST customers/%s/recommendations:generate" % (client.cid[:3] + "***"), "body": body}, ensure_ascii=False)); return 0
+            body = generate_body(brief, new_customer="--new-customer" in argv)
+            print(json.dumps({"dry_run": "POST customers/%s/recommendations:generate" % (client.cid[:3] + "***"), "body": body,
+                              "note": "调接口时按国家查地区 ID 填 positiveLocationsIds"}, ensure_ascii=False)); return 0
         if client.missing:
             print(json.dumps({"error": "missing env: %s" % ", ".join(client.missing)})); return 4
         try:
-            res = parse_generate(client.call("/recommendations:generate", body))
+            out = run_new(client, brief, new_customer="--new-customer" in argv)
         except GadsError as e:
             print(json.dumps({"error": client.error_summary(e)}, ensure_ascii=False)); return 3
-        out = dict({"type": "adspilot.budget_recommendation", "currency": brief.get("currency"), "pulled_at": time.strftime("%Y-%m-%dT%H:%M:%S")}, **res)
+        except ValueError as e:
+            print(json.dumps({"error": str(e)}, ensure_ascii=False)); return 3
     elif "--campaigns" in argv:
         if not apply:
             print(json.dumps({"dry_run": "searchStream", "query": GAQL_EXISTING}, ensure_ascii=False)); return 0
         if client.missing:
             print(json.dumps({"error": "missing env: %s" % ", ".join(client.missing)})); return 4
         try:
-            camps = parse_existing(client.search(GAQL_EXISTING))
+            out = run_campaigns(client)
         except GadsError as e:
             print(json.dumps({"error": client.error_summary(e)}, ensure_ascii=False)); return 3
-        out = {"type": "adspilot.budget_recommendations", "pulled_at": time.strftime("%Y-%m-%dT%H:%M:%S"), "campaigns": camps}
     else:
         print(__doc__); return 1
     if kv.get("out"):

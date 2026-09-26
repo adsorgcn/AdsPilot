@@ -299,7 +299,9 @@ def step_campaign(cfg, kv, apply, enable=False):
             os.makedirs(os.path.dirname(bp), exist_ok=True)
             json.dump(brief, open(bp, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
             rc_b, j_b, _, _ = run(os.path.join(d_t, m_t["actions"]["budget"]), ["--new", bp, "--apply"] + (["--new-customer"] if brief.get("is_new_account") else []), timeout=120)
-            if rc_b == 0 and isinstance(j_b, dict) and j_b.get("recommended") is not None:
+            if rc_b == 0 and isinstance(j_b, dict) and j_b.get("currency") and j_b["currency"] != cfg.get("currency", "USD"):
+                budget_note = "谷歌推荐预算是 %s，config.currency 是 %s，不用；改 config.currency 后重跑" % (j_b["currency"], cfg.get("currency"))
+            elif rc_b == 0 and isinstance(j_b, dict) and j_b.get("recommended") is not None:
                 brief["google_budget"] = j_b["recommended"]
             elif rc_b == 0 and isinstance(j_b, dict) and j_b.get("options"):
                 budget_note = "谷歌给了几档预算 %s，没标推荐哪一档，请你定（brief.daily_budget）" % j_b["options"]
