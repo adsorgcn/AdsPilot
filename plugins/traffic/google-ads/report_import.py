@@ -38,6 +38,8 @@ ALIASES = {
     "avg_cpc": ["avg. cpc", "average cpc", "平均每次点击费用", "平均cpc"],
     "conversions": ["conversions", "conv.", "转化次数", "转化"],
     "conv_value": ["conv. value", "conversion value", "转化价值", "总转化价值"],
+    "top_of_page_bid": ["top of page bid est.", "est. top of page bid", "top of page bid estimate", "top of page cpc",
+                        "首页顶部出价估算值", "首页顶部出价估计值"],
     "policy": ["policy details", "approval status", "政策详情", "审批状态", "ad approval status"],
 }
 MATCH = {"phrase match": "phrase", "exact match": "exact", "broad match": "broad", "词组匹配": "phrase", "完全匹配": "exact", "广泛匹配": "broad",
@@ -117,6 +119,9 @@ def parse_csv_text(text, currency="USD", account=""):
             row["conversions"] = to_num(g("conversions"))
         if colmap.get("conv_value") is not None:
             row["conv_value"] = to_num(g("conv_value"))
+        tb = to_num(g("top_of_page_bid"))   # 谷歌给这个词的首页出价估计；空、-- 或 0 不写
+        if tb > 0:
+            row["top_of_page_bid"] = round(tb, 2)
         pol = g("policy").strip()
         if pol:
             row["policy"] = pol
@@ -134,6 +139,15 @@ def selftest():
     errs = validate(load_schema("traffic-report.schema.json"), rep)
     ok = not errs and len(rep["rows"]) >= 5 and any(r.get("keyword") for r in rep["rows"])
     print("rows=%d schema=%s -> %s" % (len(rep["rows"]), "ok" if not errs else errs[:2], "OK" if ok else "FAIL"))
+    # T4-g：谷歌给每个词的首页出价估计（英文、中文表头各一份）进 rows[].top_of_page_bid；空值不写
+    en = "Day,Campaign,Ad group,Keyword,Clicks,Cost,Top of page bid est.\n2026-09-20,C,A,k1,10,30.00,4.20\n2026-09-20,C,A,k2,3,6.00,--\n"
+    zh = "日期,广告系列,广告组,关键字,点击次数,费用,首页顶部出价估算值\n2026-09-20,C,A,k1,10,30.00,4.20\n"
+    r_en, r_zh = parse_csv_text(en), parse_csv_text(zh)
+    t4g = (r_en["rows"][0].get("top_of_page_bid") == 4.2 and "top_of_page_bid" not in r_en["rows"][1] and r_zh["rows"][0].get("top_of_page_bid") == 4.2
+           and not validate(load_schema("traffic-report.schema.json"), r_en))
+    print("T4-g 首页出价估计列 en=%s zh=%s 空值不写=%s -> %s" % (r_en["rows"][0].get("top_of_page_bid"), r_zh["rows"][0].get("top_of_page_bid"),
+                                                          "top_of_page_bid" not in r_en["rows"][1], "OK" if t4g else "FAIL"))
+    ok = ok and t4g
     return 0 if ok else 1
 
 

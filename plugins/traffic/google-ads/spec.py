@@ -39,16 +39,24 @@ def _cap(caps, key, fallback):
     return float(v) if v is not None else float(fallback)
 
 
+def _r2(x):
+    return round(float(x), 2) if x is not None else None
+
+
 def build(brief, soul_params, caps):
     """soul_params 是 load_soul(path, cfg) 折算后的（广告账户币种）；caps 是 config.caps（广告账户币种，null=用 SOUL 默认）。
-    出价上限 = min(brief.bid_cap（开局从选中 offer 带来）, caps.max_cpc)，两个都没有才用 SOUL 的 cpc.cap。"""
+    出价上限 = min(brief.bid_cap（开局从选中 offer 带来）, caps.max_cpc)；两个都没有用谷歌推荐出价 brief.google_bid；
+    出价 = brief.max_cpc，没写用 brief.google_bid。都没有就报问题、出价留空（spec 结构不合格，建不了），不拿常数顶。"""
     caps = caps or {}
     cands = [float(x) for x in (brief.get("bid_cap"), caps.get("max_cpc")) if x is not None]
-    cpc_cap = min(cands) if cands else float(soul_params["cpc"]["cap"])
+    gb = float(brief["google_bid"]) if brief.get("google_bid") is not None else None
+    cpc_cap = min(cands) if cands else gb
     budget_cap = _cap(caps, "daily_budget", soul_params["budget"]["daily_cap"])
     first_day = _cap(caps, "first_day_budget", soul_params["budget"]["first_day"])
     stop_loss = _cap(caps, "stop_loss_spend", soul_params["stop_loss"]["test_spend_total"])
-    max_cpc = float(brief.get("max_cpc", soul_params["cpc"]["start"]))
+    max_cpc = float(brief["max_cpc"]) if brief.get("max_cpc") is not None else gb
+    if cpc_cap is None:
+        cpc_cap = max_cpc   # 没有 offer 上限、用户上限与谷歌出价：上限就是用户自己写的出价，不往上加
     budget = float(brief.get("daily_budget", first_day))
     host = urlparse(brief["final_url"]).netloc
     spec = {
@@ -59,7 +67,7 @@ def build(brief, soul_params, caps):
             "networks": {"search_partners": False, "display": False},
             "geo": {"countries": [brief.get("country", "US").upper()], "presence": "living_in"},
             "language": brief.get("language", "en").lower(),
-            "bidding": {"strategy": "manual_cpc", "max_cpc": round(max_cpc, 2)},
+            "bidding": {"strategy": "manual_cpc", "max_cpc": _r2(max_cpc)},
             "daily_budget": round(budget, 2),
             "currency": brief.get("currency", "USD"),
             "final_url_domain": host,
@@ -69,18 +77,20 @@ def build(brief, soul_params, caps):
         },
         "adgroups": [{
             "name": brief.get("adgroup") or (brief.get("name") or "ag") + " AG1",
-            "max_cpc": round(max_cpc, 2),
+            "max_cpc": _r2(max_cpc),
             "final_url": brief["final_url"],
             "keywords": [{"text": k["text"], "match": k.get("match", "phrase")} for k in brief["keywords"]],
             "ads": [{"headlines": brief["headlines"], "descriptions": brief["descriptions"],
                      "path1": brief.get("path1", "")[:15], "path2": brief.get("path2", "")[:15]}],
         }],
-        "hard_limits": {"max_cpc_cap": cpc_cap, "daily_budget_cap": budget_cap, "stop_loss_spend": stop_loss},
+        "hard_limits": {"max_cpc_cap": _r2(cpc_cap), "daily_budget_cap": budget_cap, "stop_loss_spend": stop_loss},
         "offer_ref": brief.get("offer_ref", ""),
         "sub_id_form": "landing_first_party",
     }
     problems = []
-    if max_cpc > cpc_cap:
+    if max_cpc is None:
+        problems.append("缺出价：brief 没有 max_cpc，也没有谷歌推荐出价 google_bid（关键词插件的首页出价）；不拿常数顶")
+    elif max_cpc > cpc_cap:
         problems.append("max_cpc %.2f > cap %.2f" % (max_cpc, cpc_cap))
     if budget > budget_cap:
         problems.append("daily_budget %.2f > cap %.2f" % (budget, budget_cap))
@@ -110,7 +120,8 @@ def selftest():
     brief = json.load(open(os.path.join(ROOT, "tests", "fixtures", "brief.example.json"), encoding="utf-8"))
     spec, problems = build(brief, soul["params"], {"max_cpc": 0.25, "daily_budget": 10, "first_day_budget": 5, "stop_loss_spend": 300})
     errs = validate(load_schema("traffic-spec.schema.json"), spec)
-    bad = dict(brief); bad["max_cpc"] = 0.9; bad["keywords"] = [{"text": "x", "match": "broad"}]
+    # 2.0.15 起 SOUL 没有出价常数：坏 brief 显式带上 offer 的出价上限 0.25，仍然要报「出价超上限」
+    bad = dict(brief); bad["max_cpc"] = 0.9; bad["bid_cap"] = 0.25; bad["keywords"] = [{"text": "x", "match": "broad"}]
     _, p2 = build(bad, soul["params"], {})
     # 港币账户：出价上限来自 offer 的 bid_cap（4.56），3.79 的词能建；caps 全 null 时预算上限走 SOUL 折算值
     hk = {"currency": "HKD", "fx": {"USD": 1.0, "HKD": 7.8}}
@@ -119,7 +130,18 @@ def selftest():
     _, p3 = build(b3, soul_hk["params"], {"max_cpc": None, "daily_budget": None, "first_day_budget": None, "stop_loss_spend": None})
     b4 = dict(b3); b4["max_cpc"] = 4.8
     _, p4 = build(b4, soul_hk["params"], {"max_cpc": None})
-    ok = not problems and not errs and len(p2) >= 2 and not p3 and any("max_cpc" in x for x in p4)
+    # T4-f：没写出价 ⇒ 用谷歌推荐出价（brief.google_bid）；也没有 ⇒ 报问题，不拿常数顶；只有谷歌出价时它就是出价上限
+    b5 = {k: v for k, v in brief.items() if k not in ("max_cpc", "bid_cap")}
+    s5, p5 = build(b5, soul["params"], {})
+    b6 = dict(b5, google_bid=1.2)
+    s6, p6 = build(b6, soul["params"], {})
+    b7 = dict(b6, max_cpc=1.5)
+    _, p7 = build(b7, soul["params"], {})
+    t4f = (any("出价" in x for x in p5) and not p6 and s6["campaign"]["bidding"]["max_cpc"] == 1.2 and s6["hard_limits"]["max_cpc_cap"] == 1.2
+           and any("max_cpc" in x for x in p7) and "cpc" not in soul["params"])
+    print("T4-f 无出价参照=%s 谷歌1.2⇒出价%s上限%s 出价1.5超谷歌=%s -> %s" % (p5, s6["campaign"]["bidding"]["max_cpc"], s6["hard_limits"]["max_cpc_cap"],
+                                                                     any("max_cpc" in x for x in p7), "OK" if t4f else "FAIL"))
+    ok = not problems and not errs and len(p2) >= 2 and not p3 and any("max_cpc" in x for x in p4) and t4f
     print("spec problems=%d schema=%s bad_brief_problems=%d hkd_bidcap_ok=%s hkd_over_bidcap=%s -> %s" % (
         len(problems), "ok" if not errs else errs[:2], len(p2), not p3, any("max_cpc" in x for x in p4), "OK" if ok else "FAIL"))
     if problems:

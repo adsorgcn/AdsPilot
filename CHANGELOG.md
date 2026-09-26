@@ -2,6 +2,18 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。本文件记细节，README 的「进度记录」记叙事，每版两处都写。
 
+## 2.0.15（2026-09-26）兜底出价用谷歌推荐出价；keep 不算改动
+
+老板 2026-09-26 定的两件事，不在工程书里。
+
+一，兜底出价是谷歌推荐出价，不用随手写的常数。SOUL 删掉 `cpc.start` `cpc.cap` `cpc.watch`（版本 2.2.0，`MONEY_FIELDS` 同步去掉）。出价上限仍是 min(本 offer 的 bid_cap, config.caps.max_cpc)；两个都没有时用谷歌推荐出价 `google_bid`：词用它自己的首页出价估计，系列按点击加权它的词，报表里没有就用开局时记下的 Keyword Planner 出价；也没有就是未知，`bid_cap_for` 返回 None：campaign.adjust 与 keyword.action 不按出价降价，campaign.launch 不因出价 hold，但 go 不算在上限之内（M3，只提议不执行），日常循环 run.log 记一行「出价上限未知」。`spec.build` 没写出价时用 `brief.google_bid`，也没有就报问题、出价留空，spec 结构不合格建不了，不拿常数顶；只有用户自己写的出价时上限就是这个出价。开局把 Keyword Planner 的出价作为 `google_bid` 带进 brief、判断状态与 `data/inbox/campaigns.json`。报表：CSV 导入认「首页顶部出价估算值」（Top of page bid est.）列，API 查询加 `ad_group_criterion.position_estimates.top_of_page_cpc_micros`，被拒（HTTP 400）就退回原查询；行加可选字段 `top_of_page_bid`（traffic-report schema 同步）。`report_api.py` 加离线自测并挂进 tests/run.sh。
+
+二，keep 不算改动。`last_change_days` 只数真正的改动，keep、continue、hold 不重置计时。之前一条系列只要被判 keep 一次，改动计时每天归零，加预算要求至少隔 `min_days_between_changes` 天，于是永远加不了预算；用户说过 keep 的系列也一样。
+
+自测：T4-a 到 T4-g 先在 2.0.14 上跑出失败再修（港币 3.5 的赚钱系列按 0.25 美元常数被降价、谷歌估计 4.2 的词被降价、开局一律 hold、keep 之后加不了预算），修后全过。原 T1-c 断言「无 bid_cap ⇒ 按 cpc.cap 兜底 bid_down」，规则改了，由 T4-b..e 取代；spec 自测的坏 brief 显式带上 offer 上限 0.25，仍要报「出价超上限」；T2-f 在 T4-a 改写决定文件前后各核一次。样例数据上的判断随之变化：Gadget Test 从 bid_down（按常数）变为 budget_down（佣金低于花费乘 roi_floor），两个词不再被常数降价。既有 12 个判断用例、5 个用户用例、T1-a、b、d、e、f，T2、T3 全部不变。
+
+真实世界：本版没有碰真实账号；API 的首页出价估计字段与中文表头「首页顶部出价估算值」还没在真实账号上核过，字段被拒有退路。
+
 ## 2.0.14（2026-09-26）SOUL 是变量，换了就要生效
 
 按工程书 ADSPILOT-JUDGE-FIX-20260926 的 T3（续篇 ADSPILOT-JUDGE-FIX-20260926-PART2）。`load_soul` 按新语法解析 `::BOUNDARY` 行（`never`、`when:<字段><op><字面量>[&...]`、`nodes`、`choices`、`kind`、`builtin`），结果 `soul["boundaries"]` 是 `{name, conds, nodes, choices, kind, builtin, enforced}` 列表；写坏的行（条件、kind、nodes、builtin 任一处）让 `load_soul` 抛 ValueError，不做任何表达式求值。默认 SOUL 五行边界补 `builtin:`，与代码里五个内置边界一一对应。`boundary_hit` 返回 `(名字, kind)`：先查五个内置（原逻辑不动，不依赖 SOUL，删不掉），再按文件顺序查有 `when` 的自定义行；`judge()` 的合规判断从名字表改为 `kind == "compliance"`，响应加 `boundary_kind`（`judgment.schema.json` 同步）。`call_provider` 调插件时带 `--soul <path>`；llm 插件的提示词取这个 SOUL 的节点规则，没带才回退默认 SOUL，指定的读不了就退出码 3（主干退回本地）；jev、soul-api 带上 `--soul` 不受影响；`plugins/judgment/契约.md` 加一条 RULE。默认 SOUL 的 campaign.adjust 一节改成与代码同序（测试总额最先），加顺序守卫：文档与 `local_choice` 代码两边都查。自检 `soul_money` 扩成 `soul`：SOUL 解析失败 fail，默认 SOUL 缺内置行 fail，没有 when 也没有 builtin 的行 warn。`soul/README.md` 写 BOUNDARY 语法。自测：T3-a 到 T3-g 先在 2.0.13 上跑出失败再修（a、b、c、e、g 与 f 的提示词一半是真缺陷，d 只是旧接口不带 kind），修后全过；T3-f 用 127.0.0.1 假端点把 llm、jev、soul-api 三个插件的整条链各跑一遍，不出网；既有 12 个判断用例与 5 个用户用例输出与 2.0.13 逐行一致，f_v5 冻结区逐字不变。工程书外的几处：`builtin` 行的 kind 由代码定，SOUL 写成别的报错；围栏里的 BOUNDARY 行当示例不读；顺序守卫多查一遍代码顺序；T3-g 的对调在内存副本上做，不动仓库文件。

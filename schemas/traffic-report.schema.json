@@ -36,6 +36,7 @@
           "avg_cpc": { "type": "number", "minimum": 0 },
           "conversions": { "type": "number", "minimum": 0 },
           "conv_value": { "type": "number", "minimum": 0 },
+          "top_of_page_bid": { "description": "谷歌给这个词的首页出价估计（广告账户币种），出价上限的兜底。没有就省略。", "type": "number", "minimum": 0 },
           "disapproved": { "type": "boolean" },
           "policy": { "type": "string" }
         }
