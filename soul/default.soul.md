@@ -15,9 +15,8 @@
 ```json soul-params
 {
   "soul": "default",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "money_unit": "USD",
-  "cpc": { "start": 0.25, "cap": 0.25, "watch": 0.20 },
   "budget": { "first_day": 5.0, "daily_cap": 10.0, "step_pct": 20, "ramp_min_days": 3, "min_days_between_changes": 2 },
   "stop_loss": { "spend_no_conversion": 100.0, "test_spend_total": 300.0, "days_before_budget_down": 7, "roi_floor": 0.5 },
   "offer": {
@@ -41,7 +40,7 @@
 
 ## 金额单位
 
-这份 SOUL 里的金额一律按美元写（`money_unit: USD`）：`cpc.start` `cpc.cap` `cpc.watch`、`budget.first_day` `budget.daily_cap`、`stop_loss.spend_no_conversion` `stop_loss.test_spend_total`、`user_decision.max_extra_spend`。主干读 SOUL 时按 `config.currency` 与 `config.fx` 把它们折成广告账户币种，判断里比的都是折算后的数。`offer.min_epc` 不折算，它和联盟给的 EPC 同是美元。
+这份 SOUL 里的金额一律按美元写（`money_unit: USD`）：`budget.first_day` `budget.daily_cap`、`stop_loss.spend_no_conversion` `stop_loss.test_spend_total`、`user_decision.max_extra_spend`。主干读 SOUL 时按 `config.currency` 与 `config.fx` 把它们折成广告账户币种，判断里比的都是折算后的数。`offer.min_epc` 不折算，它和联盟给的 EPC 同是美元。
 
 `config.caps` 是用户自己设的绝对上限，用广告账户币种写；不填就用这里的默认值（美元按 fx 折算）。
 
@@ -70,7 +69,7 @@
 ::RULE{第一条：有一个词的出价<这个offer的bid_cap⇒这个offer能投|一个这样的词都没有⇒出局}
 ::RULE{bid_cap=每次点击赚的钱×max_bid_ratio max_bid_ratio默认1.0 即出价不超过每次点击赚的钱 改成小于1.0则选品与出价一起收紧 两处永远同一个数}
 
-出价上限 = min(本 offer 的 bid_cap, config.caps.max_cpc)；两个都没有时，用 cpc.cap（美元，按 fx 折算）。下面几节说的「出价上限」都是这个数。
+出价上限 = min(本 offer 的 bid_cap, config.caps.max_cpc)；两个都没有时，用谷歌推荐出价（词用它自己的首页出价估计，系列按点击加权它的词，报表里没有就用开局时记下的 Keyword Planner 出价）；谷歌推荐出价也没有，出价上限就是未知：不按出价降价，开局只提议不执行。下面几节说的「出价上限」都是这个数。这份 SOUL 不写出价常数，随手写的出价数字对真实品类没有意义，拿它自动调价会伤到赚钱的系列。
 
 ::RULE{每次点击赚的钱=EPC÷100（联盟的EPC是每百次点击）epc_basis为min_7d_3m时取7天与3个月里小的那个 按汇率换成广告账户币种}
 ::RULE{词的出价=关键词插件给的bid_metric（cpc_low是首页出价低位 cpc_high是高位）出价为0或月搜索<min_keyword_searches的词不算}
@@ -93,14 +92,14 @@
 
 ::RULE{spec过schema且hard_limits逐条满足且lp已publish且账号状态正常⇒go|否则hold}
 ::RULE{新账号首次⇒daily_budget不超过budget.first_day 否则hold并把预算改到first_day再判}
-::RULE{max_cpc>出价上限⇒hold}
+::RULE{max_cpc>出价上限⇒hold|出价上限未知⇒不算在上限之内 只提议不执行}
 
 ### campaign.adjust（每日）
 
 规则按顺序，第一条命中即停（与 `core/judge/judge.py` 的 `local_choice` 同序，自测里有顺序守卫）：
 
 ::RULE{spend_total≥stop_loss.test_spend_total⇒这条线的测试期结束 pause并escalate 让本人决定要不要继续}
-::RULE{avg_cpc>出价上限⇒bid_down 幅度keyword.bid_down_pct}
+::RULE{avg_cpc>出价上限⇒bid_down 幅度keyword.bid_down_pct|出价上限未知⇒这条不看}
 ::RULE{spend_total≥stop_loss.spend_no_conversion且conversions=0⇒pause}
 ::RULE{days_running≥stop_loss.days_before_budget_down且commission<spend_window×roi_floor⇒budget_down}
 ::RULE{conversions>0且commission≥spend_window且days_running≥budget.ramp_min_days且last_change_days≥budget.min_days_between_changes⇒budget_up 每次step_pct 不超过daily_cap}
@@ -108,7 +107,7 @@
 
 ### keyword.action（每词）
 
-::RULE{avg_cpc>出价上限⇒bid_down}
+::RULE{avg_cpc>出价上限⇒bid_down|出价上限未知⇒这条不看}
 ::RULE{clicks≥keyword.pause_after_clicks_no_conv且conversions=0⇒pause}
 ::RULE{搜索词与offer无关⇒negative|本地规则判不了相关性 这条只有判断插件能给 本地一律keep}
 ::RULE{其余⇒keep}

@@ -43,6 +43,21 @@ def anchor_key(entry):
                                    sort_keys=True).encode("utf-8")).hexdigest()
 
 
+def google_bid_of(rows):
+    """一组报表行的谷歌推荐出价（首页出价估计 top_of_page_bid）：按点击加权；都没点击就平均；没有就 None。"""
+    xs = [(float(r["top_of_page_bid"]), float(r.get("clicks") or 0)) for r in rows if r.get("top_of_page_bid") is not None]
+    if not xs:
+        return None
+    w = sum(c for _, c in xs)
+    return round(sum(b * c for b, c in xs) / w, 2) if w else round(sum(b for b, _ in xs) / len(xs), 2)
+
+
+def latest_google_bid(rows):
+    """一个词最近一天的首页出价估计；没有就 None（词只用自己的，不借别的词的）。"""
+    xs = sorted((r["date"], float(r["top_of_page_bid"])) for r in rows if r.get("top_of_page_bid") is not None)
+    return round(xs[-1][1], 2) if xs else None
+
+
 def _date(s):
     return datetime.strptime(str(s)[:10], "%Y-%m-%d").date()
 
@@ -281,7 +296,9 @@ class Run:
         self.needs_human.append({"reason": reason, "note": note, "soft": soft})
 
     def last_change_days(self, target):
-        r = self.con.execute("SELECT MAX(applied_at) FROM actions WHERE target=? AND applied=1", (target,)).fetchone()[0]
+        # 只数真正的改动：keep、continue、hold 记成 applied 但不是改动，不重置计时（否则 keep 过的系列永远加不了预算）
+        r = self.con.execute("SELECT MAX(applied_at) FROM actions WHERE target=? AND applied=1 AND choice NOT IN ('keep','continue','hold')",
+                             (target,)).fetchone()[0]
         if not r:
             return 99
         try:
@@ -344,12 +361,15 @@ class Run:
                 break
             dates = sorted({r["date"] for r in rs})
             w = [r for r in rs if r["date"] in win7]
+            gbid = google_bid_of(w) if google_bid_of(w) is not None else (camp_cfg.get(c) or {}).get("google_bid")
             clicks_w = sum(r["clicks"] for r in w); cost_w = sum(r["cost"] for r in w)
             st = {"days_running": len(dates), "spend_total": round(sum(r["cost"] for r in rs), 2), "spend_window": round(cost_w, 2),
                   "clicks": clicks_w, "avg_cpc": round(cost_w / clicks_w, 4) if clicks_w else 0.0,
                   "conversions": conv_by_c[c][0], "commission": round(conv_by_c[c][1], 2), "last_change_days": self.last_change_days(c),
                   "daily_budget": float((camp_cfg.get(c) or {}).get("daily_budget", default_budget)), "money_at_stake": round(cost_w, 2),
-                  "disapproved": any(r.get("disapproved") for r in rs), "bid_cap": (camp_cfg.get(c) or {}).get("bid_cap")}
+                  "disapproved": any(r.get("disapproved") for r in rs), "bid_cap": (camp_cfg.get(c) or {}).get("bid_cap"), "google_bid": gbid}
+            if st["bid_cap"] is None and caps.get("max_cpc") is None and gbid is None:
+                self.log("出价上限未知 %s：没有 offer 的 bid_cap、caps.max_cpc 与谷歌推荐出价，本轮不按出价调" % c)
             resp = self.decide("campaign.adjust", st, ["keep", "bid_down", "budget_up", "budget_down", "pause"], target=c)
             if resp["choice"] == "keep":
                 self.record_action("campaign.adjust", c, resp, applied=True, note="no_change")
@@ -373,7 +393,7 @@ class Run:
             if clicks == 0:
                 continue
             st = {"clicks": clicks, "conversions": conv_by_k[key], "avg_cpc": round(cost / clicks, 4), "cost": round(cost, 2), "money_at_stake": round(cost, 2),
-                  "bid_cap": (camp_cfg.get(key[0]) or {}).get("bid_cap")}
+                  "bid_cap": (camp_cfg.get(key[0]) or {}).get("bid_cap"), "google_bid": latest_google_bid(rs)}
             tgt = "%s/%s/%s" % key
             resp = self.decide("keyword.action", st, ["keep", "pause", "bid_down", "negative"], target=tgt)
             if resp["choice"] != "keep" and J.executes(resp):
@@ -504,7 +524,7 @@ def ack(cfg, run_id):
 
 
 def _selftest_cfg(tmp, name, mappings=True):
-    """自测用的一套独立配置与账本：每个场景一份，互不串味（keep 会记成 applied，影响下一轮的 last_change_days）。"""
+    """自测用的一套独立配置与账本：每个场景一份，互不串味。"""
     cfg = json.load(open(os.path.join(ROOT, "config", "adspilot.example.json"), encoding="utf-8"))
     base = os.path.join(tmp, name)
     cfg.update({"data_dir": os.path.join(base, "data"), "runs_dir": os.path.join(base, "runs")})
@@ -584,6 +604,14 @@ def selftest():
     check("T2-a", user_ok, "targets=%s adjust=%s decided_by=%s applied=%s anchors=%d schema=%s" % (
         targets, sorted(set(adj2.values())), sorted(set(by2)), applied2, len(anchors), "ok" if not errs2 else errs2[:2]))
 
+    # T4-a keep 不算改动：第二轮用户说了 keep，第三轮不再有用户决定，判断应与第一轮一致（加预算不被 keep 卡住）
+    f_ok_round2 = _selftest_sha1(p) == h0          # T2-f：第二轮没回写
+    _selftest_decisions(cfg, [])
+    h0 = _selftest_sha1(p)                          # 测试自己改了文件，重新记；第三轮也不许回写
+    run_once(cfg, run_id="selftest-after-keep", apply=False)
+    rep_k = _selftest_report(cfg, "selftest-after-keep")
+    check("T4-a", by_target(rep_k, "campaign.adjust") == base_adj, "第一轮=%s 用户keep之后一轮=%s" % (base_adj, by_target(rep_k, "campaign.adjust")))
+
     # T2-b 花钱节点写 target:"*" ⇒ 忽略并写进报告，判断照常；非花钱节点的 * 照旧生效
     cfg_b = _selftest_cfg(tmp, "b")
     pb = _selftest_decisions(cfg_b, [{"node": "campaign.adjust", "target": "*", "choice": "keep", "created": ds()},
@@ -642,7 +670,30 @@ def selftest():
           "why=%s decided_by=%s | 控制组 C-ok 多花50 decided_by=%s" % (exp.get("C-spend"), rc_spend.get("decided_by"), rc_ok.get("decided_by")))
     check("T2-e", exp.get("C-cross") == "crossed_test_spend_total" and rc_cross.get("decided_by") == "judge" and rc_cross["choice"] == "pause",
           "why=%s decided_by=%s choice=%s mode=%s" % (exp.get("C-cross"), rc_cross.get("decided_by"), rc_cross["choice"], rc_cross["mode_local"]))
-    check("T2-f", _selftest_sha1(p) == h0 and _selftest_sha1(pb) == hb and _selftest_sha1(pc) == hc,
+    # T4-g 日常循环的状态带谷歌推荐出价：词取自己的首页出价估计；系列按点击加权；报表里没有才用开局记下的
+    cfg_g = _selftest_cfg(tmp, "g", mappings=False)
+    os.makedirs(os.path.join(cfg_g["data_dir"], "inbox"), exist_ok=True)
+    json.dump({"C1": {"daily_budget": 5.0}, "C2": {"daily_budget": 5.0, "google_bid": 2.5}},
+              open(os.path.join(cfg_g["data_dir"], "inbox", "campaigns.json"), "w", encoding="utf-8"))
+    rg = Run(cfg_g, "selftest-gbid", False)
+    seen = []
+    orig = rg.decide
+
+    def spy(node, state, choices, target="", evidence=None):
+        seen.append((node, target, dict(state or {})))
+        return orig(node, state, choices, target=target, evidence=evidence)
+    rg.decide = spy
+    d0 = ds()
+    rows_g = [{"date": d0, "campaign": "C1", "adgroup": "A", "keyword": "k1", "impressions": 100, "clicks": 10, "cost": 30.0, "top_of_page_bid": 2.0},
+              {"date": d0, "campaign": "C1", "adgroup": "A", "keyword": "k2", "impressions": 100, "clicks": 30, "cost": 90.0, "top_of_page_bid": 4.0},
+              {"date": d0, "campaign": "C2", "adgroup": "B", "keyword": "k3", "impressions": 50, "clicks": 5, "cost": 10.0}]
+    rg.step_judgments({"rows": rows_g}, None)
+    rg.finish(0, {})
+    gb = {(n, t): s_.get("google_bid") for n, t, s_ in seen}
+    want_g = {("campaign.adjust", "C1"): 3.5, ("campaign.adjust", "C2"): 2.5, ("keyword.action", "C1/A/k1"): 2.0, ("keyword.action", "C1/A/k2"): 4.0,
+              ("keyword.action", "C2/B/k3"): None}
+    check("T4-g", all(gb.get(k) == v for k, v in want_g.items()), "google_bid=%s" % {("%s %s" % k): gb.get(k) for k in want_g})
+    check("T2-f", f_ok_round2 and _selftest_sha1(p) == h0 and _selftest_sha1(pb) == hb and _selftest_sha1(pc) == hc,
           "user-decisions.json 三份跑完字节不变")
     ok = ok and all(results) and not errs4
     print("selftest rc=%d conversions=%d actions=%d judgments=%d schema=%s judge_changes=%d user_keep=%s -> %s" % (

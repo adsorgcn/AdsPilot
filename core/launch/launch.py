@@ -286,6 +286,7 @@ def step_campaign(cfg, kv, apply, enable=False):
         metric = soul["params"]["offer"].get("bid_metric", "cpc_low")
         first = offer["keywords"][0].get(metric)
         if first is not None:
+            brief.setdefault("google_bid", round(float(first), 2))   # 谷歌推荐出价：Keyword Planner 的首页出价
             brief["max_cpc"] = round(min(float(first), float(brief["bid_cap"])) if brief.get("bid_cap") is not None else float(first), 2)
     if not brief.get("final_url"):
         return out({"error": "brief 没有 final_url 且开局状态里没有已发布的页（先跑 page --apply）"}, 4)
@@ -304,7 +305,7 @@ def step_campaign(cfg, kv, apply, enable=False):
             pass
     jst = {"spec_valid": not problems and not errs, "lp_published": bool(st.get("page_url")) or bool(kv.get("brief") and not apply), "account_status": acct,
            "max_cpc": spec["campaign"]["bidding"]["max_cpc"], "daily_budget": spec["campaign"]["daily_budget"], "is_new_account": bool(brief.get("is_new_account")),
-           "bid_cap": brief.get("bid_cap")}
+           "bid_cap": brief.get("bid_cap"), "google_bid": brief.get("google_bid")}
     resp, ok = decide(cfg, soul, "campaign.launch", jst, ["go", "hold"], ["runs/launch/spec.json"], user=kv.get("user"))
     res = {"step": "campaign", "spec": os.path.relpath(spec_path, ROOT), "problems": problems, "schema_errors": errs[:3], "state": jst, "judge": judged(resp)}
     if not (ok and resp["choice"] == "go"):
@@ -331,7 +332,8 @@ def step_campaign(cfg, kv, apply, enable=False):
                 cc = {}
         row = cc.get(spec["campaign"]["name"]) or {}
         row.update({"daily_budget": spec["campaign"]["daily_budget"], "max_cpc": spec["campaign"]["bidding"]["max_cpc"], "bid_cap": brief.get("bid_cap"),
-                    "offer_ref": brief.get("offer_ref"), "earn_per_click": offer.get("earn_per_click"), "currency": cfg.get("currency", "USD")})
+                    "offer_ref": brief.get("offer_ref"), "earn_per_click": offer.get("earn_per_click"), "google_bid": brief.get("google_bid"),
+                    "currency": cfg.get("currency", "USD")})
         cc[spec["campaign"]["name"]] = row
         json.dump(cc, open(cp, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
         res["campaigns_json"] = os.path.relpath(cp, ROOT)
@@ -428,10 +430,14 @@ def selftest():
     t2 = r2["choice"] == "cj:1:1"
     import spec as S  # noqa: E402
     brief = json.load(open(os.path.join(ROOT, "tests", "fixtures", "brief.example.json"), encoding="utf-8"))
+    # 2.0.15 起 SOUL 没有出价常数：真实开局时状态里带着谷歌推荐出价（Keyword Planner），这里给 0.25，与 brief 的出价一致
+    brief["google_bid"] = 0.25
     sp, problems = S.build(brief, soul["params"], cfg.get("caps") or {})
-    r3, ok3 = decide(cfg, soul, "campaign.launch", {"spec_valid": not problems, "lp_published": True, "account_status": "ok", "max_cpc": sp["campaign"]["bidding"]["max_cpc"],
-                                                    "daily_budget": sp["campaign"]["daily_budget"], "is_new_account": True}, ["go", "hold"], ["x"])
-    t3 = r3["choice"] == "go" and ok3
+    st3 = {"spec_valid": not problems, "lp_published": True, "account_status": "ok", "max_cpc": sp["campaign"]["bidding"]["max_cpc"],
+           "daily_budget": sp["campaign"]["daily_budget"], "is_new_account": True}
+    r3, ok3 = decide(cfg, soul, "campaign.launch", dict(st3, google_bid=0.25), ["go", "hold"], ["x"])
+    r3n, ok3n = decide(cfg, soul, "campaign.launch", st3, ["go", "hold"], ["x"])     # 没有任何出价参照 ⇒ 只提议不执行
+    t3 = r3["choice"] == "go" and ok3 and r3n["mode_local"] == "M3" and not ok3n
     r4, _ = decide(cfg, soul, "campaign.launch", {"spec_valid": False, "lp_published": True, "account_status": "ok", "max_cpc": 0.2, "daily_budget": 5}, ["go", "hold"], ["x"])
     t4 = r4["choice"] == "hold"
     bad = [{"id": "cj:9:9", "data": {"epc": 90, "fx": 7.8, "ppc_allowed": None, "keywords": [{"text": "x", "volume": 900, "cpc_low": 30.0}]}}, {"id": "none"}]
