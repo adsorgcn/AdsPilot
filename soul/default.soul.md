@@ -97,14 +97,14 @@
 
 ### campaign.adjust（每日）
 
-规则按顺序，第一条命中即停：
+规则按顺序，第一条命中即停（与 `core/judge/judge.py` 的 `local_choice` 同序，自测里有顺序守卫）：
 
+::RULE{spend_total≥stop_loss.test_spend_total⇒这条线的测试期结束 pause并escalate 让本人决定要不要继续}
 ::RULE{avg_cpc>出价上限⇒bid_down 幅度keyword.bid_down_pct}
 ::RULE{spend_total≥stop_loss.spend_no_conversion且conversions=0⇒pause}
 ::RULE{days_running≥stop_loss.days_before_budget_down且commission<spend_window×roi_floor⇒budget_down}
 ::RULE{conversions>0且commission≥spend_window且days_running≥budget.ramp_min_days且last_change_days≥budget.min_days_between_changes⇒budget_up 每次step_pct 不超过daily_cap}
 ::RULE{其余⇒keep}
-::RULE{spend_total≥stop_loss.test_spend_total⇒这条线的测试期结束 pause并escalate 让本人决定要不要继续}
 
 ### keyword.action（每词）
 
@@ -142,16 +142,18 @@
 
 ## 边界（用户可加，不可删）
 
+下面五行各带 `builtin:`，对应代码里写死的五个内置边界：删了这几行，代码照样执行。自定义 SOUL 要加边界，写 `when:` 条件让代码执行（语法见 `soul/README.md`）；没有 `when` 也没有 `builtin` 的行代码执行不了，只给 Agent 看。
+
 合规姿态，用户说了也不做：
 
-::BOUNDARY{never:假流量_模拟点击_cloaking_绕资格或封禁_冒充身份_多账号|scope:permanent|kind:compliance}
-::BOUNDARY{never:账号被平台停用或限制后继续投放或另开账号|scope:permanent|kind:compliance}
+::BOUNDARY{never:假流量_模拟点击_cloaking_绕资格或封禁_冒充身份_多账号|builtin:forbidden_action|scope:permanent|kind:compliance}
+::BOUNDARY{never:账号被平台停用或限制后继续投放或另开账号|builtin:account_suspended_or_limited|scope:permanent|kind:compliance}
 
 运营边界，Agent 自己拿主意时不越过；用户明确说了就照做，越过的记进账本：
 
-::BOUNDARY{never:总消耗超过stop_loss.test_spend_total后未经本人确认继续投放|scope:permanent|kind:operational}
-::BOUNDARY{never:上传未经对账的转化|scope:permanent|kind:operational}
-::BOUNDARY{never:直投联盟链接为Final_URL|scope:permanent|kind:operational}
+::BOUNDARY{never:总消耗超过stop_loss.test_spend_total后未经本人确认继续投放|builtin:test_spend_total_exceeded_without_human_confirmation|scope:permanent|kind:operational}
+::BOUNDARY{never:上传未经对账的转化|builtin:upload_unreconciled_conversions|scope:permanent|kind:operational}
+::BOUNDARY{never:直投联盟链接为Final_URL|builtin:affiliate_link_as_final_url|scope:permanent|kind:operational}
 
 ## 人在哪三处
 
