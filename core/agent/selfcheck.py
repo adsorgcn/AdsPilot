@@ -143,25 +143,39 @@ def load_config():
     return cfg, _res("config", "pass", "apply=%s provider=%s" % (cfg.get("apply"), (cfg.get("judgment") or {}).get("provider")))
 
 
-def check_soul_money(cfg):
-    """SOUL 金额按 money_unit（美元）写，主干按 config.fx 折成 config.currency：两个币种都要在 fx 里。"""
+def check_soul(cfg):
+    """当前 SOUL：能被解析（坏的 ::BOUNDARY 行会让 load_soul 报错）；金额按 money_unit（美元）写，
+    主干按 config.fx 折成 config.currency，两个币种都要在 fx 里；没有 when 也没有 builtin 的边界行代码执行不了，给 warn；
+    默认 SOUL 缺任何一个内置边界对应的 builtin 行，fail。"""
     if not cfg:
         try:
             cfg = json.load(open(os.path.join(ROOT, "config", "adspilot.example.json"), encoding="utf-8"))
         except Exception as e:  # noqa: BLE001
-            return _res("soul_money", "fail", "读不到 config: %s" % e)
+            return _res("soul", "fail", "读不到 config: %s" % e)
     sys.path.insert(0, os.path.join(ROOT, "core", "judge"))
+    path = cfg.get("soul", "soul/default.soul.md")
     try:
         import judge as J  # noqa: E402
-        soul = J.load_soul(cfg.get("soul", "soul/default.soul.md"))
+        soul = J.load_soul(path)
     except Exception as e:  # noqa: BLE001
-        return _res("soul_money", "fail", "SOUL 读不了: %s" % str(e)[:160])
+        return _res("soul", "fail", "SOUL 读不了或解析失败: %s" % str(e)[:200], "按 soul/README.md 的 BOUNDARY 语法改")
     cur, unit, fx = cfg.get("currency"), soul.get("money_unit", "USD"), cfg.get("fx") or {}
     miss = [c for c in (cur, unit) if not isinstance(fx.get(c), (int, float))]
     if not cur or miss:
-        return _res("soul_money", "fail", "config.currency=%s SOUL money_unit=%s，config.fx 缺 %s" % (cur, unit, ", ".join(str(m) for m in miss) or "currency"),
+        return _res("soul", "fail", "config.currency=%s SOUL money_unit=%s，config.fx 缺 %s" % (cur, unit, ", ".join(str(m) for m in miss) or "currency"),
                     "在 config.fx 里填这两个币种每 1 美元的汇率")
-    return _res("soul_money", "pass", "SOUL %s → 账户 %s，汇率 %s" % (unit, cur, round(float(fx[cur]) / float(fx[unit]), 4)))
+    rows = soul.get("boundaries") or []
+    is_default = os.path.abspath(path if os.path.isabs(path) else os.path.join(ROOT, path)) == os.path.join(ROOT, "soul", "default.soul.md")
+    if is_default:
+        missing = [b for b in J.BUILTIN_KIND if b not in {r.get("builtin") for r in rows}]
+        if missing:
+            return _res("soul", "fail", "默认 SOUL 缺内置边界对应行: %s" % ", ".join(missing), "从仓库恢复 soul/default.soul.md 的边界段")
+    detail = "%s，%d 条边界；SOUL %s → 账户 %s，汇率 %s" % (soul["id"], len(rows), unit, cur, round(float(fx[cur]) / float(fx[unit]), 4))
+    loose = [r["name"] for r in rows if not r.get("enforced")]
+    if loose:
+        return _res("soul", "warn", "%s；%d 行边界没有 when 也没有 builtin，代码执行不了，只给 Agent 看: %s" % (detail, len(loose), ", ".join(loose)[:120]),
+                    "要让代码执行就补 when:<条件>（语法见 soul/README.md）")
+    return _res("soul", "pass", detail)
 
 
 def check_secrets_in_repo():
@@ -221,7 +235,7 @@ def main(argv):
     cfg = cfg or {}
     results = [check_python(), check_shell(), check_write(cfg), check_scheduler(), check_long_run(),
                check_deploy_tools(), check_ilang_runtime(), cfg_res, check_version_consistency(),
-               check_secrets_in_repo(), check_soul_money(cfg)]
+               check_secrets_in_repo(), check_soul(cfg)]
     if not quick:
         results.append(check_network())
         results.append(check_plugins())

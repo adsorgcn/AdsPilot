@@ -2,6 +2,12 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。本文件记细节，README 的「进度记录」记叙事，每版两处都写。
 
+## 2.0.14（2026-09-26）SOUL 是变量，换了就要生效
+
+按工程书 ADSPILOT-JUDGE-FIX-20260926 的 T3（续篇 ADSPILOT-JUDGE-FIX-20260926-PART2）。`load_soul` 按新语法解析 `::BOUNDARY` 行（`never`、`when:<字段><op><字面量>[&...]`、`nodes`、`choices`、`kind`、`builtin`），结果 `soul["boundaries"]` 是 `{name, conds, nodes, choices, kind, builtin, enforced}` 列表；写坏的行（条件、kind、nodes、builtin 任一处）让 `load_soul` 抛 ValueError，不做任何表达式求值。默认 SOUL 五行边界补 `builtin:`，与代码里五个内置边界一一对应。`boundary_hit` 返回 `(名字, kind)`：先查五个内置（原逻辑不动，不依赖 SOUL，删不掉），再按文件顺序查有 `when` 的自定义行；`judge()` 的合规判断从名字表改为 `kind == "compliance"`，响应加 `boundary_kind`（`judgment.schema.json` 同步）。`call_provider` 调插件时带 `--soul <path>`；llm 插件的提示词取这个 SOUL 的节点规则，没带才回退默认 SOUL，指定的读不了就退出码 3（主干退回本地）；jev、soul-api 带上 `--soul` 不受影响；`plugins/judgment/契约.md` 加一条 RULE。默认 SOUL 的 campaign.adjust 一节改成与代码同序（测试总额最先），加顺序守卫：文档与 `local_choice` 代码两边都查。自检 `soul_money` 扩成 `soul`：SOUL 解析失败 fail，默认 SOUL 缺内置行 fail，没有 when 也没有 builtin 的行 warn。`soul/README.md` 写 BOUNDARY 语法。自测：T3-a 到 T3-g 先在 2.0.13 上跑出失败再修（a、b、c、e、g 与 f 的提示词一半是真缺陷，d 只是旧接口不带 kind），修后全过；T3-f 用 127.0.0.1 假端点把 llm、jev、soul-api 三个插件的整条链各跑一遍，不出网；既有 12 个判断用例与 5 个用户用例输出与 2.0.13 逐行一致，f_v5 冻结区逐字不变。工程书外的几处：`builtin` 行的 kind 由代码定，SOUL 写成别的报错；围栏里的 BOUNDARY 行当示例不读；顺序守卫多查一遍代码顺序；T3-g 的对调在内存副本上做，不动仓库文件。
+
+真实世界：本版没有碰真实账号与真实判断端点，只跑了自测与样例数据。
+
 ## 2.0.13（2026-09-26）用户决定有时间边界和钱的边界
 
 按工程书 ADSPILOT-JUDGE-FIX-20260926 的 T2（续篇 ADSPILOT-JUDGE-FIX-20260926-PART2）。「用户说了就照做」不变，但用户回答的是说话那一刻的情况，情况变了这条就失效、交回判断。`daily.py` 的 `user_decision(node, target, state)` 逐条判：花钱节点（SOUL `user_decision.no_wildcard_nodes`，默认 campaign.adjust 与 keyword.action）上 `target:"*"` 忽略；过了 `until` 失效，没写 `until` 时按 `created`（或第一次看到那天）加 `default_days`（7 天）；campaign.adjust 从第一次看到起多花 `max_extra_spend`（100 美元，已按 fx 折算）或越过 `stop_loss.test_spend_total` 即失效。第一次看到的日子与当时的 `spend_total` 记进账本新表 `user_decision_anchor`（老账本打开时自动补表），`user-decisions.json` 只读不回写。失效与忽略不新增 needs_human、不改退出码。`report.json` 加可选字段 `user_decisions`（applied、expired、ignored，后两者带 why），schema 同步；run.log 每条失效或忽略一行。`core/loop/使用方法.md`「用户说了就照做」一节写字段、边界与 Agent 当场复述的话。自测：原第二轮的 `target:"*"` 无期限写法改为逐条带 `created`；新增 T2-a 到 T2-f（先在 2.0.12 逻辑上跑出 a 到 e 失败再修），另有一个未越界的控制组照做；T1 与既有判断用例不变。工程书外的两处：日期写坏的条目忽略（why `bad_date`），自定义 SOUL 没有 `user_decision` 段时用上述默认值。

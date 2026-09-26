@@ -16,9 +16,11 @@ AdsPilot 判断接口（主干，判断部件）
 只用标准库。f_v5 的常数抄自 ilang-spec 的 ilang_judge_validator.py（MIT），不得改动。
 """
 import copy
+import inspect
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -87,7 +89,7 @@ def load_soul(path, cfg=None):
         raise ValueError("SOUL 缺 ```json soul-params 围栏: %s" % path)
     params_usd = json.loads(m.group(1))
     unit = params_usd.get("money_unit", "USD")
-    boundaries = re.findall(r"^::BOUNDARY\{never:([^|}]+)", txt, re.M)
+    boundaries = parse_boundaries(txt, path)
     if not cfg or not cfg.get("currency"):
         params, cur = params_usd, unit
     else:
@@ -102,7 +104,7 @@ def load_soul(path, cfg=None):
             if isinstance(params.get(sec), dict) and isinstance(params[sec].get(key), (int, float)):
                 params[sec][key] = round(float(params[sec][key]) * rate, 2)
     return {"path": path, "params": params, "params_usd": params_usd, "currency": cur, "money_unit": unit,
-            "boundaries": [b.strip() for b in boundaries], "id": "%s@%s" % (params_usd.get("soul", "?"), params_usd.get("version", "?"))}
+            "boundaries": boundaries, "id": "%s@%s" % (params_usd.get("soul", "?"), params_usd.get("version", "?"))}
 
 
 def cap(caps, key, fallback):
@@ -119,11 +121,136 @@ def bid_cap_for(state, caps, p):
 
 # ------------------------------------------------------------------ 边界
 # 合规姿态：用户说了也不做（怎么投）。其余是运营边界：Agent 自己拿主意时不越过，用户明确说了就照做。
-COMPLIANCE_BOUNDARIES = ("forbidden_action", "account_suspended_or_limited")
+# 五个内置边界写在代码里，不依赖 SOUL，删不掉；SOUL 的 ::BOUNDARY 行用 builtin:<名字> 对上它们，自定义行用 when 让代码执行。
+BUILTIN_KIND = {"forbidden_action": "compliance", "account_suspended_or_limited": "compliance",
+                "test_spend_total_exceeded_without_human_confirmation": "operational",
+                "upload_unreconciled_conversions": "operational", "affiliate_link_as_final_url": "operational"}
+KINDS = ("operational", "compliance")
+_COND = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)(>=|<=|!=|==|>|<)(.+)$")
+_NUM = re.compile(r"^-?[0-9]+(?:\.[0-9]+)?$")
+_WORD = re.compile(r"^[A-Za-z0-9_.-]+$")
+_ITEM = re.compile(r"^[A-Za-z0-9_.:-]+$")
 
 
-def boundary_hit(node, state, choice, soul):
-    """状态或选项命中 SOUL 边界即返回边界名；命中则模式强制 M8。"""
+def _split_fields(body):
+    """按 | 切字段；双引号里的 | 不切。"""
+    out, cur, quoted = [], [], False
+    for ch in body:
+        if ch == '"':
+            quoted = not quoted
+        if ch == "|" and not quoted:
+            out.append("".join(cur)); cur = []
+        else:
+            cur.append(ch)
+    if quoted:
+        raise ValueError("引号没闭合")
+    out.append("".join(cur))
+    return out
+
+
+def _parse_cond(text):
+    m = _COND.match(text.strip())
+    if not m:
+        raise ValueError("条件写法不对: %r（写成 <state字段><op><字面量>，op 是 >= <= != == > <）" % text)
+    field, op, lit = m.groups()
+    if _NUM.match(lit):
+        return {"field": field, "op": op, "value": float(lit)}
+    if lit in ("true", "false") or _WORD.match(lit):
+        if op not in ("==", "!="):
+            raise ValueError("条件 %r：true、false 与文字只能配 == 或 !=" % text)
+        return {"field": field, "op": op, "value": (lit == "true") if lit in ("true", "false") else lit}
+    raise ValueError("条件 %r：字面量只能是数字、true、false 或 [A-Za-z0-9_.-]+" % text)
+
+
+def _parse_list(text, what):
+    items = [x.strip() for x in text.split(",")]
+    for x in items:
+        if not x or not _ITEM.match(x):
+            raise ValueError("%s 里有写坏的项: %r" % (what, text))
+        if what == "nodes" and x not in NODES:
+            raise ValueError("nodes 里的 %r 不是决策节点（%s）" % (x, ", ".join(NODES)))
+    return items
+
+
+def parse_boundary(line):
+    """一行 ::BOUNDARY{never:<名字>|when:<条件>[&<条件>...]|nodes:<n1,n2>|choices:<c1,c2>|kind:operational|compliance|builtin:<内置名>|scope:...}"""
+    m = re.match(r"^::BOUNDARY\{(.*)\}\s*$", line.rstrip("\n"))
+    if not m:
+        raise ValueError("BOUNDARY 行要以 } 结尾")
+    f = {}
+    for part in _split_fields(m.group(1)):
+        if ":" not in part:
+            raise ValueError("字段 %r 没有冒号" % part)
+        k, v = (x.strip() for x in part.split(":", 1))
+        if len(v) >= 2 and v[0] == v[-1] == '"':
+            v = v[1:-1]
+        if k in f:
+            raise ValueError("字段 %s 写了两次" % k)
+        f[k] = v
+    if not f.get("never"):
+        raise ValueError("缺 never:<名字>")
+    if "kind" in f and f["kind"] not in KINDS:
+        raise ValueError("kind 只能是 operational 或 compliance，写的是 %r" % f["kind"])
+    builtin = f.get("builtin") or None
+    if "builtin" in f:
+        if builtin not in BUILTIN_KIND:
+            raise ValueError("builtin 只能是 %s，写的是 %r" % (", ".join(BUILTIN_KIND), f["builtin"]))
+        if "kind" in f and f["kind"] != BUILTIN_KIND[builtin]:
+            raise ValueError("builtin:%s 的 kind 是 %s，SOUL 里不能改" % (builtin, BUILTIN_KIND[builtin]))
+    if "when" in f and not f["when"]:
+        raise ValueError("when 是空的")
+    conds = [_parse_cond(c) for c in f["when"].split("&")] if f.get("when") else []
+    kind = BUILTIN_KIND[builtin] if builtin else f.get("kind", "operational")
+    return {"name": f["never"], "conds": conds, "nodes": _parse_list(f["nodes"], "nodes") if "nodes" in f else [],
+            "choices": _parse_list(f["choices"], "choices") if "choices" in f else [], "kind": kind, "builtin": builtin,
+            "enforced": bool(conds) or bool(builtin)}
+
+
+def parse_boundaries(txt, path=""):
+    """SOUL 里行首的 ::BOUNDARY 行，按文件顺序；``` 围栏里的是示例，不算。写坏一行就抛 ValueError，坏 SOUL 不许静默跑。"""
+    out, fence = [], False
+    for i, line in enumerate(txt.splitlines(), 1):
+        if line.startswith("```"):
+            fence = not fence
+            continue
+        if fence or not line.startswith("::BOUNDARY{"):
+            continue
+        try:
+            out.append(parse_boundary(line))
+        except ValueError as e:
+            raise ValueError("SOUL %s 第 %d 行 ::BOUNDARY 写坏了: %s" % (path, i, e))
+    return out
+
+
+def _cond_true(c, st):
+    """字段缺失或类型对不上 ⇒ 这个条件为假（不命中）。不求值任何表达式。"""
+    x = st.get(c["field"])
+    if x is None:
+        return False
+    op, v = c["op"], c["value"]
+    if isinstance(v, bool):
+        return isinstance(x, bool) and ((x == v) if op == "==" else (x != v))
+    if isinstance(v, float):
+        if isinstance(x, bool):
+            return False
+        try:
+            x = float(x)
+        except (TypeError, ValueError):
+            return False
+        if op == ">=":
+            return x >= v
+        if op == "<=":
+            return x <= v
+        if op == ">":
+            return x > v
+        if op == "<":
+            return x < v
+        return (x == v) if op == "==" else (x != v)
+    return (str(x) == v) if op == "==" else (str(x) != v)
+
+
+def _builtin_hit(node, state, choice, soul):
+    """五个内置边界（原逻辑不动）。"""
     st = state or {}
     p = soul["params"]
     acct = str(st.get("account_status", "ok")).lower()
@@ -138,6 +265,23 @@ def boundary_hit(node, state, choice, soul):
         return "affiliate_link_as_final_url"
     if st.get("requested_action") in ("fake_traffic", "click_simulation", "cloaking", "bypass", "multi_account", "impersonation"):
         return "forbidden_action"
+    return None
+
+
+def boundary_hit(node, state, choice, soul):
+    """命中边界返回 (名字, kind)，否则 None；命中则模式强制 M8。
+    先查五个内置边界，再按文件顺序查 SOUL 里有 when、没有 builtin 的自定义行（nodes、choices 不写 = 全部）。"""
+    b = _builtin_hit(node, state, choice, soul)
+    if b:
+        return b, BUILTIN_KIND[b]
+    st = state or {}
+    for row in soul.get("boundaries") or []:
+        if not isinstance(row, dict) or not row.get("enforced") or row.get("builtin"):
+            continue
+        if (row["nodes"] and node not in row["nodes"]) or (row["choices"] and choice not in row["choices"]):
+            continue
+        if all(_cond_true(c, st) for c in row["conds"]):
+            return row["name"], row["kind"]
     return None
 
 
@@ -319,12 +463,16 @@ def judge_local(node, state, choices, caps, evidence, cfg, soul):
 
 
 # ------------------------------------------------------------------ 插件提供者
-def call_provider(provider, request, cfg, timeout_s):
+def call_provider(provider, request, cfg, timeout_s, soul_path=None):
+    """调判断插件：stdin 进 request，argv 带 --config <judgment 配置> 和 --soul <这次用的 SOUL 路径>（契约 RULE）。"""
     d = os.path.join(ROOT, "plugins", "judgment", provider)
     m = json.load(open(os.path.join(d, "manifest.json"), encoding="utf-8"))
     script = os.path.join(d, m["actions"]["judge"])
     t0 = time.time()
-    out = subprocess.run([sys.executable, script, "--config", json.dumps(cfg.get("judgment", {}))],
+    argv = [sys.executable, script, "--config", json.dumps(cfg.get("judgment", {}))]
+    if soul_path:
+        argv += ["--soul", soul_path]
+    out = subprocess.run(argv,
                          input=json.dumps(request, ensure_ascii=False), capture_output=True, text=True, timeout=timeout_s)
     if out.returncode != 0:
         raise RuntimeError("provider %s rc=%d: %s" % (provider, out.returncode, (out.stderr or "").strip()[-300:]))
@@ -366,7 +514,7 @@ def judge(node, state, choices, cfg=None, soul=None, caps=None, evidence=None, p
     used, fallback, perc, distribution, latency = provider, False, None, None, None
     if provider != "local":
         try:
-            res = call_provider(provider, request, cfg, timeout_s)
+            res = call_provider(provider, request, cfg, timeout_s, soul.get("path"))
             ch = res.get("choice")
             if ch not in [c["id"] for c in choices]:
                 raise ValueError("choice %r not in choices" % ch)
@@ -383,31 +531,31 @@ def judge(node, state, choices, cfg=None, soul=None, caps=None, evidence=None, p
     if perc is None:
         perc = judge_local(node, state, choices, caps, evidence, cfg, soul)
     mode_local = f_v5(perc["v"])
-    b = boundary_hit(node, state, perc["choice"], soul)
-    if b:
+    hit = boundary_hit(node, state, perc["choice"], soul)
+    if hit:
         mode_local = "M8"
     judge_block = {"judge": "v5.0", "v": perc["v"], "mode": mode_local, "conf": perc["conf"], "reason": perc["reason"]}
     resp = {"type": "judgment.response", "schema_version": 1, "id": request["id"], "node": node,
             "choice": perc["choice"], "confidence": perc["conf"], "judge": judge_block, "mode_local": mode_local,
             "provider": used, "fallback": fallback}
-    if b:
-        resp["boundary_hit"] = b
+    if hit:
+        resp["boundary_hit"], resp["boundary_kind"] = hit
     # 谁拿主意：用户明确说了就照做，判断照算作为建议；合规姿态例外
     user = (state or {}).get("user_decision")
     ids = [c["id"] for c in choices]
     if user:
         resp["user_choice"] = str(user)[:64]
-        ub = boundary_hit(node, state, user, soul) if user in ids else None
+        uh = boundary_hit(node, state, user, soul) if user in ids else None
         if user not in ids:
             resp.update({"decided_by": "judge", "executes": acts(mode_local)})
             resp["advice"] = {"choice": perc["choice"], "mode": mode_local, "reason": "user_choice_not_in_choices"}
-        elif ub in COMPLIANCE_BOUNDARIES:
+        elif uh and uh[1] == "compliance":
             resp.update({"decided_by": "compliance", "executes": False})
-            resp["advice"] = {"choice": perc["choice"], "mode": "M8", "reason": "compliance_boundary", "boundary_hit": ub}
+            resp["advice"] = {"choice": perc["choice"], "mode": "M8", "reason": "compliance_boundary", "boundary_hit": uh[0]}
         else:
             adv = {"choice": perc["choice"], "mode": mode_local, "reason": perc["reason"]}
-            if ub or b:
-                adv["boundary_hit"] = ub or b
+            if uh or hit:
+                adv["boundary_hit"] = (uh or hit)[0]
             resp.update({"choice": user, "decided_by": "user", "executes": True, "advice": adv})
     else:
         resp.update({"decided_by": "judge", "executes": acts(mode_local)})
@@ -432,6 +580,29 @@ def executes(resp):
 def acts(mode):
     """M1、M2 执行；其余不执行（M3 提议，M4 建议，M5 要信息，M6 交人，M7 换路，M8 停）。"""
     return mode in ("M1", "M2")
+
+
+# ------------------------------------------------------------------ 顺序守卫
+# campaign.adjust 的规则第一条命中即停；SOUL 文档写的顺序与 local_choice 的代码顺序必须一致。
+ADJUST_ORDER_DOC = ("test_spend_total", "出价上限", "spend_no_conversion", "roi_floor", "budget_up")
+ADJUST_ORDER_CODE = ("test_spend_total", "bid_cap_for", "spend_no_conversion", "roi_floor", "budget_up")
+
+
+def adjust_order_guard(soul_text):
+    """SOUL 的 ### campaign.adjust 一节里，五个关键词第一次出现的位置严格递增。"""
+    m = re.search(r"^### campaign\.adjust.*?(?=^### |^## |\Z)", soul_text, re.S | re.M)
+    if not m:
+        return False, "no ### campaign.adjust section"
+    pos = [m.group(0).find(k) for k in ADJUST_ORDER_DOC]
+    return all(x >= 0 for x in pos) and all(a < b for a, b in zip(pos, pos[1:])), pos
+
+
+def adjust_order_guard_code():
+    """local_choice 里 campaign.adjust 分支的五条规则按同一顺序出现。"""
+    src = inspect.getsource(local_choice)
+    seg = src[src.index('if node == "campaign.adjust"'):src.index('if node == "keyword.action"')]
+    pos = [seg.find(k) for k in ADJUST_ORDER_CODE]
+    return all(x >= 0 for x in pos) and all(a < b for a, b in zip(pos, pos[1:])), pos
 
 
 # ------------------------------------------------------------------ selftest
@@ -545,6 +716,150 @@ def selftest(soul_path="soul/default.soul.md"):
     e08 = offer_economics(offer, p08)
     t("T1-f max_bid_ratio 0.8 ⇒ 过线词与 bid_cap 一起收紧", len(e10["passing"]) == 3 and abs(e10["bid_cap"] - 4.56) < 0.01 and len(e08["passing"]) == 1 and abs(e08["bid_cap"] - 3.65) < 0.01,
       "1.0: %d 词 cap %s | 0.8: %d 词 cap %s" % (len(e10["passing"]), e10["bid_cap"], len(e08["passing"]), e08["bid_cap"]))
+    # ---- T3：SOUL 是变量，换了就要生效 ----
+    import tempfile
+    tmpd = tempfile.mkdtemp(prefix="adspilot-soul-")
+    sp_abs = soul_path if os.path.isabs(soul_path) else os.path.join(ROOT, soul_path)
+    base_txt = open(sp_abs, encoding="utf-8").read()
+
+    def tmp_soul(name, txt):
+        p = os.path.join(tmpd, name + ".soul.md")
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(txt)
+        return p
+
+    def t3(name, fn):
+        try:
+            ok, detail = fn()
+        except Exception as e:  # noqa: BLE001
+            ok, detail = False, "%s: %s" % (type(e).__name__, str(e)[:160])
+        t(name, ok, detail)
+
+    ADJ = C("keep", "bid_down", "budget_up", "budget_down", "pause")
+    st_a = {"days_running": 3, "spend_total": 30, "spend_window": 30, "clicks": 10, "avg_cpc": 3, "conversions": 0, "commission": 0,
+            "last_change_days": 3, "bid_cap": 5}
+    custom = "::BOUNDARY{never:cpc_hard_stop|when:avg_cpc>2&conversions==0|nodes:campaign.adjust|choices:keep,budget_up|kind:%s}\n"
+    lcfg = {"judgment": {"provider": "local"}}
+
+    def t3a():
+        s = load_soul(tmp_soul("op", base_txt + "\n" + custom % "operational"))
+        r = judge("campaign.adjust", st_a, ADJ, cfg=lcfg, soul=s, evidence=["r"], provider="local")
+        low = judge("campaign.adjust", dict(st_a, avg_cpc=1.5), ADJ, cfg=lcfg, soul=s, evidence=["r"], provider="local")   # 条件不成立
+        kw = boundary_hit("keyword.action", {"avg_cpc": 3, "conversions": 0}, "keep", s)                                      # 节点不在 nodes 里
+        miss = boundary_hit("campaign.adjust", {"avg_cpc": 3}, "keep", s)                                                     # 字段缺失 ⇒ 条件为假
+        ok = (r["choice"] == "keep" and r.get("boundary_hit") == "cpc_hard_stop" and r.get("boundary_kind") == "operational" and r["mode_local"] == "M8"
+              and not low.get("boundary_hit") and kw is None and miss is None)
+        return ok, "choice=%s hit=%s kind=%s mode=%s | 条件假=%s 别的节点=%s 缺字段=%s" % (
+            r["choice"], r.get("boundary_hit"), r.get("boundary_kind"), r["mode_local"], low.get("boundary_hit"), kw, miss)
+    t3("T3-a 自定义边界命中 ⇒ M8", t3a)
+
+    def t3b():
+        s = load_soul(tmp_soul("op", base_txt + "\n" + custom % "operational"))
+        r = judge("campaign.adjust", dict(st_a, user_decision="keep"), ADJ, cfg=lcfg, soul=s, evidence=["r"], provider="local")
+        adv = r.get("advice") or {}
+        return (r["choice"] == "keep" and r.get("decided_by") == "user" and r.get("executes") is True and adv.get("boundary_hit") == "cpc_hard_stop",
+                "choice=%s by=%s executes=%s advice.boundary_hit=%s" % (r["choice"], r.get("decided_by"), r.get("executes"), adv.get("boundary_hit")))
+    t3("T3-b operational 用户说了 ⇒ 照做 边界记进建议", t3b)
+
+    def t3c():
+        s = load_soul(tmp_soul("cp", base_txt + "\n" + custom % "compliance"))
+        r = judge("campaign.adjust", dict(st_a, user_decision="keep"), ADJ, cfg=lcfg, soul=s, evidence=["r"], provider="local")
+        return (r.get("decided_by") == "compliance" and r.get("executes") is False and r.get("boundary_kind") == "compliance",
+                "by=%s executes=%s kind=%s" % (r.get("decided_by"), r.get("executes"), r.get("boundary_kind")))
+    t3("T3-c compliance 用户说了也不放行", t3c)
+
+    def t3d():
+        stripped = "".join(l for l in base_txt.splitlines(True) if not l.startswith("::BOUNDARY{"))
+        s = load_soul(tmp_soul("nob", stripped))
+        want = [("anomaly.escalate", {"account_status": "suspended"}, "continue", "account_suspended_or_limited", "compliance"),
+                ("campaign.adjust", {"spend_total": 400}, "keep", "test_spend_total_exceeded_without_human_confirmation", "operational"),
+                ("conversion.upload", {"reconciled": False}, "upload", "upload_unreconciled_conversions", "operational"),
+                ("campaign.launch", {"final_url_is_affiliate": True}, "go", "affiliate_link_as_final_url", "operational"),
+                ("campaign.launch", {"requested_action": "cloaking"}, "go", "forbidden_action", "compliance")]
+        got = [boundary_hit(n, st, ch, s) for n, st, ch, _, _ in want]
+        ok = len(s["boundaries"]) == 0 and all(g == (w[3], w[4]) for g, w in zip(got, want))
+        return ok, "SOUL 边界行=%d 命中=%s" % (len(s["boundaries"]), [g[0] if isinstance(g, tuple) else g for g in got])
+    t3("T3-d SOUL 删光边界行 ⇒ 五个内置照样命中", t3d)
+
+    def t3e():
+        bad = {"avg_cpc>>2": "::BOUNDARY{never:bad|when:avg_cpc>>2|kind:operational}",
+               "kind:foo": "::BOUNDARY{never:bad|when:avg_cpc>2|kind:foo}",
+               "nodes 拼错": "::BOUNDARY{never:bad|when:avg_cpc>2|nodes:campaign.adjst}",
+               "布尔配 >": "::BOUNDARY{never:bad|when:disapproved>true}",
+               "builtin 名字不存在": "::BOUNDARY{never:bad|builtin:no_such}",
+               "builtin 改 kind": "::BOUNDARY{never:bad|builtin:forbidden_action|kind:operational}"}
+        raised = {}
+        for k, line in bad.items():
+            try:
+                load_soul(tmp_soul("bad", base_txt + "\n" + line + "\n"))
+                raised[k] = False
+            except ValueError:
+                raised[k] = True
+        return all(raised.values()), " ".join("%s=%s" % (k, "ValueError" if v else "没抛") for k, v in raised.items())
+    t3("T3-e 写坏的 when ⇒ load_soul 抛 ValueError", t3e)
+
+    def t3f():
+        # 整条链：judge → call_provider 带 --soul → 插件 → 本机假端点（127.0.0.1，不出网）
+        import http.server
+        import threading
+        marker = "T3F_MARKER_7c1e"
+        mtxt = base_txt.replace("### campaign.adjust（每日）\n", "### campaign.adjust（每日）\n\n::RULE{%s}\n" % marker, 1)
+        mp = tmp_soul("marker", mtxt)
+        seen = {}
+        vec = "V:[int=0.90,cap=0.80,csq=0.75,rel=0.70,cer=0.80,aut=0.85,rev=0.90,evd=0.80,sov=1.00,ine=0.70,ext=0.90]"
+
+        class H(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+            def do_POST(self):
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))).decode("utf-8"))
+                seen[self.path] = body
+                if self.path.endswith("/chat/completions"):
+                    out = {"choices": [{"message": {"content": "::JUDGE{v5.0}\n%s\nM:M1|conf:0.80\nR:fake_endpoint\nCHOICE:keep\n" % vec}}]}
+                elif self.path.endswith("/decide"):
+                    out = {"choice": "keep", "distribution": {"keep": 0.9, "pause": 0.1}, "confidence": 0.8}
+                else:
+                    out = {"choice": "keep", "confidence": 0.8, "judge": {"reason": "fake_endpoint"}}
+                b = json.dumps(out).encode("utf-8")
+                self.send_response(200); self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(b)))
+                self.end_headers(); self.wfile.write(b)
+        srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        url = "http://127.0.0.1:%d" % srv.server_address[1]
+        env = {"LLM_BASE_URL": url, "LLM_API_KEY": "selftest-dummy", "LLM_MODEL": "selftest", "JEV_ENDPOINT": url, "JEV_API_KEY": "selftest-dummy",
+               "SOUL_API_ENDPOINT": url, "SOUL_API_KEY": "selftest-dummy", "NO_PROXY": "127.0.0.1,localhost", "no_proxy": "127.0.0.1,localhost"}
+        old = {k: os.environ.get(k) for k in env}
+        os.environ.update(env)
+        try:
+            s = load_soul(mp)
+            res = {}
+            for prov in ("llm", "jev", "soul-api"):
+                r = judge("campaign.adjust", st_a, ADJ, cfg={"soul": mp, "judgment": {"provider": prov, "timeout_s": 8}}, soul=s, evidence=["r"], provider=prov)
+                res[prov] = (r["provider"], r["fallback"], r["choice"])
+        finally:
+            srv.shutdown(); srv.server_close()
+            for k, v in old.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        prompt = ((seen.get("/chat/completions") or {}).get("messages") or [{}])[0].get("content", "")
+        ok = all(res[p] == (p, False, "keep") for p in res) and marker in prompt
+        return ok, "providers=%s llm 提示词含标记=%s" % (res, marker in prompt)
+    t3("T3-f 判断插件读配置里的 SOUL（整条链）", t3f)
+
+    def t3g():
+        ok_doc, pos = adjust_order_guard(base_txt)
+        ok_code, cpos = adjust_order_guard_code()
+        m = re.search(r"^### campaign\.adjust.*?(?=^### |^## |\Z)", base_txt, re.S | re.M)
+        sec = m.group(0)
+        rules = [l for l in sec.splitlines(True) if l.startswith("::RULE{")]
+        swapped_sec = sec.replace(rules[0] + rules[1], rules[1] + rules[0], 1)
+        ok_sw, pos_sw = adjust_order_guard(base_txt.replace(sec, swapped_sec, 1))
+        return ok_doc and ok_code and swapped_sec != sec and not ok_sw, "文档=%s %s 代码=%s %s | 1与2对调后=%s %s" % (ok_doc, pos, ok_code, cpos, ok_sw, pos_sw)
+    t3("T3-g campaign.adjust 文档与代码同序", t3g)
+    shutil.rmtree(tmpd, ignore_errors=True)
     # schema 校验
     try:
         from validate import load_schema, validate as _validate

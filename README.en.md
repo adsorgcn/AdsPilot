@@ -36,7 +36,7 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-09-26, version 2.0.13. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-09-26, version 2.0.14. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
@@ -46,7 +46,7 @@ As of 2026-09-26, version 2.0.13. Every part below has code, a usage method and 
 | Judgment (f_v5 frozen) | done | judgment blocks verified by the canonical iLang validator; providers are perception only |
 | Attribution & reconciliation | done | sample data only |
 | Unattended loop | done | sample data only; seven-day acceptance not run; user decisions expire and have a money limit |
-| Default SOUL | done | money defined in USD and converted to the account currency; thresholds copied from the SOP, not yet calibrated on real data |
+| Default SOUL | done | money defined in USD and converted to the account currency; custom boundaries are enforced by code and judgment plugins follow the configured SOUL; thresholds copied from the SOP, not yet calibrated on real data |
 | Plugin Google Ads | **live-tested on a real account** | create campaign, adjust budget and bids, pause keyword, add negative, remove campaign, pull report, Data Manager conversion upload (validate-only): all pass |
 | Plugin CJ | **live-tested on a real account** | offers (187 advertisers, paged), link with sid, commissions in windows, chargebacks: all pass (read-only) |
 | Plugin judgment llm / jev / soul-api | code complete | never connected to real endpoints; jev waits for docs; soul-api server not built |
@@ -58,6 +58,8 @@ As of 2026-09-26, version 2.0.13. Every part below has code, a usage method and 
 In one sentence: onboarding is now one action, hand over three keys (Cloudflare, Google Ads, CJ), then run launch and get a real campaign. The whole chain from landing site to campaign to ledger has closed once in the real world. The only part not yet touched by real data is the SOUL thresholds, which can only be calibrated by running. Next is the first student environment running seven unattended days, after which the plugins move from alpha to stable.
 
 ## Progress log
+
+**2026-09-26, 2.0.14.** Switching the SOUL now actually takes effect. Before, boundaries added in a custom SOUL were read by name only and never enforced, and the llm judgment plugin always took its rules from the default SOUL, so a different SOUL in the config still showed it the old rules. Boundaries can now carry conditions (for example "no keeping or raising budget when average CPC is over 2 with no conversions"); a hit stops the step, and the kind decides what a user's word can do: an operational boundary gives way when the user says so, a compliance boundary does not. A broken SOUL is rejected instead of running. The five built-in boundaries live in code and still apply if a SOUL deletes their lines. The judgment plugins now read the SOUL from the config. The order of the daily adjustment rules in the default SOUL now matches the code, with a guard that fails whichever side changes first. This release did not touch a real account; only self-tests and sample data were run.
 
 **2026-09-26, 2.0.13.** User decisions now have an expiry and a money limit. Before, one sentence from the user such as "leave all these campaigns alone" was followed forever: no expiry, no matter how much was spent afterwards, even after a campaign passed the test spend total. Now each decision expires after 7 days by default (or on the date the user gave); if a campaign spends another $100 after the loop first saw the decision, or passes the test spend total, the decision lapses and the judgment decides again. The two spending nodes no longer accept "all" as a target; the user names each campaign or keyword. Each run's report lists which decisions were used, which lapsed and why. This release did not touch a real account; only self-tests and sample data were run.
 

@@ -247,6 +247,13 @@
           "description": "命中 ::BOUNDARY 时给出边界名，模式强制 M8。",
           "type": "string"
         },
+        "boundary_kind": {
+          "description": "命中边界的类别：compliance 合规姿态（用户说了也不做），operational 运营边界（用户明确说了就照做）。与 boundary_hit 同时出现。",
+          "enum": [
+            "operational",
+            "compliance"
+          ]
+        },
         "distribution": {
           "description": "各选项概率，Jev 类提供者给出。",
           "type": "object",
