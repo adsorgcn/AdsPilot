@@ -290,6 +290,21 @@ def step_campaign(cfg, kv, apply, enable=False):
             brief["max_cpc"] = round(min(float(first), float(brief["bid_cap"])) if brief.get("bid_cap") is not None else float(first), 2)
     if not brief.get("final_url"):
         return out({"error": "brief 没有 final_url 且开局状态里没有已发布的页（先跑 page --apply）"}, 4)
+    # 预算：用户写了就用；没写取谷歌推荐预算（新账号走新客户推荐）；谷歌没给就交给用户定，不编数
+    budget_note = ""
+    if brief.get("daily_budget") is None and brief.get("google_budget") is None:
+        d_t, m_t = plugin(cfg, "traffic")
+        if m_t["actions"].get("budget"):
+            bp = os.path.join(ROOT, "runs", "launch", "budget-brief.json")
+            os.makedirs(os.path.dirname(bp), exist_ok=True)
+            json.dump(brief, open(bp, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+            rc_b, j_b, _, _ = run(os.path.join(d_t, m_t["actions"]["budget"]), ["--new", bp, "--apply"] + (["--new-customer"] if brief.get("is_new_account") else []), timeout=120)
+            if rc_b == 0 and isinstance(j_b, dict) and j_b.get("recommended") is not None:
+                brief["google_budget"] = j_b["recommended"]
+            elif rc_b == 0 and isinstance(j_b, dict) and j_b.get("options"):
+                budget_note = "谷歌给了几档预算 %s，没标推荐哪一档，请你定（brief.daily_budget）" % j_b["options"]
+            else:
+                budget_note = "谷歌没给推荐预算（rc=%s），请你定（brief.daily_budget）" % rc_b
     import spec as S  # noqa: E402
     spec, problems = S.build(brief, soul["params"], cfg.get("caps") or {})
     errs = validate(load_schema("traffic-spec.schema.json"), spec)
@@ -305,11 +320,11 @@ def step_campaign(cfg, kv, apply, enable=False):
             pass
     jst = {"spec_valid": not problems and not errs, "lp_published": bool(st.get("page_url")) or bool(kv.get("brief") and not apply), "account_status": acct,
            "max_cpc": spec["campaign"]["bidding"]["max_cpc"], "daily_budget": spec["campaign"]["daily_budget"], "is_new_account": bool(brief.get("is_new_account")),
-           "bid_cap": brief.get("bid_cap"), "google_bid": brief.get("google_bid")}
+           "bid_cap": brief.get("bid_cap"), "google_bid": brief.get("google_bid"), "google_budget": brief.get("google_budget")}
     resp, ok = decide(cfg, soul, "campaign.launch", jst, ["go", "hold"], ["runs/launch/spec.json"], user=kv.get("user"))
     res = {"step": "campaign", "spec": os.path.relpath(spec_path, ROOT), "problems": problems, "schema_errors": errs[:3], "state": jst, "judge": judged(resp)}
     if not (ok and resp["choice"] == "go"):
-        return out(dict(res, note="建议先别建：%s。用户要照建就 --user go" % ("；".join(problems) or resp["judge"]["reason"])), 2)
+        return out(dict(res, note="建议先别建：%s。用户要照建就 --user go" % ("；".join(([budget_note] if budget_note else []) + problems) or resp["judge"]["reason"])), 2)
     if errs:
         return out(dict(res, error="spec 结构不对，Google 不收（这不是判断，是格式）：%s" % errs[:3]), 1)
     d, m = plugin(cfg, "traffic")

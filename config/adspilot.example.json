@@ -41,7 +41,7 @@
     "export_key_env": "ADSPILOT_EXPORT_KEY"
   },
   "caps": {
-    "note": "不填=用SOUL默认值（美元，按fx折成账户币种）；填了=广告账户币种的绝对上限",
+    "note": "不填=出价与预算照谷歌推荐（stop_loss_spend 不填用 SOUL 默认值，美元按 fx 折算）；填了=广告账户币种的绝对上限，谷歌推荐超过它就用它",
     "max_cpc": null,
     "daily_budget": null,
     "first_day_budget": null,

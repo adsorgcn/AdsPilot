@@ -51,13 +51,20 @@ def build(brief, soul_params, caps):
     cands = [float(x) for x in (brief.get("bid_cap"), caps.get("max_cpc")) if x is not None]
     gb = float(brief["google_bid"]) if brief.get("google_bid") is not None else None
     cpc_cap = min(cands) if cands else gb
-    budget_cap = _cap(caps, "daily_budget", soul_params["budget"]["daily_cap"])
-    first_day = _cap(caps, "first_day_budget", soul_params["budget"]["first_day"])
+    # 预算：用户写的 brief.daily_budget；没写用谷歌推荐 brief.google_budget，用户在 caps 里设的上限封顶；都没有就交给用户定
+    budget_cap = float(caps["daily_budget"]) if caps.get("daily_budget") is not None else None
+    first_day = float(caps["first_day_budget"]) if caps.get("first_day_budget") is not None else None
     stop_loss = _cap(caps, "stop_loss_spend", soul_params["stop_loss"]["test_spend_total"])
     max_cpc = float(brief["max_cpc"]) if brief.get("max_cpc") is not None else gb
     if cpc_cap is None:
         cpc_cap = max_cpc   # 没有 offer 上限、用户上限与谷歌出价：上限就是用户自己写的出价，不往上加
-    budget = float(brief.get("daily_budget", first_day))
+    if brief.get("daily_budget") is not None:
+        budget = float(brief["daily_budget"])
+    elif brief.get("google_budget") is not None:
+        lims = [x for x in (budget_cap, first_day if brief.get("is_new_account") else None) if x is not None]
+        budget = min([float(brief["google_budget"])] + lims)
+    else:
+        budget = None
     host = urlparse(brief["final_url"]).netloc
     spec = {
         "type": "adspilot.traffic_spec", "schema_version": 1, "platform": "google-ads",
@@ -68,7 +75,7 @@ def build(brief, soul_params, caps):
             "geo": {"countries": [brief.get("country", "US").upper()], "presence": "living_in"},
             "language": brief.get("language", "en").lower(),
             "bidding": {"strategy": "manual_cpc", "max_cpc": _r2(max_cpc)},
-            "daily_budget": round(budget, 2),
+            "daily_budget": _r2(budget),
             "currency": brief.get("currency", "USD"),
             "final_url_domain": host,
             "start_date": brief.get("start_date", time.strftime("%Y-%m-%d")),
@@ -83,7 +90,7 @@ def build(brief, soul_params, caps):
             "ads": [{"headlines": brief["headlines"], "descriptions": brief["descriptions"],
                      "path1": brief.get("path1", "")[:15], "path2": brief.get("path2", "")[:15]}],
         }],
-        "hard_limits": {"max_cpc_cap": _r2(cpc_cap), "daily_budget_cap": budget_cap, "stop_loss_spend": stop_loss},
+        "hard_limits": {"max_cpc_cap": _r2(cpc_cap), "daily_budget_cap": _r2(budget_cap if budget_cap is not None else budget), "stop_loss_spend": stop_loss},
         "offer_ref": brief.get("offer_ref", ""),
         "sub_id_form": "landing_first_party",
     }
@@ -92,9 +99,11 @@ def build(brief, soul_params, caps):
         problems.append("缺出价：brief 没有 max_cpc，也没有谷歌推荐出价 google_bid（关键词插件的首页出价）；不拿常数顶")
     elif max_cpc > cpc_cap:
         problems.append("max_cpc %.2f > cap %.2f" % (max_cpc, cpc_cap))
-    if budget > budget_cap:
+    if budget is None:
+        problems.append("缺预算：brief 没写 daily_budget，谷歌也没给推荐预算；请你定")
+    elif budget_cap is not None and budget > budget_cap:
         problems.append("daily_budget %.2f > cap %.2f" % (budget, budget_cap))
-    if brief.get("is_new_account") and budget > first_day:
+    if budget is not None and brief.get("is_new_account") and first_day is not None and budget > first_day:
         problems.append("new account: daily_budget %.2f > first_day %.2f" % (budget, first_day))
     if not brief["final_url"].startswith("https://"):
         problems.append("final_url must be https")
@@ -141,7 +150,18 @@ def selftest():
            and any("max_cpc" in x for x in p7) and "cpc" not in soul["params"])
     print("T4-f 无出价参照=%s 谷歌1.2⇒出价%s上限%s 出价1.5超谷歌=%s -> %s" % (p5, s6["campaign"]["bidding"]["max_cpc"], s6["hard_limits"]["max_cpc_cap"],
                                                                      any("max_cpc" in x for x in p7), "OK" if t4f else "FAIL"))
-    ok = not problems and not errs and len(p2) >= 2 and not p3 and any("max_cpc" in x for x in p4) and t4f
+    # T5-d：预算 = 用户写的 brief.daily_budget；没写用谷歌推荐 brief.google_budget（用户上限封顶）；都没有 ⇒ 报问题，交给用户定
+    base5 = {k: v for k, v in brief.items() if k not in ("daily_budget", "is_new_account")}
+    s8, p8 = build(dict(base5, google_budget=12), soul["params"], {})
+    s9, p9 = build(dict(base5, google_budget=12), soul["params"], {"daily_budget": 10})
+    _, p10 = build(base5, soul["params"], {})
+    _, p11 = build(dict(base5, daily_budget=15), soul["params"], {"daily_budget": 10})
+    s12, p12 = build(dict(base5, google_budget=60, is_new_account=True), soul["params"], {})
+    t5d = (not p8 and s8["campaign"]["daily_budget"] == 12 and not p9 and s9["campaign"]["daily_budget"] == 10 and any("预算" in x for x in p10)
+           and any("daily_budget" in x for x in p11) and not p12 and s12["campaign"]["daily_budget"] == 60 and "budget" not in soul["params"])
+    print("T5-d 谷歌推荐12⇒%s 用户上限10⇒%s 都没有=%s 用户写15超上限=%s 新账号推荐60⇒%s %s -> %s" % (
+        s8["campaign"]["daily_budget"], s9["campaign"]["daily_budget"], p10, bool(p11), s12["campaign"]["daily_budget"], p12, "OK" if t5d else "FAIL"))
+    ok = not problems and not errs and len(p2) >= 2 and not p3 and any("max_cpc" in x for x in p4) and t4f and t5d
     print("spec problems=%d schema=%s bad_brief_problems=%d hkd_bidcap_ok=%s hkd_over_bidcap=%s -> %s" % (
         len(problems), "ok" if not errs else errs[:2], len(p2), not p3, any("max_cpc" in x for x in p4), "OK" if ok else "FAIL"))
     if problems:

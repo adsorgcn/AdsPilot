@@ -74,8 +74,7 @@ def r2(x):
 # ------------------------------------------------------------------ SOUL
 # SOUL 里按 money_unit（美元）写的金额；读 SOUL 时按 config.fx 折成广告账户币种。
 # offer.min_epc 不折算：它和联盟给的 EPC 同一币种（美元），offer_economics 里已经用 fx 换过。
-MONEY_FIELDS = [("budget", "first_day"), ("budget", "daily_cap"),
-                ("stop_loss", "spend_no_conversion"), ("stop_loss", "test_spend_total"), ("user_decision", "max_extra_spend")]
+MONEY_FIELDS = [("stop_loss", "spend_no_conversion"), ("stop_loss", "test_spend_total"), ("user_decision", "max_extra_spend")]
 
 
 def load_soul(path, cfg=None):
@@ -111,6 +110,16 @@ def cap(caps, key, fallback):
     """用户的绝对上限（广告账户币种）；没填（缺或 null）就用 fallback（SOUL 折算后的默认值）。"""
     v = (caps or {}).get(key)
     return float(v) if v is not None else float(fallback)
+
+
+def budget_target(state, caps):
+    """预算照谷歌推荐：state.google_budget（广告账户币种）；用户在 config.caps.daily_budget 设了上限就不超过它。
+    谷歌没给推荐 ⇒ None：预算不动，不拿自己定的数顶。"""
+    gb = (state or {}).get("google_budget")
+    if gb is None:
+        return None
+    u = (caps or {}).get("daily_budget")
+    return round(min(float(gb), float(u)) if u is not None else float(gb), 2)
 
 
 def bid_cap_for(state, caps, p=None):
@@ -305,11 +314,10 @@ def _within_caps(node, state, choice, caps, p):
     caps = caps or {}
     if choice in ("go",):
         bc = bid_cap_for(state, caps, p)   # 出价上限未知 ⇒ 不算在上限之内（只提议，不自动执行）
-        return float(state.get("daily_budget", 0)) <= cap(caps, "daily_budget", p["budget"]["daily_cap"]) and \
-            bc is not None and float(state.get("max_cpc", 0)) <= bc
+        db, u = state.get("daily_budget"), caps.get("daily_budget")   # 预算上限只有用户自己设的
+        return db is not None and (u is None or float(db) <= float(u)) and bc is not None and float(state.get("max_cpc", 0)) <= bc
     if choice == "budget_up":
-        nb = float(state.get("daily_budget", 0)) * (1 + p["budget"]["step_pct"] / 100.0)
-        return nb <= cap(caps, "daily_budget", p["budget"]["daily_cap"])
+        return budget_target(state, caps) is not None   # 谷歌推荐（已按用户上限封顶）才算在上限之内
     return True
 
 
@@ -387,7 +395,8 @@ def local_choice(node, state, choices, soul, caps=None):
         bc = bid_cap_for(st, caps, p)
         if bc is not None and float(st.get("max_cpc", 0)) > bc:
             return pick("hold", "max_cpc_over_cap")
-        if st.get("is_new_account") and float(st.get("daily_budget", 0)) > cap(caps, "first_day_budget", p["budget"]["first_day"]):
+        fd = (caps or {}).get("first_day_budget")   # 新账号首日上限只有用户自己设的；预算本身来自谷歌推荐（新客户模型）或用户
+        if st.get("is_new_account") and fd is not None and float(st.get("daily_budget") or 0) > float(fd):
             return pick("hold", "new_account_budget_over_first_day")
         return pick("go", "spec_valid_lp_published_within_caps")
 
@@ -402,9 +411,9 @@ def local_choice(node, state, choices, soul, caps=None):
         sw = float(st.get("spend_window", 0)); com = float(st.get("commission", 0))
         if int(st.get("days_running", 0)) >= p["stop_loss"]["days_before_budget_down"] and com < sw * p["stop_loss"]["roi_floor"]:
             return pick("budget_down", "commission_below_roi_floor")
-        if float(st.get("conversions", 0)) > 0 and com >= sw and int(st.get("days_running", 0)) >= p["budget"]["ramp_min_days"] \
-                and int(st.get("last_change_days", 0)) >= p["budget"]["min_days_between_changes"]:
-            return pick("budget_up", "profitable_ramp_step")
+        tb, cur = budget_target(st, caps), st.get("daily_budget")   # 预算照谷歌推荐（用户上限封顶）；没有推荐就不动
+        if tb is not None and cur is not None and tb != round(float(cur), 2):
+            return pick("budget_up" if tb > float(cur) else "budget_down", "google_recommended_budget")
         return pick("keep", "no_rule_hit")
 
     if node == "keyword.action":
@@ -620,7 +629,7 @@ def selftest(soul_path="soul/default.soul.md"):
     ev = ["runs/x/report.json"]
     cases = [
         ("campaign.adjust", {"days_running": 4, "spend_total": 40, "spend_window": 20, "clicks": 80, "avg_cpc": 0.24, "conversions": 2,
-                             "commission": 30, "last_change_days": 3}, ["keep", "bid_down", "budget_up", "budget_down", "pause"], "budget_up", ("M1", "M2")),
+                             "commission": 30, "last_change_days": 3, "daily_budget": 5, "google_budget": 8}, ["keep", "bid_down", "budget_up", "budget_down", "pause"], "budget_up", ("M1", "M2")),
         ("campaign.adjust", {"days_running": 4, "spend_total": 40, "spend_window": 20, "clicks": 80, "avg_cpc": 0.31, "conversions": 2,
                              "commission": 30, "last_change_days": 3}, ["keep", "bid_down", "budget_up", "budget_down", "pause"], "bid_down", ("M1", "M2")),
         ("campaign.adjust", {"days_running": 9, "spend_total": 120, "spend_window": 60, "clicks": 300, "avg_cpc": 0.2, "conversions": 0,
@@ -689,7 +698,10 @@ def selftest(soul_path="soul/default.soul.md"):
     r1_state = {"days_running": 7, "spend_total": 140, "spend_window": 140, "clicks": 40, "avg_cpc": 3.5, "conversions": 3, "commission": 400,
                 "last_change_days": 3, "bid_cap": 4.56}
     r1 = judge("campaign.adjust", r1_state, C("keep", "bid_down", "budget_up", "budget_down", "pause"), cfg=hk, soul=soul_hk, evidence=["r"], provider="local")
-    t("T1-a HKD 赚钱的系列 ⇒ budget_up", r1["choice"] == "budget_up" and r1["mode_local"] in ("M1", "M2"), "%s %s %s" % (r1["choice"], r1["mode_local"], r1["judge"]["reason"]))
+    r1g = judge("campaign.adjust", dict(r1_state, daily_budget=39.0, google_budget=60.0), C("keep", "bid_down", "budget_up", "budget_down", "pause"), cfg=hk, soul=soul_hk,
+                evidence=["r"], provider="local")
+    t("T1-a HKD 赚钱的系列 ⇒ 不降价；预算照谷歌推荐", r1["choice"] == "keep" and r1g["choice"] == "budget_up" and r1g["mode_local"] in ("M1", "M2"),
+      "无推荐=%s %s | 谷歌推荐60=%s %s" % (r1["choice"], r1["judge"]["reason"], r1g["choice"], r1g["judge"]["reason"]))
     r2_ = judge("campaign.launch", {"spec_valid": True, "lp_published": True, "account_status": "ok", "daily_budget": 5, "max_cpc": 3.79, "is_new_account": True,
                                     "bid_cap": 4.56}, C("go", "hold"), cfg=hk, soul=soul_hk, evidence=["r"], provider="local")
     t("T1-b HKD 过线词出价建系列 ⇒ go", r2_["choice"] == "go" and r2_["mode_local"] in ("M1", "M2"), "%s %s %s" % (r2_["choice"], r2_["mode_local"], r2_["judge"]["reason"]))
@@ -707,7 +719,7 @@ def selftest(soul_path="soul/default.soul.md"):
 
     def t4b():
         r = judge("campaign.adjust", no_cap, ADJ5, cfg=hk, soul=soul_hk, evidence=["r"], provider="local")
-        return (r["choice"] == "budget_up" and r["mode_local"] in ("M1", "M2") and "cpc" not in soul_hk["params"],
+        return (r["choice"] == "keep" and r["mode_local"] in ("M1", "M2") and "cpc" not in soul_hk["params"],
                 "%s %s %s | SOUL 里还有 cpc 常数=%s" % (r["choice"], r["mode_local"], r["judge"]["reason"], "cpc" in soul_hk["params"]))
     t4("T4-b 无 bid_cap 无谷歌出价 ⇒ 不按常数降价", t4b)
 
@@ -716,8 +728,8 @@ def selftest(soul_path="soul/default.soul.md"):
         hi = judge("campaign.adjust", dict(no_cap, google_bid=4.0), ADJ5, cfg=hk, soul=soul_hk, evidence=["r"], provider="local")
         offer_first = judge("campaign.adjust", dict(r1_state, google_bid=3.0), ADJ5, cfg=hk, soul=soul_hk, evidence=["r"], provider="local")
         user_cap = judge("campaign.adjust", dict(no_cap, google_bid=9.0), ADJ5, cfg=dict(hk, caps={"max_cpc": 3.0}), soul=soul_hk, evidence=["r"], provider="local")
-        ok = (lo["choice"] == "bid_down" and lo["judge"]["reason"] == "avg_cpc_over_cap" and hi["choice"] == "budget_up"
-              and offer_first["choice"] == "budget_up" and user_cap["choice"] == "bid_down")
+        ok = (lo["choice"] == "bid_down" and lo["judge"]["reason"] == "avg_cpc_over_cap" and hi["choice"] == "keep"
+              and offer_first["choice"] == "keep" and user_cap["choice"] == "bid_down")
         return ok, "谷歌3.0=%s 谷歌4.0=%s | 有offer上限4.56时谷歌3.0=%s | caps.max_cpc 3.0 且谷歌9.0=%s" % (
             lo["choice"], hi["choice"], offer_first["choice"], user_cap["choice"])
     t4("T4-c 系列：谷歌推荐出价只作兜底", t4c)
@@ -743,6 +755,36 @@ def selftest(soul_path="soul/default.soul.md"):
         return ok, "无参照=%s %s executes=%s | 谷歌3.9=%s %s | 谷歌3.5=%s %s" % (
             none_["choice"], none_["mode_local"], executes(none_), ok_g["choice"], ok_g["mode_local"], over["choice"], over["judge"]["reason"])
     t4("T4-e 开局：没有出价参照只提议不执行", t4e)
+    # ---- T5：预算照谷歌推荐；用户设了按用户的；自己不定预算常数 ----
+    def t5a():
+        return ("budget" not in soul_hk["params"] and not any(sec == "budget" for sec, _ in MONEY_FIELDS),
+                "SOUL 里 budget 段=%s MONEY_FIELDS 里 budget=%s" % ("budget" in soul_hk["params"], [k for s_, k in MONEY_FIELDS if s_ == "budget"]))
+    t4("T5-a SOUL 不写预算常数", t5a)
+
+    def t5b():
+        base = {"days_running": 4, "spend_total": 40, "spend_window": 20, "clicks": 80, "avg_cpc": 0.2, "conversions": 2, "commission": 30,
+                "last_change_days": 3, "bid_cap": 0.5, "daily_budget": 10}
+        run_ = lambda st, caps=None: judge("campaign.adjust", st, ADJ5, cfg={"caps": caps} if caps else None, soul=soul, evidence=["r"], provider="local")  # noqa: E731
+        none_ = run_(base)
+        up = run_(dict(base, google_budget=20))
+        capped = run_(dict(base, google_budget=20), {"daily_budget": 15})
+        down = run_(dict(base, google_budget=8))
+        loss = run_(dict(base, google_budget=20, spend_total=120, conversions=0, commission=0))
+        ok = (none_["choice"] == "keep" and up["choice"] == "budget_up" and up["judge"]["reason"] == "google_recommended_budget"
+              and budget_target(dict(base, google_budget=20), None) == 20 and budget_target(dict(base, google_budget=20), {"daily_budget": 15}) == 15
+              and capped["choice"] == "budget_up" and down["choice"] == "budget_down" and loss["choice"] == "pause")
+        return ok, "无推荐=%s 推荐20=%s(%s) 用户上限15=%s 推荐8=%s 亏损且推荐20=%s" % (
+            none_["choice"], up["choice"], up["judge"]["reason"], capped["choice"], down["choice"], loss["choice"])
+    t4("T5-b 系列预算照谷歌推荐，止损在前", t5b)
+
+    def t5c():
+        st = {"spec_valid": True, "lp_published": True, "account_status": "ok", "daily_budget": 60, "max_cpc": 3.79, "is_new_account": True, "bid_cap": 4.56}
+        LG = C("go", "hold")
+        free = judge("campaign.launch", st, LG, cfg=hk, soul=soul_hk, evidence=["r"], provider="local")
+        first = judge("campaign.launch", st, LG, cfg=dict(hk, caps={"first_day_budget": 20}), soul=soul_hk, evidence=["r"], provider="local")
+        return (free["choice"] == "go" and free["mode_local"] in ("M1", "M2") and first["choice"] == "hold" and first["judge"]["reason"] == "new_account_budget_over_first_day",
+                "新账号谷歌推荐60（旧常数折39）无用户上限=%s %s | 用户首日上限20=%s %s" % (free["choice"], free["mode_local"], first["choice"], first["judge"]["reason"]))
+    t4("T5-c 新账号不再套首日预算常数，用户设了才管", t5c)
     # T1-d：USD 配置（fx.USD=1.0）重跑上面 12 个判断用例与 5 个用户用例，逐条与无配置时一致
     usd = {"currency": "USD", "fx": {"USD": 1.0}, "caps": cfg["caps"], "judgment": cfg["judgment"]}
     soul_usd = load_soul(soul_path, usd)

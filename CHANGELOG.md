@@ -2,6 +2,16 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。本文件记细节，README 的「进度记录」记叙事，每版两处都写。
 
+## 2.0.16（2026-09-26）预算照谷歌推荐
+
+老板 2026-09-26 定的：谷歌的推荐是权威，照做；用户要改自己改；拿不到推荐、又没法替用户判断的时候，交给用户定。主干不自己定预算常数，也不另加条件。
+
+SOUL 删掉整段 `budget`（`first_day` 5、`daily_cap` 10、`step_pct` 20、`ramp_min_days` 3、`min_days_between_changes` 2），版本 2.3.0，正文加「预算」一节。`MONEY_FIELDS` 去掉预算两项。campaign.adjust 原来的「盈利、跑满 3 天、隔 2 天 ⇒ 加 20%，不超过 10 美元」换成：谷歌对这条系列推荐了新预算且与当前不同 ⇒ 按推荐改（高了 budget_up，低了 budget_down），用户设了 `caps.daily_budget` 就不超过它；没有推荐 ⇒ 预算不动。止损规则（测试总额、无转化、roi_floor）照旧排在前面。新增 `judge.budget_target`。campaign.launch 不再套首日预算常数，只有用户设了 `caps.first_day_budget` 才管。`spec.build`：预算 = brief.daily_budget（用户写的），没写用谷歌推荐 `brief.google_budget`（用户上限封顶），都没有 ⇒ 报「缺预算，请你定」，spec 建不了。开局没写预算时调新插件动作 `budget`（`plugins/traffic/google-ads/budget_api.py --new`，RecommendationService.GenerateRecommendations，CAMPAIGN_BUDGET，SEARCH，新账号带 isNewCustomer）；谷歌只给几档、没标推荐时列出几档请用户定。日常循环 api 路每轮跑 `budget_api.py --campaigns`（GAQL FROM recommendation，CAMPAIGN_BUDGET），manual 路读 Agent 从后台抄的 `data/inbox/budget-recommendations.json`；状态带 `google_budget` 与当前预算，预算动作带 `new_budget`；`caps_effective.daily_budget` 只剩用户设的上限。`deploy_api` 有 `new_budget` 就设成这个数，没有（止损的 budget_down）才按 `budget_step_pct`。
+
+自测：T5-a 到 T5-g 先在 2.0.15 上跑出失败再修（谷歌推荐 60 港币的新账号被 5 美元常数卡成 hold、谷歌推荐 12 时 spec 仍用常数 5、日常默认预算 5 上限 10、执行一律加 20%），修后全过；`budget_api.py` 离线自测挂进 tests/run.sh。依赖旧加预算规则的用例按新规则改写：既有判断用例 1 补上当前预算 5 与谷歌推荐 8，仍判 budget_up（只理由变）；T1-a 改为「赚钱的系列不降价，预算没推荐不动、有推荐照做」（原书 after_T1 要 R1 ⇒ budget_up，那是旧的自定加预算规则，老板的决定取代它；§1 复现 R1 现在是 keep）；T4-b、T4-c 里没有推荐时的预算一半由 budget_up 改为 keep。其余判断用例、T2、T3、T4 不变，f_v5 冻结区逐字不变。
+
+真实世界：本版没有碰真实账号；GenerateRecommendations 的请求形状与 recommendation 查询按官方文档写，还没在真实账号上核过，文档没写明是否接受手动 CPC；拿不到推荐时开局交给用户定，日常预算不动。
+
 ## 2.0.15（2026-09-26）兜底出价用谷歌推荐出价；keep 不算改动
 
 老板 2026-09-26 定的两件事，不在工程书里。
