@@ -36,7 +36,7 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-09-26, version 2.0.18. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-09-27, version 2.0.19. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
@@ -47,7 +47,7 @@ As of 2026-09-26, version 2.0.18. Every part below has code, a usage method and 
 | Attribution & reconciliation | done | sample data only |
 | Unattended loop | done | sample data only; seven-day acceptance not run; user decisions expire and have a money limit |
 | Default SOUL | done | money defined in USD and converted to the account currency; no bid or budget constants, the bid fallback and budgets follow Google's recommendation; bidding defaults to maximize clicks with the per-click limit set to the bid cap; custom boundaries are enforced by code and judgment plugins follow the configured SOUL; thresholds copied from the SOP, not yet calibrated on real data |
-| Plugin Google Ads | **live-tested on a real account** | create campaign, adjust budget and bids, pause keyword, add negative, remove campaign, pull report, Data Manager conversion upload (validate-only): all pass; under maximize clicks Google's budget recommendation comes through and the whole campaign passes validate-only in one batch |
+| Plugin Google Ads | **live-tested on a real account** | create campaign, adjust budget and bids, pause keyword, add negative, remove campaign, pull report, Data Manager conversion upload (validate-only): all pass; under maximize clicks Google's budget recommendation comes through, the whole campaign passes validate-only in one batch, and the per-click limit of a real campaign was changed, read back and left alone on a second run |
 | Plugin CJ | **live-tested on a real account** | offers (187 advertisers, paged), link with sid, commissions in windows, chargebacks: all pass (read-only) |
 | Plugin judgment llm / jev / soul-api | code complete | never connected to real endpoints; jev waits for docs; soul-api server not built |
 | Plugin Cloudflare landing site | **live-tested on a real account** | one key builds KV, Worker, domain and certificate; page 200, /go 302 with sid, /export into the ledger: all pass |
@@ -58,6 +58,8 @@ As of 2026-09-26, version 2.0.18. Every part below has code, a usage method and 
 In one sentence: onboarding is now one action, hand over three keys (Cloudflare, Google Ads, CJ), then run launch and get a real campaign. The whole chain from landing site to campaign to ledger has closed once in the real world. The only part not yet touched by real data is the SOUL thresholds, which can only be calibrated by running. Next is the first student environment running seven unattended days, after which the plugins move from alpha to stable.
 
 ## Progress log
+
+**2026-09-27, 2.0.19.** One live-test record added, no code changed. 2.0.18 said that changing the per-click limit of an existing campaign needed a real campaign to check; it was checked the same day, 09-26, after the owner's go-ahead: a maximize-clicks campaign with a 1 HKD daily budget, paused on creation, budget and campaign only, and the daily loop's own bid-down path moved its per-click limit from 4.56 HKD to 4.00, read back as 4.00; a second run of the same action changed nothing. The campaign was then removed together with its budget, and the account's existing campaign was not touched. With that, every part of the 2.0.18 bid-down path has been checked on a real account.
 
 **2026-09-26, 2.0.18.** Bidding now defaults to maximize clicks. The second real-account check showed Google gives no budget recommendation for manual CPC campaigns but does for maximize clicks (84.76 HKD a day for the same keywords). Budgets follow Google's recommendation, so the default follows too: Google bids automatically within the budget to get the most clicks, the campaign's per-click limit is the bid cap, a click still never costs more than it earns, and the offer math is unchanged. A user who wants manual bidding writes it in the brief and it is done, with the budget then set by the user. Daily bid-downs change with it: a maximize-clicks campaign gets its per-click limit set to the bid cap, and keywords are no longer bid down one by one. Also fixed: validate-only campaign creation used to be rejected on the budget reference before the bidding fields were ever checked; now the whole campaign is validated in one batch. Checked on a real account: the default request gets a recommended budget and a whole maximize-clicks campaign passes validation; changing the per-click limit of an existing campaign needs a real campaign to check.
 
