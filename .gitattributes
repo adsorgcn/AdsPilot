@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+# 钉版本的 iLang runtime 按字节核 sha256：永远 LF，Windows 的 core.autocrlf 不得改它
+reference/ilang/ilang-latest.md text eol=lf
+reference/ilang/ilang-latest.sha256 text eol=lf
+# shell 脚本在 Windows 的 Git Bash 里也要能跑
+*.sh text eol=lf

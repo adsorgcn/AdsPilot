@@ -36,11 +36,11 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-09-27, version 2.0.19. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-10-19, version 2.0.20. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
-| Agent adaptation & self-check | done | three identical entry files, twelve checks, pinned iLang runtime verification |
+| Agent adaptation & self-check | done | three identical entry files, fourteen checks (twelve in the loop's quick mode), pinned iLang runtime verification; CRLF checkout, GBK console and missing time-zone data verified on Windows 11, all self-tests pass |
 | Launch (three keys in, one campaign out) | **live-tested on a real account** | on reviews.aixray.dev: landing site built from nothing, page published, campaign created, one real click into the ledger, no human in between, then torn down |
 | Landing page | done | template and compliance check pass self-test; one page published on a real domain during launch |
 | Judgment (f_v5 frozen) | done | judgment blocks verified by the canonical iLang validator; providers are perception only |
@@ -58,6 +58,8 @@ As of 2026-09-27, version 2.0.19. Every part below has code, a usage method and 
 In one sentence: onboarding is now one action, hand over three keys (Cloudflare, Google Ads, CJ), then run launch and get a real campaign. The whole chain from landing site to campaign to ledger has closed once in the real world. The only part not yet touched by real data is the SOUL thresholds, which can only be calibrated by running. Next is the first student environment running seven unattended days, after which the plugins move from alpha to stable.
 
 ## Progress log
+
+**2026-10-19, 2.0.20.** It runs on Windows. No ad logic changed; everything fixed sits at the seam between the environment and the repository. The first run of `tests/run.sh` on a Windows 11 machine failed all twenty-nine items; with the real Python, seven remained, for four reasons: `python3` is the Microsoft Store placeholder alias; the system-level `core.autocrlf` checked the pinned iLang runtime out as CRLF, so its whole-file sha256 no longer matched and the self-check and the loop self-test stopped with it; a GBK console cannot encode the "⇒" printed by the judgment and spec self-tests, so those scripts crashed while printing; Windows `zoneinfo` ships no time-zone database, and the two conversion self-tests need Asia/Tokyo. All four are fixed: `tests/run.sh` finds its own interpreter and turns on UTF-8 mode; the runtime file and the shell scripts are pinned to LF in `.gitattributes`, and an old CRLF checkout is re-verified as LF; the judgment, spec, loop and launch entry points print an unencodable character as a question mark instead of crashing, and child scripts are started with `PYTHONUTF8=1` and read back as UTF-8; an unknown time zone falls back to UTC with an explicit offset and one line on stderr, the self-check gains a `timezone` item that warns, and the two conversion self-tests use a fixed +09:00 to verify the same formatting path when no zone data is present. The two constants removed from the SOUL in 2.0.15 and 2.0.16 are also gone from the Google Ads plugin manifest. On the same machine `tests/run.sh` is ALL OK both ways: the system Python without tzdata, and a venv with tzdata. No real account was touched.
 
 **2026-09-27, 2.0.19.** One live-test record added, no code changed. 2.0.18 said that changing the per-click limit of an existing campaign needed a real campaign to check; it was checked the same day, 09-26, after the owner's go-ahead: a maximize-clicks campaign with a 1 HKD daily budget, paused on creation, budget and campaign only, and the daily loop's own bid-down path moved its per-click limit from 4.56 HKD to 4.00, read back as 4.00; a second run of the same action changed nothing. The campaign was then removed together with its budget, and the account's existing campaign was not touched. With that, every part of the 2.0.18 bid-down path has been checked on a real account.
 

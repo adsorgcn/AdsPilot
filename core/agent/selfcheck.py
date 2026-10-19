@@ -121,11 +121,35 @@ def check_ilang_runtime():
     if not (os.path.exists(p) and os.path.exists(s)):
         return _res("ilang_runtime", "fail", "missing", "python3 core/agent/ilang_runtime.py update --apply")
     with open(p, "rb") as f:
-        digest = hashlib.sha256(f.read()).hexdigest()
+        raw = f.read()
+    digest = hashlib.sha256(raw).hexdigest()
     with open(s, "r", encoding="utf-8") as f:
         want = f.read().split()[0].strip()
-    ok = digest == want
-    return _res("ilang_runtime", "pass" if ok else "fail", digest[:12], "" if ok else "runtime 与 sha256 不符，重新拉取")
+    ok, note = digest == want, ""
+    if not ok and b"\r\n" in raw:
+        # Windows 上 core.autocrlf 把检出改成了 CRLF：内容没变，按 LF 再核一次
+        digest_lf = hashlib.sha256(raw.replace(b"\r\n", b"\n")).hexdigest()
+        if digest_lf == want:
+            ok, digest, note = True, digest_lf, "（CRLF 检出，按 LF 核过）"
+    return _res("ilang_runtime", "pass" if ok else "fail", digest[:12] + note, "" if ok else "runtime 与 sha256 不符，重新拉取")
+
+
+def check_timezone(cfg):
+    """config.timezone 能不能被 zoneinfo 解析。Windows 没有系统时区库，要 pip install tzdata；
+    查不到时转化文件按 UTC 带偏移写，时刻不变，所以给 warn 不给 fail。没有 config 就查 example 里的时区。"""
+    if not cfg:
+        try:
+            cfg = json.load(open(os.path.join(ROOT, "config", "adspilot.example.json"), encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            cfg = {}
+    name = cfg.get("timezone") or "UTC"
+    try:
+        from zoneinfo import ZoneInfo
+        ZoneInfo(name)
+        return _res("timezone", "pass", name)
+    except Exception as e:  # noqa: BLE001
+        return _res("timezone", "warn", "zoneinfo 查不到 %s（%s）" % (name, type(e).__name__),
+                    "pip install tzdata（Windows 没有系统时区库）；不装则转化文件按 UTC 带偏移写，时刻不变")
 
 
 def load_config():
@@ -235,7 +259,7 @@ def main(argv):
     cfg = cfg or {}
     results = [check_python(), check_shell(), check_write(cfg), check_scheduler(), check_long_run(),
                check_deploy_tools(), check_ilang_runtime(), cfg_res, check_version_consistency(),
-               check_secrets_in_repo(), check_soul(cfg)]
+               check_secrets_in_repo(), check_soul(cfg), check_timezone(cfg)]
     if not quick:
         results.append(check_network())
         results.append(check_plugins())

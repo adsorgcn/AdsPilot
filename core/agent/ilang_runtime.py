@@ -41,9 +41,15 @@ def verify():
         print("missing runtime files under reference/ilang/")
         return 1
     want = open(s, encoding="utf-8").read().split()[0]
-    got = sha256(open(p, "rb").read())
-    ok = want == got
-    print("local runtime sha256 %s %s" % (got[:16], "OK" if ok else "MISMATCH (want %s)" % want[:16]))
+    raw = open(p, "rb").read()
+    got = sha256(raw)
+    ok, note = want == got, ""
+    if not ok and b"\r\n" in raw:
+        # Windows 上 core.autocrlf 会把检出的文本改成 CRLF：内容没变，按 LF 再核一次
+        got_lf = sha256(raw.replace(b"\r\n", b"\n"))
+        if got_lf == want:
+            ok, got, note = True, got_lf, "（CRLF 检出，按 LF 核过；.gitattributes 已钉 eol=lf，重新检出可消除）"
+    print("local runtime sha256 %s %s%s" % (got[:16], "OK" if ok else "MISMATCH (want %s)" % want[:16], note))
     return 0 if ok else 1
 
 

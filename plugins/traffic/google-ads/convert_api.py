@@ -28,7 +28,7 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(ROOT, "core", "ledger"))
 from gads_api import Client, GadsError, redact_id  # noqa: E402
-from convert_export import fmt_time, tz_of, ledger_time_lookup  # noqa: E402
+from convert_export import fmt_time, tz_of, selftest_tz, ledger_time_lookup  # noqa: E402
 
 
 def find_action(client, name):
@@ -132,7 +132,8 @@ def selftest():
     conv = {"rows": [{"event_id": "e1", "gclid": "CjwKCAjw_example_gclid_0001", "conversion_name": "affiliate_commission", "conversion_time": "2026-09-11T03:12:44+00:00", "value": 18.4, "currency": "USD"}],
             "chargebacks": [{"event_id": "e2", "original_event_id": "e1", "gclid": "CjwKCAjw_example_gclid_0001", "conversion_name": "affiliate_commission", "conversion_time": "2026-09-18T10:00:00+00:00", "value": -18.4, "currency": "USD"},
                             {"event_id": "e3", "gclid": "x", "conversion_name": "affiliate_commission", "conversion_time": "2026-09-18T10:00:00+00:00", "value": -1, "currency": "USD"}]}
-    c, a, u = build_uploads(conv, "customers/1/conversionActions/9", tz_of("Asia/Tokyo"))
+    tz, tz_note = selftest_tz()
+    c, a, u = build_uploads(conv, "customers/1/conversionActions/9", tz)
     ok = len(c) == 1 and c[0]["conversionDateTime"] == "2026-09-11 12:12:44+09:00" and len(a) == 1 and a[0]["adjustmentType"] == "RETRACTION" and u == ["e3"]
     op = action_operation("affiliate_commission", "USD")
     ok = ok and op["create"]["type"] == "UPLOAD_CLICKS"
@@ -144,7 +145,7 @@ def selftest():
         and d0["operatingAccount"]["accountId"] == "1234567890" and dm["encoding"] == "HEX" and dm["validateOnly"] is True \
         and dm["events"][0]["eventTimestamp"] == "2026-09-11T03:12:44Z" and dm["events"][0]["adIdentifiers"]["gclid"].startswith("Cjw") \
         and dm["events"][0]["currency"] == "USD" and dm["events"][0]["conversionValue"] == 18.4 and dm["events"][0]["transactionId"] == "e1"
-    print("conversions=%d adjustments=%d unlinked=%s -> %s" % (len(c), len(a), u, "OK" if ok else "FAIL"))
+    print("conversions=%d adjustments=%d unlinked=%s -> %s%s" % (len(c), len(a), u, "OK" if ok else "FAIL", tz_note))
     return 0 if ok else 1
 
 

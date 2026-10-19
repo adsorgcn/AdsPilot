@@ -67,7 +67,8 @@ def save(st):
 
 
 def run(script, args, timeout=300):
-    out = subprocess.run([sys.executable, os.path.join(ROOT, script)] + args, capture_output=True, text=True, timeout=timeout, cwd=ROOT)
+    out = subprocess.run([sys.executable, os.path.join(ROOT, script)] + args, capture_output=True, encoding="utf-8", errors="replace",
+                         timeout=timeout, cwd=ROOT, env=J.child_env())
     txt = out.stdout.strip()
     try:
         j = json.loads(txt) if txt.startswith("{") or txt.startswith("[") else {}
@@ -506,6 +507,7 @@ def selftest():
 
 
 def main(argv):
+    J.console_safe()
     if "--selftest" in argv:
         return selftest()
     if not argv or argv[0].startswith("--"):
