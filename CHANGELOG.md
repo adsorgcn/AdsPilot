@@ -2,6 +2,26 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。本文件记细节，README 的「进度记录」记叙事，每版两处都写。
 
+## 2.0.20（2026-10-19）Windows 上能跑
+
+第一次在 Windows 11 上跑 `tests/run.sh`：`python3` 是微软商店的占位别名，二十九项全 FAIL；换成真 Python（3.13）后还剩七项。四个原因，全在环境与仓库的接缝上，投放逻辑一行没动，f_v5 冻结区逐字不变。
+
+一，解释器。`tests/run.sh` 先试 `$PYTHON`（没设就是 `python3`），不能用就依次退到 `python`、`py`，开头打印用的是哪一个；每行 `run python3` 改成 `run "$PY"`。
+
+二，CRLF。系统级 `core.autocrlf=true` 加 `.gitattributes` 的 `text=auto`，把钉版本的 `reference/ilang/ilang-latest.md` 检出成 CRLF，整文件 sha256 与 `.sha256` 对不上（提交的 blob 哈希是对的，CI 在 Linux 上一直绿）；`ilang_runtime.py verify` 与自检 `ilang_runtime` 失败，`daily.py --selftest` 因自检失败停在第一步。现在 `.gitattributes` 把 `ilang-latest.md`、`.sha256` 与所有 `*.sh` 钉成 `text eol=lf`；`verify` 与自检遇 sha 不符而文件里有 CRLF 时，按 LF 再核一次，核过算过，并提示重新检出可消除。
+
+三，编码。GBK 控制台编不出「⇒」，`judge.py --selftest` 与 `spec.py --selftest` 打印用例名时 UnicodeEncodeError（其他文件里的「⇒」都在注释与文档字符串里，不打印）。`judge.py` 加 `console_safe()`：输出流不是 UTF-8 时改成 `errors=replace`，编不出的字符打成 `?`，不崩；`judge`、`spec`、`daily`、`launch` 的 `main` 开头各调一次。另一头加 `child_env()`：`daily.run_script`、`launch.run`、`judge.call_provider` 拉起子脚本时带 `PYTHONUTF8=1` 并按 UTF-8 读回（原来按系统编码），平台报表与联盟数据里出现 GBK 之外的字符（商标符、表情）时子脚本不再崩在打印上。`tests/run.sh` 也开 `PYTHONUTF8=1`。
+
+四，时区。Windows 的 `zoneinfo` 没有系统时区库，`ZoneInfo("Asia/Tokyo")` 抛 ZoneInfoNotFoundError，`convert_export.tz_of` 原来静默退回 UTC；两个转化脚本的自测要 `+09:00`，失败。现在 `tz_of` 退回 UTC 时在 stderr 说一句（时间列仍带偏移，时刻不变，只是不按配置的时区显示；装 `tzdata` 即可）；自检加 `timezone`（快速模式第十二项，全部十四项），查不到 `config.timezone` 给 WARN 不给 FAIL，没有 config 查 example 里的；两个自测改用 `selftest_tz()`：有 zoneinfo 用 Asia/Tokyo，没有就用固定 +09:00 核同一条格式化路径，输出里写明。
+
+另修一处陈旧：Google Ads 插件 `manifest.json` 的 `limits` 还写着 `max_cpc_default: 0.25` 与 `first_day_budget_default: 5`，这两个常数 2.0.15、2.0.16 已从 SOUL 拔掉，代码里没有地方读它们，删掉。
+
+使用方法：`core/agent/使用方法.md` 自检一节加 Windows 一段；`core/loop/使用方法.md` 任务计划一句加 `python` 与 `PYTHONUTF8=1`。README 状态表的自检数改为十四项（快速模式十二项）。
+
+自测：Windows 11、Python 3.13.15、GBK 管道、未装 tzdata、CRLF 检出的工作区上，先按 2.0.19 跑出七项失败，修后 `tests/run.sh` ALL OK（自检 `timezone` WARN，`ilang_runtime` 走 CRLF 退路）；重新检出为 LF 后 `verify` 不再走退路；同一机器装了 `tzdata` 的 venv 下 `PYTHON=<venv>/python tests/run.sh` ALL OK。既有用例一个没改。
+
+真实世界：没有碰真实账号。
+
 ## 2.0.19（2026-09-27）补 2.0.18 的上限实测记录
 
 只改文档，不动代码。2.0.18 那条写着「没核：改已有系列的每次点击上限要一条真系列才核得了」，09-26 当天老板点头后已经补核，这版把它写进仓库。

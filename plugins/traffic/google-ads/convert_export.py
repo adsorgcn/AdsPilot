@@ -17,7 +17,7 @@ import csv
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
@@ -28,11 +28,24 @@ ADJ_HEADER = ["Google Click ID", "Conversion Name", "Conversion Time", "Adjustme
 
 
 def tz_of(name):
+    """IANA 时区名 -> tzinfo。zoneinfo 查不到（Windows 没有系统时区库、未装 tzdata）就退回 UTC：
+    时间列仍带偏移，时刻不变，只是不按配置的时区显示；stderr 说一句，不静默。"""
     try:
         from zoneinfo import ZoneInfo
         return ZoneInfo(name)
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        if name and str(name).upper() != "UTC":
+            sys.stderr.write("timezone %s 不可用（%s）：按 UTC 带偏移写，时刻不变；Windows 装 pip install tzdata\n" % (name, type(e).__name__))
         return timezone.utc
+
+
+def selftest_tz():
+    """自测用的 Asia/Tokyo：zoneinfo 有就用它；没有（Windows 未装 tzdata）就用固定 +09:00 核同一条格式化路径，并写明。"""
+    try:
+        from zoneinfo import ZoneInfo
+        return ZoneInfo("Asia/Tokyo"), ""
+    except Exception:  # noqa: BLE001
+        return timezone(timedelta(hours=9)), " [zoneinfo 无 Asia/Tokyo，用固定 +09:00 核格式；装 tzdata 才核时区名]"
 
 
 def fmt_time(iso, tz):
@@ -82,9 +95,10 @@ def write(out, rows, adjs, tzname):
 def selftest():
     conv = {"rows": [{"event_id": "e1", "gclid": "CjwKCAjw_example_gclid_0001", "conversion_name": "affiliate_commission", "conversion_time": "2026-09-11T03:12:44+00:00", "value": 18.4, "currency": "USD"}],
             "chargebacks": [{"event_id": "e2", "original_event_id": "e1", "gclid": "CjwKCAjw_example_gclid_0001", "conversion_name": "affiliate_commission", "conversion_time": "2026-09-18T10:00:00+00:00", "value": -18.4, "currency": "USD"}]}
-    rows, adjs = build(conv, tz_of("Asia/Tokyo"))
+    tz, note = selftest_tz()
+    rows, adjs = build(conv, tz)
     ok = rows[0][2] == "2026-09-11 12:12:44+09:00" and len(adjs) == 1 and adjs[0][4] == "RETRACTION"
-    print("row_time=%s adjustments=%d -> %s" % (rows[0][2], len(adjs), "OK" if ok else "FAIL"))
+    print("row_time=%s adjustments=%d -> %s%s" % (rows[0][2], len(adjs), "OK" if ok else "FAIL", note))
     return 0 if ok else 1
 
 

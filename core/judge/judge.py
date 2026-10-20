@@ -71,6 +71,23 @@ def r2(x):
     return round(max(0.0, min(1.0, float(x))) + 1e-9, 2)
 
 
+def console_safe():
+    """Windows 的 GBK 控制台编不出「⇒」这类符号，打印会 UnicodeEncodeError：输出流不是 UTF-8 时改成 errors=replace，
+    编不出的字符打成 ?，脚本不崩。UTF-8 环境下什么都不改。各入口脚本的 main 开头调一次。"""
+    for s in (sys.stdout, sys.stderr):
+        try:
+            if (getattr(s, "encoding", "") or "").lower().replace("-", "") != "utf8":
+                s.reconfigure(errors="replace")
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def child_env():
+    """拉起子脚本用的环境：带 PYTHONUTF8=1，子脚本按 UTF-8 读写 stdin 与 stdout，与调用方的 encoding="utf-8" 配对；
+    Windows 的 GBK 管道里出现商标符、表情这类字符也不崩。凭据等环境变量原样传下去。"""
+    return dict(os.environ, PYTHONUTF8="1")
+
+
 # ------------------------------------------------------------------ SOUL
 # SOUL 里按 money_unit（美元）写的金额；读 SOUL 时按 config.fx 折成广告账户币种。
 # offer.min_epc 不折算：它和联盟给的 EPC 同一币种（美元），offer_economics 里已经用 fx 换过。
@@ -489,8 +506,8 @@ def call_provider(provider, request, cfg, timeout_s, soul_path=None):
     argv = [sys.executable, script, "--config", json.dumps(cfg.get("judgment", {}))]
     if soul_path:
         argv += ["--soul", soul_path]
-    out = subprocess.run(argv,
-                         input=json.dumps(request, ensure_ascii=False), capture_output=True, text=True, timeout=timeout_s)
+    out = subprocess.run(argv, input=json.dumps(request, ensure_ascii=False), capture_output=True,
+                         encoding="utf-8", errors="replace", timeout=timeout_s, env=child_env())
     if out.returncode != 0:
         raise RuntimeError("provider %s rc=%d: %s" % (provider, out.returncode, (out.stderr or "").strip()[-300:]))
     res = json.loads(out.stdout)
@@ -990,6 +1007,7 @@ def selftest(soul_path="soul/default.soul.md"):
 
 
 def main(argv):
+    console_safe()
     if "--selftest" in argv:
         sp = argv[argv.index("--soul") + 1] if "--soul" in argv else "soul/default.soul.md"
         return selftest(sp)

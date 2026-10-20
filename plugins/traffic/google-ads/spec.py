@@ -201,6 +201,8 @@ def selftest():
 
 
 def main(argv):
+    from judge import console_safe
+    console_safe()
     if "--selftest" in argv:
         return selftest()
     kv = {argv[i][2:]: argv[i + 1] for i in range(0, len(argv) - 1, 2) if argv[i].startswith("--")}

@@ -100,7 +100,7 @@ class Run:
     def run_script(self, script, args, timeout=120):
         cmd = [sys.executable, script] + args
         self.log("run: %s" % " ".join(os.path.relpath(c, ROOT) if os.path.isabs(c) else c for c in cmd[1:]))
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=ROOT)
+        out = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace", timeout=timeout, cwd=ROOT, env=J.child_env())
         if out.stderr.strip():
             for l in out.stderr.strip().splitlines()[-5:]:
                 self.log("  stderr: " + l)
@@ -802,6 +802,7 @@ def selftest():
 
 
 def main(argv):
+    J.console_safe()
     if "--selftest" in argv:
         return selftest()
     cfg_path = argv[argv.index("--config") + 1] if "--config" in argv else None
