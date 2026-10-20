@@ -2,6 +2,28 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。本文件记细节，README 的「进度记录」记叙事，每版两处都写。
 
+## 2.0.21（2026-10-20）首发 Impact 联盟插件
+
+第二家联盟。`plugins/affiliate/impact/`：照 `plugins/affiliate/契约.md` 的四个动作，把 impact.com 伙伴 API（v16）翻译成主干认的形状；只用标准库，凭据 `IMPACT_ACCOUNT_SID`、`IMPACT_AUTH_TOKEN` 只住环境变量，HTTP Basic。
+
+offers：`GET /Campaigns?InsertionOrderStatus=Active` 只列已加入项目，只留 Type=Performance 且合同 Active 的；`GET /Contracts` 取佣金率（DefaultPayoutRate 或 DefaultPayout）、锁定期（Locking.Period）、cookie 窗口（ValidReferrals 里 CLICKS 的 Window 折成天）、币种、特别条款原文（`--with-terms`）；token 没勾 Contracts 作用域时回 403，合同字段填 null 并在 stderr 说明，不算失败。`HasStandDownPolicy` 为 true ⇒ `brand_bidding_allowed` false，政策文件说 true 也不放行；其余政策字段从 `data/inbox/impact-offer-policy.json`（按 CampaignId 键）读。**epc 一律 null**：Impact 伙伴 API 不给任何项目层面的 EPC 或转化率，不编数；选品第一条算不出来，开局第一轮只能用户 `--pick`，跑起来以后用 `partner_performance_by_program` 报表与自己的点击算。`offer_ref` 形如 `impact:<AdvertiserId>:<CampaignId>`，`click_url` 是项目的 TrackingLink。
+
+link：追踪链接后追加 `subId1=<token>`（官方写法，vanity 链接也认），已有 subId1 不分大小写替换，其他参数保留；上限 255 位字母数字，主干 20 位 token 稳稳装下。
+
+commissions：`GET /Actions` 按最后更新时间开窗（StartDate/EndDate 成对，跨度不超过 45 天，脚本切段并翻 `@nextpageuri`）；按更新时间而不是事件时间开窗，是为了让状态变化也落进窗口。PENDING ⇒ new、APPROVED ⇒ closed，`sub_id` 装 SubId1，`click_time` 装 ReferringDate。Impact 没有负数的新记录，撤销是同一笔 Action 的 State 变 REVERSED：只出一行拒付 `<Id>:rev`（amount 为负，is_chargeback true，original_event_id 指向原 Id），金额优先取同窗口 `GET /ActionUpdates?State=REVERSED` 的 DeltaPayout，没有就取 Payout 或 IntendedPayout 的相反数；不出正数的 REVERSED 行，否则对账会把它灌成正向调整。`offer_ref` 要 AdvertiserId，先 `GET /Campaigns` 建 CampaignId → AdvertiserId 表。日常循环只调 commissions 一个动作，所以拒付行随佣金一起出。csv 退路读后台 Action Listing 导出，表头别名还没对着真实导出核过。
+
+chargebacks：从 commissions 输出筛 is_chargeback 行；Impact 的原事件 id 永远可知，unlinked 只会是缺 ActionId 的坏数据。
+
+公用 `impact_common.py`：Basic 认证、分页（跟 `@nextpageuri`，没有就按 `@numpages` 加 Page）、429 按 Retry-After 退避一次、403 抛 Forbidden 让调用方降级、401 抛 Unauthorized 退出码 4；报错信息里的 AccountSID 抹成 `<SID>`。
+
+主干两处：`core/launch/launch.py` 写 offer 表时参数名改为取联盟插件 manifest 的 `limits.sub_id_param`（原来写死 `sid`），提示文字里的政策文件按插件名拼；`core/lp/lp_check.py` 认「直投联盟链接」除了域名表，再按路径形状 `/c/数字/数字/数字` 认 Impact 的追踪链接（它的追踪域名按品牌各不相同，列不完），自测加一例。其余主干不动，f_v5 冻结区逐字不变。
+
+样例：`tests/fixtures/impact.{campaigns,contracts,actions,action-updates}.json`（字段名照 v16 文档逐字）与标准形状的 `commissions.impact.json`；`tests/run.sh` 加四行；`plugins/README.md` 首发列与 README 骨架一行加 impact。
+
+自测：四个脚本 `--selftest` 只读 fixtures 全过（offers 12 项检查、commissions 9 项含 csv 退路、link、chargebacks）；`lp_check`、`launch` 自测照过；`validate.py --all` 全过；`tests/run.sh` ALL OK（33 项）。
+
+真实世界：2026-10-20 用老板的真凭据只读跑了一遍（全部 GET，没有写任何东西）：认证通，Campaigns、Actions、ActionUpdates、Reports 回 200，限速头 1000/500/250 与文档一致；账号零个已加入项目，`offers` 出 0 行并在 stderr 提示去 Marketplace 申请，`commissions --days 7` 与 `chargebacks --days 7` 各 0 行，StartDate/EndDate 的写法被接受；`link` 用样例 TrackingLink 装上 subId1。Contracts、Ads、Deals 回 403，是 token 作用域没勾（token 卡片里补 Contracts 读权限即可），插件按设计降级。输出与代码里 grep 不到 token 与 SID。有项目后的真实 Actions 行、Contracts 字段取值、csv 表头，三样还没核。
+
 ## 2.0.20（2026-10-19）Windows 上能跑
 
 第一次在 Windows 11 上跑 `tests/run.sh`：`python3` 是微软商店的占位别名，二十九项全 FAIL；换成真 Python（3.13）后还剩七项。四个原因，全在环境与仓库的接缝上，投放逻辑一行没动，f_v5 冻结区逐字不变。

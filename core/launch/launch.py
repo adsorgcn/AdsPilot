@@ -203,12 +203,12 @@ def step_offers(cfg, kv, apply):
     pick = resp["choice"] if ok and resp["choice"] != "none" else ""
     if not pick:
         passed = [e["advertiser"] for e in econ if e["bid_below_epc"]]
-        res["note"] = ("建议：账过了的有 %s；PPC 政策没核（ppc_allowed 为 null）。用户定一家就 --pick <offer_ref>，照做；或 Agent 读完 Program Terms 写进 data/inbox/cj-offer-policy.json 再跑，由判断选" % "、".join(passed)) \
+        res["note"] = ("建议：账过了的有 %s；PPC 政策没核（ppc_allowed 为 null）。用户定一家就 --pick <offer_ref>，照做；或 Agent 读完 Program Terms 写进 data/inbox/%s-offer-policy.json 再跑，由判断选" % ("、".join(passed), m["id"].split("/")[-1])) \
             if passed else "建议：前 %d 家没有一家账算得过来（词的出价都不低于每次点击赚的钱）。用户要投哪家就 --pick <offer_ref>，照做" % len(rows)
         return out(res, 2)
     r = [x for x in rows if x["offer_ref"] == pick][0]
     e = J.offer_economics(r, p)
-    table = {r["offer_ref"]: {"url": r["click_url"], "param": "sid"}}
+    table = {r["offer_ref"]: {"url": r["click_url"], "param": (m.get("limits") or {}).get("sub_id_param") or "sid"}}   # 参数名由联盟插件 manifest 定（CJ sid、Impact subId1）
     json.dump(table, open(os.path.join(ROOT, "runs", "launch", "offers-table.json"), "w", encoding="utf-8"), indent=2)
     # 能投的词：账过了带过线的词；用户硬选、账没过，就带出价最低的非品牌词，建系列时由用户或 Agent 定出价
     words = e["passing"][:20]

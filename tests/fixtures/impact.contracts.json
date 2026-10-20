@@ -1,0 +1,80 @@
+{
+  "@page": "1",
+  "@numpages": "1",
+  "@pagesize": "1000",
+  "@total": "2",
+  "@nextpageuri": "",
+  "Contracts": [
+    {
+      "Id": "9001",
+      "CampaignId": "4321",
+      "Status": "ACTIVE",
+      "StartDate": "2026-09-01T00:00:00Z",
+      "EndDate": "",
+      "DateCreated": "2026-08-30T12:00:00Z",
+      "DateLastUpdated": "2026-08-30T12:00:00Z",
+      "BrandSignatory": "Brand X Partnerships",
+      "PartnerSignatory": "Widget Reviews",
+      "Terms": {
+        "Name": "Default Terms",
+        "TemplateTermName": "Default Terms",
+        "Currency": "USD",
+        "EventPayouts": [
+          {
+            "EventTypeId": "11",
+            "EventTypeName": "Online Sale",
+            "EventCategory": "SALE",
+            "DefaultPayoutRate": "8.00",
+            "DefaultPayout": "",
+            "PayoutLevel": "ORDER",
+            "Locking": { "Basis": "TRACKED", "Period": "30", "MonthOffset": "0", "DayOffset": "0" },
+            "PayoutScheduling": { "Basis": "LOCKING", "Period": "END_OF_MONTH" },
+            "CreditPolicy": "LAST_REFERRER",
+            "ValidReferrals": [
+              { "Type": "CLICKS", "Window": "30", "WindowUnit": "DAY" },
+              { "Type": "IMPRESSIONS", "Window": "24", "WindowUnit": "HOUR" }
+            ]
+          }
+        ],
+        "SpecialTermsList": [
+          {
+            "TermsName": "Paid Search",
+            "TermsType": "PROMOTIONAL_METHODS",
+            "TermsContent": "Partner may run paid search on non-brand keywords only. Bidding on Brand X trademarks, misspellings or variations is prohibited."
+          }
+        ]
+      },
+      "HasCampaignTerms": false,
+      "PdfUri": "/Mediapartners/<SID>/Contracts/9001/Pdf",
+      "Uri": "/Mediapartners/<SID>/Contracts/9001"
+    },
+    {
+      "Id": "9002",
+      "CampaignId": "4322",
+      "Status": "ACTIVE",
+      "StartDate": "2026-09-15T00:00:00Z",
+      "EndDate": "",
+      "Terms": {
+        "Name": "Lead Terms",
+        "Currency": "USD",
+        "EventPayouts": [
+          {
+            "EventTypeId": "12",
+            "EventTypeName": "Qualified Lead",
+            "EventCategory": "LEAD",
+            "DefaultPayoutRate": "",
+            "DefaultPayout": "5.00",
+            "PayoutLevel": "ORDER",
+            "Locking": { "Basis": "TRACKED", "Period": "45", "MonthOffset": "0", "DayOffset": "0" },
+            "ValidReferrals": [
+              { "Type": "CLICKS", "Window": "7", "WindowUnit": "DAY" }
+            ]
+          }
+        ],
+        "SpecialTermsList": []
+      },
+      "HasCampaignTerms": false,
+      "Uri": "/Mediapartners/<SID>/Contracts/9002"
+    }
+  ]
+}

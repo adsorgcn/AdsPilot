@@ -26,7 +26,7 @@ AdsPilot 反过来，是「你的 Agent 替你干活」。仓库里没有一个�
 
 ```
 core/       主干：agent 适配与自检 · launch 开局 · lp 落地页 · judge 判断（f_v5 冻结） · ledger 归因对账 · loop 无人值守循环 · selfcheck
-plugins/    插件：traffic/google-ads · affiliate/cj · judgment/{llm,jev,soul-api} · deploy/cloudflare · keywords · ipintel
+plugins/    插件：traffic/google-ads · affiliate/{cj,impact} · judgment/{llm,jev,soul-api} · deploy/cloudflare · keywords · ipintel
 soul/       默认 SOUL、SOUL 接口、SOUL API 接口说明
 schemas/    manifest · judgment · report · traffic-spec · traffic-report · commissions
 reference/  iLang runtime（钉版本）· affiliate-design · v1 交接
@@ -36,7 +36,7 @@ reference/  iLang runtime（钉版本）· affiliate-design · v1 交接
 
 ## 走到哪了
 
-截至 2026-10-19，版本 2.0.20。下面每一块都有代码、有使用方法、有自测，区别只在有没有碰过真实世界。
+截至 2026-10-20，版本 2.0.21。下面每一块都有代码、有使用方法、有自测，区别只在有没有碰过真实世界。
 
 | 部件 | 状态 | 真实世界 |
 |---|---|---|
@@ -49,6 +49,7 @@ reference/  iLang runtime（钉版本）· affiliate-design · v1 交接
 | 默认 SOUL | 完成 | 金额按美元定义、按账户币种折算；不写出价与预算常数，出价兜底与预算照谷歌推荐；出价方式默认尽可能多点击，每次点击上限就是出价上限；自定义边界能被代码执行，换 SOUL 判断插件跟着换；阈值从 SOP 抄的，没被真数据校过 |
 | 插件 Google Ads | **真实账号实测通过** | 建系列、改预算改出价暂停词加否定词、删系列、拉报表、Data Manager 转化上传（validate-only），全通；尽可能多点击下拿到谷歌推荐预算，整条系列 validate-only 一批通过，在真系列上改每次点击上限并读回，再跑一次不动 |
 | 插件 CJ | **真实账号实测通过** | offers 187 家分页取齐、link 装 sid、commissions 切段查询、chargebacks，全通（只读） |
+| 插件 Impact | **真凭据只读实测** | 认证通；账号零个已加入项目，offers、commissions、chargebacks 各 0 行；Contracts 在 token 没勾作用域时 403 并按设计降级；API 不给 EPC，epc 留 null；有项目后的真实行还没核 |
 | 插件 判断 llm / jev / soul-api | 代码齐 | 没连过真端点；jev 等接入文档；soul-api 服务端未建 |
 | 插件 Cloudflare 落地位 | **真实账号实测通过** | 一把钥匙建 KV、Worker、域名证书；页面 200、/go 302 带 sid、/export 进账本，全通 |
 | 选品第一条（词的出价 < 每次点击赚的钱） | **真实账号实测通过** | CJ 前 10 家查词算账，3 家过、7 家出局，过线的词直接带给建系列 |
@@ -58,6 +59,8 @@ reference/  iLang runtime（钉版本）· affiliate-design · v1 交接
 一句话：接入只剩一个动作，交三把钥匙（Cloudflare、Google Ads、CJ），然后跑开局，出一条真系列。从落地位到系列到账本整条链已在真实世界闭合过一次。真实世界还没碰过的只剩 SOUL 阈值对着真数据校，那只能靠跑起来慢慢校。下一步是找第一个学员环境装上跑七天，验收后把插件从 alpha 改 stable。
 
 ## 进度记录
+
+**2026-10-20，2.0.21**。第二家联盟：Impact。`plugins/affiliate/impact/` 照契约的四个动作接 impact.com 伙伴 API：已加入项目与合同条款出 offer，追踪链接后追加 subId1 装 token，Actions 按最后更新时间开窗出佣金，撤销是同一笔 Action 的 State 变 REVERSED，出成一行负额拒付，金额取 ActionUpdates 的 DeltaPayout。两处要知道：Impact 伙伴 API 不给任何项目层面的 EPC，所以 epc 一律 null、不编数，选品第一条算不出来，开局第一轮只能用户指定，跑起来以后用自己的报表算；PPC 政策仍是合同里的自由文本，只有 HasStandDownPolicy 能直接映射成不许竞价品牌词。主干只动两处：开局写 offer 表时参数名改为取插件 manifest，落地页检查按路径形状认 Impact 追踪链接。用老板的真凭据只读跑了一遍：认证通，账号还没加入任何项目，三个动作各 0 行，Contracts 因 token 没勾作用域回 403 并按设计降级；没有写任何东西。
 
 **2026-10-19，2.0.20**。Windows 上能跑。这一版没有碰投放逻辑，修的全是环境与仓库的接缝。在一台 Windows 11 机器上第一次跑 `tests/run.sh`，二十九项全红；换成真 Python 后还剩七项，四个原因：`python3` 是微软商店的占位别名；系统级 `core.autocrlf` 把钉版本的 iLang runtime 检出成 CRLF，整文件 sha256 对不上，自检与循环自测跟着停；GBK 控制台编不出判断与规格自测里的「⇒」，脚本崩在打印上；Windows 的 `zoneinfo` 没有时区库，两个转化脚本的自测要 Asia/Tokyo。四处都修了：`tests/run.sh` 自己找解释器并开 UTF-8 模式；runtime 文件与 shell 脚本在 `.gitattributes` 钉成 LF，老检出遇 CRLF 也按 LF 再核一次；判断、规格、循环、开局四个入口的输出流编不出的字符打成问号不再崩，拉起子脚本时统一带 `PYTHONUTF8=1` 并按 UTF-8 读回；时区查不到就按 UTC 带偏移写并在 stderr 说一句，自检加一项 `timezone` 给 `WARN`，两个转化自测没有时区库时用固定 +09:00 核同一条格式化路径。另去掉 Google Ads 插件 manifest 里 2.0.15 与 2.0.16 已拔掉的两个常数。同一台机器上 `tests/run.sh` 两条路都 ALL OK：系统 Python 没装 tzdata 的一路，与装了 tzdata 的 venv 一路。没有碰真实账号。
 

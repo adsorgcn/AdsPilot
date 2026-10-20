@@ -15,10 +15,13 @@ import json
 import os
 import re
 import sys
+from urllib.parse import urlsplit
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 AFFILIATE_DOMAINS = ("anrdoezrs.net", "dpbolvw.net", "jdoqocy.com", "kqzyfj.com", "tkqlhce.com", "emjcd.com", "cj.com",
                      "impact.com", "sjv.io", "pxf.io", "awin1.com", "linksynergy.com", "shareasale.com", "go2cloud.org")
+# Impact 的追踪域名按品牌各不相同（*.sjv.io、*.pxf.io 只是常见的几个），列不完；常规追踪链接的路径形状固定是 /c/{partnerId}/{adId}/{programId}，按形状认
+AFFILIATE_PATH = re.compile(r"^/c/\d+/\d+/\d+(/|$)")
 
 
 def strip_tags(html):
@@ -48,7 +51,7 @@ def check_html(html, min_words=300):
     auto_redirect = re.search(r"(location\.(href|replace|assign)\s*[=(])", scripts) and not re.search(r"addEventListener\(\s*['\"]click", scripts)
     add("no_script_redirect", not auto_redirect, "脚本里有非点击触发的跳转" if auto_redirect else "")
     hrefs = re.findall(r'href=["\']([^"\']+)["\']', html, re.I)
-    direct = [h for h in hrefs if any(d in h.lower() for d in AFFILIATE_DOMAINS)]
+    direct = [h for h in hrefs if any(d in h.lower() for d in AFFILIATE_DOMAINS) or (h.lower().startswith("http") and AFFILIATE_PATH.match(urlsplit(h).path or ""))]
     add("no_direct_affiliate_links", not direct, "; ".join(direct[:3]), "fail")
     go = [h for h in hrefs if h.startswith("/go") or "/go?" in h]
     add("cta_via_own_go", bool(go), "CTA 应走本站 /go 中转")
@@ -81,9 +84,13 @@ def selftest():
     bad = filled.replace('href="/go?o=example"', 'href="https://www.anrdoezrs.net/click-1-2"')
     s3 = summarize(check_html(bad))
     ok = ok and s3["verdict"] == "fail"
-    print("template(unfilled)=%s filled=%s direct_affiliate=%s -> %s" % (s1["verdict"], s2["verdict"], s3["verdict"], "OK" if ok else "FAIL"))
+    # Impact 追踪链接：域名不在表里，按路径形状 /c/数字/数字/数字 也要认出来
+    bad2 = filled.replace('href="/go?o=example"', 'href="https://brand-x.example-tracking.net/c/1234567/654321/4321?subId1=x"')
+    s4 = summarize(check_html(bad2))
+    ok = ok and s4["verdict"] == "fail" and any(r["check"] == "no_direct_affiliate_links" and r["status"] == "fail" for r in s4["results"])
+    print("template(unfilled)=%s filled=%s direct_affiliate=%s impact_path=%s -> %s" % (s1["verdict"], s2["verdict"], s3["verdict"], s4["verdict"], "OK" if ok else "FAIL"))
     if not ok:
-        for s in (s1, s2, s3):
+        for s in (s1, s2, s3, s4):
             print(json.dumps([r for r in s["results"] if r["status"] != "pass"], ensure_ascii=False))
     return 0 if ok else 1
 

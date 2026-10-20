@@ -26,7 +26,7 @@ At half past six the scheduler starts `core/loop/daily.py`. It self-checks, pull
 
 ```
 core/       agent adaptation & self-check · launch · lp · judge (f_v5 frozen) · ledger (sub-id attribution & reconciliation) · loop · selfcheck
-plugins/    traffic/google-ads · affiliate/cj · judgment/{llm,jev,soul-api} · deploy/cloudflare · keywords · ipintel
+plugins/    traffic/google-ads · affiliate/{cj,impact} · judgment/{llm,jev,soul-api} · deploy/cloudflare · keywords · ipintel
 soul/       default SOUL, SOUL interface, SOUL API interface
 schemas/    manifest · judgment · report · traffic-spec · traffic-report · commissions
 reference/  pinned iLang runtime · affiliate-design · v1 handoff
@@ -36,7 +36,7 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-10-19, version 2.0.20. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-10-20, version 2.0.21. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
@@ -49,6 +49,7 @@ As of 2026-10-19, version 2.0.20. Every part below has code, a usage method and 
 | Default SOUL | done | money defined in USD and converted to the account currency; no bid or budget constants, the bid fallback and budgets follow Google's recommendation; bidding defaults to maximize clicks with the per-click limit set to the bid cap; custom boundaries are enforced by code and judgment plugins follow the configured SOUL; thresholds copied from the SOP, not yet calibrated on real data |
 | Plugin Google Ads | **live-tested on a real account** | create campaign, adjust budget and bids, pause keyword, add negative, remove campaign, pull report, Data Manager conversion upload (validate-only): all pass; under maximize clicks Google's budget recommendation comes through, the whole campaign passes validate-only in one batch, and the per-click limit of a real campaign was changed, read back and left alone on a second run |
 | Plugin CJ | **live-tested on a real account** | offers (187 advertisers, paged), link with sid, commissions in windows, chargebacks: all pass (read-only) |
+| Plugin Impact | **read-only test with real credentials** | auth passes; the account has joined no program yet, so offers, commissions and chargebacks return 0 rows; Contracts returns 403 until the token gets that scope and the plugin degrades as designed; the API exposes no EPC, so epc stays null; real rows with a joined program not yet checked |
 | Plugin judgment llm / jev / soul-api | code complete | never connected to real endpoints; jev waits for docs; soul-api server not built |
 | Plugin Cloudflare landing site | **live-tested on a real account** | one key builds KV, Worker, domain and certificate; page 200, /go 302 with sid, /export into the ledger: all pass |
 | Offer rule 1 (keyword bid < earnings per click) | **live-tested on a real account** | top 10 CJ offers checked against real bids: 3 pass, 7 out; passing keywords go straight to campaign creation |
@@ -58,6 +59,8 @@ As of 2026-10-19, version 2.0.20. Every part below has code, a usage method and 
 In one sentence: onboarding is now one action, hand over three keys (Cloudflare, Google Ads, CJ), then run launch and get a real campaign. The whole chain from landing site to campaign to ledger has closed once in the real world. The only part not yet touched by real data is the SOUL thresholds, which can only be calibrated by running. Next is the first student environment running seven unattended days, after which the plugins move from alpha to stable.
 
 ## Progress log
+
+**2026-10-20, 2.0.21.** A second network: Impact. `plugins/affiliate/impact/` implements the four contract actions against the impact.com Partner API: offers come from joined programs plus contract terms, links append `subId1` to carry the token, commissions come from Actions windowed by last-updated time, and a reversal, which in Impact is the same Action changing state to REVERSED, becomes one negative chargeback row whose amount is taken from the ActionUpdates DeltaPayout. Two things to know: the Partner API exposes no program-level EPC at all, so epc stays null, nothing is invented, offer rule 1 cannot be computed, the first launch needs the user to pick, and real EPC comes later from the partner's own reports; paid-search policy is still free text in the contract, and only HasStandDownPolicy maps directly to "no brand bidding". Two small touches in the core: launch now takes the sub-id parameter name from the plugin manifest when it writes the offer table, and the landing page check recognizes Impact tracking links by path shape. A read-only run with the owner's real credentials: auth passes, the account has joined no program yet, the three actions return 0 rows, Contracts returns 403 because the token lacks that scope and the plugin degrades as designed; nothing was written.
 
 **2026-10-19, 2.0.20.** It runs on Windows. No ad logic changed; everything fixed sits at the seam between the environment and the repository. The first run of `tests/run.sh` on a Windows 11 machine failed all twenty-nine items; with the real Python, seven remained, for four reasons: `python3` is the Microsoft Store placeholder alias; the system-level `core.autocrlf` checked the pinned iLang runtime out as CRLF, so its whole-file sha256 no longer matched and the self-check and the loop self-test stopped with it; a GBK console cannot encode the "⇒" printed by the judgment and spec self-tests, so those scripts crashed while printing; Windows `zoneinfo` ships no time-zone database, and the two conversion self-tests need Asia/Tokyo. All four are fixed: `tests/run.sh` finds its own interpreter and turns on UTF-8 mode; the runtime file and the shell scripts are pinned to LF in `.gitattributes`, and an old CRLF checkout is re-verified as LF; the judgment, spec, loop and launch entry points print an unencodable character as a question mark instead of crashing, and child scripts are started with `PYTHONUTF8=1` and read back as UTF-8; an unknown time zone falls back to UTC with an explicit offset and one line on stderr, the self-check gains a `timezone` item that warns, and the two conversion self-tests use a fixed +09:00 to verify the same formatting path when no zone data is present. The two constants removed from the SOUL in 2.0.15 and 2.0.16 are also gone from the Google Ads plugin manifest. On the same machine `tests/run.sh` is ALL OK both ways: the system Python without tzdata, and a venv with tzdata. No real account was touched.
 

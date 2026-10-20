@@ -1,0 +1,59 @@
+{
+  "type": "adspilot.commissions",
+  "schema_version": 1,
+  "network": "impact",
+  "currency": "USD",
+  "pulled_at": "2026-10-20T02:00:00",
+  "window": {
+    "since": "2026-10-13",
+    "until": "2026-10-20"
+  },
+  "rows": [
+    {
+      "event_id": "1234567.1001.900001",
+      "event_time": "2026-09-11T03:12:44Z",
+      "click_time": "2026-09-10T14:03:00Z",
+      "sub_id": "FIXTURETOKEN00000001",
+      "status": "new",
+      "amount": 18.4,
+      "sale_amount": 92.0,
+      "currency": "USD",
+      "advertiser": "Brand X Affiliate Program",
+      "advertiser_id": "1001",
+      "offer_ref": "impact:1001:4321",
+      "action": "Online Sale",
+      "is_chargeback": false
+    },
+    {
+      "event_id": "1234567.1002.900002",
+      "event_time": "2026-09-13T11:00:00Z",
+      "click_time": "2026-09-12T09:30:00Z",
+      "sub_id": "FIXTURETOKEN00000002",
+      "status": "closed",
+      "amount": 5.0,
+      "sale_amount": 0.0,
+      "currency": "USD",
+      "advertiser": "Brand Y Program",
+      "advertiser_id": "1002",
+      "offer_ref": "impact:1002:4322",
+      "action": "Qualified Lead",
+      "is_chargeback": false
+    },
+    {
+      "event_id": "1234567.1001.900003:rev",
+      "event_time": "2026-09-18T10:00:00Z",
+      "click_time": "2026-09-14T08:00:00Z",
+      "sub_id": "FIXTURETOKEN00000002",
+      "status": "reversed",
+      "amount": -3.68,
+      "sale_amount": 46.0,
+      "currency": "USD",
+      "advertiser": "Brand X Affiliate Program",
+      "advertiser_id": "1001",
+      "offer_ref": "impact:1001:4321",
+      "action": "Online Sale",
+      "is_chargeback": true,
+      "original_event_id": "1234567.1001.900003"
+    }
+  ]
+}

@@ -13,7 +13,7 @@
 | 目录 | 管什么 | 必备动作 | 首发 |
 |---|---|---|---|
 | `traffic/<平台>/` | 流量平台 | `spec` `deploy` `report` `convert` | google-ads |
-| `affiliate/<网络>/` | 联盟与广告主 | `offers` `link` `commissions` `chargebacks` | cj |
+| `affiliate/<网络>/` | 联盟与广告主 | `offers` `link` `commissions` `chargebacks` | cj、impact |
 | `judgment/<提供者>/` | 判断引擎的感知层 | `judge` | llm、jev、soul-api |
 | `deploy/<目标>/` | 落地位（交钥匙） | `setup` `publish` `status` | cloudflare |
 | `keywords/<来源>/` | 关键词数据源 | `suggest` `volume` | 待首发 |
