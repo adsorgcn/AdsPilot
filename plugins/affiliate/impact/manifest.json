@@ -1,0 +1,28 @@
+{
+  "manifest_version": 1,
+  "id": "affiliate/impact",
+  "kind": "affiliate",
+  "name": "Impact（impact.com 伙伴 API）",
+  "version": "0.1.0",
+  "status": "alpha",
+  "usage": "使用方法.md",
+  "actions": {
+    "offers": "offers.py",
+    "link": "link.py",
+    "commissions": "commissions.py",
+    "chargebacks": "chargebacks.py"
+  },
+  "credentials": [
+    { "env": "IMPACT_ACCOUNT_SID", "required": true, "note": "app.impact.com → Settings → Technical → API → Create Access Token；Account SID 是 HTTP Basic 的用户名" },
+    { "env": "IMPACT_AUTH_TOKEN", "required": true, "note": "同一个 token 的 Auth Token（密码）。作用域勾 Campaigns、Contracts、Actions、Reports 的读权限就够；只读即可" }
+  ],
+  "external_apis": [
+    "api.impact.com/Mediapartners/{SID}/Campaigns（已加入项目）",
+    "api.impact.com/Mediapartners/{SID}/Contracts（佣金率、锁定期、cookie 窗口、特别条款）",
+    "api.impact.com/Mediapartners/{SID}/Actions 与 /ActionUpdates（佣金与撤销）",
+    "api.impact.com/Mediapartners/{SID}/Reports（跑起来以后算自己的 EPC）",
+    "Impact 后台 Action Listing 导出 CSV（csv 退路）"
+  ],
+  "limits": { "sub_id_param": "subId1", "sub_id_readback": "SubId1", "token_max_len": 255, "actions_window_days": 45, "rate_actions_per_hour": 500, "rate_other_per_hour": 1000 },
+  "unattended": { "accepted": false, "days": 0, "note": "2026-10-20 真凭据只读实测：认证通，账号零个已加入项目，Contracts 在 token 没勾作用域时 403 并降级；有项目后的真实行还没核过" }
+}

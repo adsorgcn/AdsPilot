@@ -31,6 +31,10 @@ run "$PY" plugins/affiliate/cj/commissions.py --selftest
 run "$PY" plugins/affiliate/cj/chargebacks.py --selftest
 run "$PY" plugins/affiliate/cj/offers.py --selftest
 run "$PY" plugins/affiliate/cj/link.py --selftest
+run "$PY" plugins/affiliate/impact/offers.py --selftest
+run "$PY" plugins/affiliate/impact/link.py --selftest
+run "$PY" plugins/affiliate/impact/commissions.py --selftest
+run "$PY" plugins/affiliate/impact/chargebacks.py --selftest
 run "$PY" plugins/judgment/llm/provider.py --selftest
 run "$PY" plugins/judgment/jev/provider.py --selftest
 run "$PY" plugins/judgment/soul-api/provider.py --selftest

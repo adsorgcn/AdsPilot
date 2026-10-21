@@ -1,0 +1,30 @@
+{
+  "@page": "1",
+  "@numpages": "1",
+  "@pagesize": "1000",
+  "@total": "1",
+  "@nextpageuri": "",
+  "ActionUpdates": [
+    {
+      "Id": "u-900003-2",
+      "ActionId": "1234567.1001.900003",
+      "CampaignId": "4321",
+      "ActionTrackerId": "11",
+      "EventCode": "SALE",
+      "State": "REVERSED",
+      "StateDetail": "RETURN",
+      "StateDetailDescription": "Customer returned the order",
+      "DeltaPayout": "-3.68",
+      "DeltaAmount": "-46.00",
+      "UpdateDate": "2026-09-18T10:00:00Z",
+      "LockingDate": "2026-10-15T00:00:00Z",
+      "ClearingDate": "",
+      "ActionDate": "2026-09-15T08:00:00Z",
+      "PayoutLevel": "ORDER",
+      "DefaultPayout": "8.00",
+      "PaystubId": "",
+      "ContractId": "9001",
+      "ActionUri": "/Mediapartners/<SID>/Actions/1234567.1001.900003"
+    }
+  ]
+}
