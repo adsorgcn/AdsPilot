@@ -25,6 +25,7 @@ import sys
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta
+from pathlib import Path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -91,6 +92,33 @@ class Run:
     def path(self, name):
         return os.path.join(self.dir, name)
 
+    def path_ref(self, path):
+        """Portable references for logs and reports, without local account or input filenames."""
+        target = Path(os.path.abspath(path))
+        root = Path(ROOT)
+        run_dir = Path(os.path.abspath(self.dir))
+        data_dir = Path(os.path.abspath(self.data_dir))
+        for section, field in (("traffic", "report_csv"), ("affiliate", "commissions_json")):
+            source = (self.cfg.get(section) or {}).get(field)
+            if isinstance(source, str) and target == Path(os.path.abspath(self._abs(source))):
+                # An operator may put private account identifiers in an import filename.
+                return "config.%s.%s" % (section, field)
+        if target.parent == run_dir:
+            # Preserve default repository-relative evidence. In other locations a
+            # file next to report.json is resolvable relative to the report itself.
+            if run_dir.parent == root / "runs":
+                return target.relative_to(root).as_posix()
+            return "./" + target.name
+        if target == data_dir / "outbox" / ("conversions-%s.csv" % self.run_id):
+            if data_dir == root / "data":
+                return target.relative_to(root).as_posix()
+            return "config.data_dir/outbox/" + target.name
+        if target.is_relative_to(root):
+            rel = target.relative_to(root)
+            if rel.parts and rel.parts[0] in ("core", "plugins") and rel.suffix == ".py":
+                return rel.as_posix()
+        return "configured input file"
+
     # ---------------------------------------------------------------- 插件调用
     def plugin(self, kind, name):
         d = os.path.join(ROOT, "plugins", kind, name)
@@ -100,7 +128,7 @@ class Run:
 
     def run_script(self, script, args, timeout=120):
         cmd = [sys.executable, script] + args
-        self.log("run: %s" % " ".join(os.path.relpath(c, ROOT) if os.path.isabs(c) else c for c in cmd[1:]))
+        self.log("run: %s" % " ".join(self.path_ref(c) if os.path.isabs(c) else c for c in cmd[1:]))
         out = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace", timeout=timeout, cwd=ROOT, env=J.child_env())
         if out.stderr.strip():
             for l in out.stderr.strip().splitlines()[-5:]:
@@ -137,8 +165,8 @@ class Run:
         else:
             csv = self._abs(t.get("report_csv", "data/inbox/google-ads-report.csv"))
             if not os.path.exists(csv):
-                self.log("traffic report: %s 不存在，本轮无投放数据（Agent 需从后台导出）" % os.path.relpath(csv, ROOT))
-                self.needs_human_note("other", "缺投放报表导出文件 %s" % os.path.relpath(csv, ROOT), soft=True)
+                self.log("traffic report: %s 不存在，本轮无投放数据（Agent 需从后台导出）" % self.path_ref(csv))
+                self.needs_human_note("other", "缺投放报表导出文件 %s" % self.path_ref(csv), soft=True)
                 return None
             rc, _ = self.run_script(os.path.join(d, m["actions"]["report"]), ["--csv", csv, "--out", out])
         if rc != 0 or not os.path.exists(out):
@@ -148,7 +176,7 @@ class Run:
         errs = validate(load_schema("traffic-report.schema.json"), rep)
         if errs:
             self.log("traffic report schema errors: %s" % errs[:3]); return None
-        self.evidence.append({"id": "e-traffic", "deliverable": "traffic_report", "kind": "report", "ref": os.path.relpath(out, ROOT), "result": "pass"})
+        self.evidence.append({"id": "e-traffic", "deliverable": "traffic_report", "kind": "report", "ref": self.path_ref(out), "result": "pass"})
         self.log("traffic report: %d rows" % len(rep["rows"]))
         return rep
 
@@ -165,7 +193,7 @@ class Run:
         if src != "api":
             p = self._abs(a.get("commissions_json", "data/inbox/cj-commissions.json"))
             if not os.path.exists(p):
-                self.log("commissions: %s 不存在，本轮无佣金数据" % os.path.relpath(p, ROOT))
+                self.log("commissions: %s 不存在，本轮无佣金数据" % self.path_ref(p))
                 return None
             shutil.copyfile(p, out)
         if not os.path.exists(out):
@@ -174,7 +202,7 @@ class Run:
         errs = validate(load_schema("commissions.schema.json"), com)
         if errs:
             self.log("commissions schema errors: %s" % errs[:3]); return None
-        self.evidence.append({"id": "e-commissions", "deliverable": "commissions", "kind": "report", "ref": os.path.relpath(out, ROOT), "result": "pass"})
+        self.evidence.append({"id": "e-commissions", "deliverable": "commissions", "kind": "report", "ref": self.path_ref(out), "result": "pass"})
         self.log("commissions: %d rows" % len(com["rows"]))
         return com
 
@@ -184,7 +212,7 @@ class Run:
         t = self.cfg.get("traffic") or {}
         out = R.reconcile(self.con, com, t.get("conversion_name", "affiliate_commission"), int(t.get("conversion_window_days", 90)), batch=self.run_id)
         json.dump(out, open(self.path("conversions.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
-        self.evidence.append({"id": "e-ledger", "deliverable": "reconcile", "kind": "ledger", "ref": os.path.relpath(self.path("conversions.json"), ROOT), "result": "pass"})
+        self.evidence.append({"id": "e-ledger", "deliverable": "reconcile", "kind": "ledger", "ref": self.path_ref(self.path("conversions.json")), "result": "pass"})
         self.log("reconcile: %s" % json.dumps(out["summary"]))
         return out
 
@@ -473,8 +501,8 @@ class Run:
             rc, _ = self.run_script(os.path.join(d, m["actions"]["convert"]), ["--conversions", self.path("conversions.json"), "--out", out,
                                                                                 "--timezone", self.cfg.get("timezone", "UTC")])
             if rc == 0:
-                self.log("conversions csv: %s（Agent 在后台上传，或 api 模式自动）" % os.path.relpath(out, ROOT))
-                self.evidence.append({"id": "e-convert", "deliverable": "conversion_upload_file", "kind": "file", "ref": os.path.relpath(out, ROOT), "result": "pass"})
+                self.log("conversions csv: %s（Agent 在后台上传，或 api 模式自动）" % self.path_ref(out))
+                self.evidence.append({"id": "e-convert", "deliverable": "conversion_upload_file", "kind": "file", "ref": self.path_ref(out), "result": "pass"})
                 if m["actions"].get("convert_api") and self.apply and (self.cfg.get("traffic") or {}).get("deploy_mode", "api") == "api":
                     rc2, _ = self.run_script(os.path.join(d, m["actions"]["convert_api"]), ["--conversions", self.path("conversions.json"), "--conversion-name", t.get("conversion_name", "affiliate_commission"),
                                                                                             "--timezone", self.cfg.get("timezone", "UTC"), "--apply"])
@@ -559,7 +587,7 @@ def run_once(cfg, run_id=None, apply=False):
         hard = [n for n in run.needs_human if not n.get("soft")]
         exit_code = 2 if hard else 0
         report, ok = run.build_report(rep, rec, exit_code)
-        run.log("report: %s（教练要看就把这个文件贴过去）" % os.path.relpath(run.path("report.json"), ROOT))
+        run.log("report: %s（教练要看就把这个文件贴过去）" % run.path_ref(run.path("report.json")))
         run.finish(exit_code, report["summary"])
         return exit_code
     except Exception as e:  # noqa: BLE001

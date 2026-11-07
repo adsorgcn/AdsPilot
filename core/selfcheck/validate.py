@@ -259,10 +259,19 @@ CONFIG_SCHEMA = {
 }
 
 
+def config_label(path):
+    # A configuration may be stored on another Windows drive. Its basename
+    # suffices in diagnostics without exposing the owner's directory layout.
+    try:
+        return os.path.relpath(path, ROOT)
+    except ValueError:
+        return os.path.basename(path)
+
+
 def check_config(path=None):
     p = path or os.path.join(ROOT, "config", "adspilot.json")
     if not os.path.exists(p):
-        print("config not found: %s (用 example 复制一份)" % os.path.relpath(p, ROOT))
+        print("config not found: %s (用 example 复制一份)" % config_label(p))
         return 1
     cfg = load_json(p)
     errs = validate(CONFIG_SCHEMA, cfg)
@@ -282,7 +291,7 @@ def check_config(path=None):
         for e in errs:
             print("     " + e)
         return 1
-    print("ok   config (%s)" % os.path.relpath(p, ROOT))
+    print("ok   config (%s)" % config_label(p))
     return 0
 
 

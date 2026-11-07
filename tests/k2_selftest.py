@@ -75,6 +75,40 @@ class K2(unittest.TestCase):
             self.assertIn("fixture-simulation", {e["id"] for e in report["evidence"]})
             self.assertEqual(load(path.parent / "fx.json")["reported_at"], report["reported_at"])
 
+    def test_external_run_evidence_and_private_input_paths(self):
+        # On Windows CI the checkout and temp dir can be on different drives.
+        sys.path.insert(0, str(ROOT))
+        from core.loop import daily
+        config = load(ROOT / "config/adspilot.example.json")
+        external = Path(self.case.name)
+        source = external / "private-input-filename.csv"
+        shutil.copyfile(ROOT / "tests/fixtures/google-ads-report.csv", source)
+        config.update(runs_dir=str(external / "external-runs"), data_dir=str(external / "external-data"))
+        config["traffic"]["report_csv"] = str(source)
+        config["affiliate"].update(commissions_source="json", commissions_json=str(ROOT / "tests/fixtures/commissions.cj.json"))
+        run = daily.Run(config, "portable-test", False)
+        try:
+            rep = run.step_traffic_report()
+            commissions = run.step_commissions()
+            reconciled = run.step_reconcile(commissions)
+            report, valid = run.build_report(rep, reconciled, 0)
+            self.assertTrue(valid)
+            refs = [item["ref"] for item in report["evidence"]]
+            self.assertEqual(refs, ["./traffic-report.json", "./commissions.json", "./conversions.json"])
+            for ref in refs:
+                self.assertTrue((Path(run.dir) / ref).is_file())
+            outbox = Path(config["data_dir"]) / "outbox" / "conversions-portable-test.csv"
+            self.assertEqual(run.path_ref(outbox), "config.data_dir/outbox/conversions-portable-test.csv")
+            source.unlink()
+            self.assertIsNone(run.step_traffic_report())
+            saved = Path(run.path("run.log")).read_text(encoding="utf-8") + json.dumps(run.needs_human)
+            self.assertIn("config.traffic.report_csv", saved)
+            self.assertNotIn(source.name, saved)
+            self.assertNotIn(str(external), saved)
+        finally:
+            run.log_fp.close()
+            run.con.close()
+
     def test_reject_unowned_dir_and_modified_simulation(self):
         occupied = self.runs.parent / "existing"
         occupied.mkdir()
