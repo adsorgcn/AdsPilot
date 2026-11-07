@@ -5,3 +5,6 @@ reference/ilang/ilang-latest.md text eol=lf
 reference/ilang/ilang-latest.sha256 text eol=lf
 # shell 脚本在 Windows 的 Git Bash 里也要能跑
 *.sh text eol=lf
+
+# 官方语法校验器固定字节，用于跨平台核验上游 SHA-256
+reference/ilang/ilang_grammar_validator.py text eol=lf

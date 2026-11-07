@@ -1,0 +1,8 @@
+{
+  "file": "ilang_grammar_validator.py",
+  "source_repo": "https://github.com/ilang-ai/ilang-spec",
+  "source_commit": "d645eb53a0857f4ea1bd8eda499fdc65432ab4e8",
+  "source_path": "ilang_grammar_validator.py",
+  "sha256": "fbe2a30ffa1ad6627d379667f40e44a6e55d8694ebac6bb64efdae81b2079c8f",
+  "license": "MIT"
+}
