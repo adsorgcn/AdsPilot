@@ -101,6 +101,9 @@ def check_interfaces():
 
 def check_fixtures():
     rows = read(CATALOG)
+    # K1 includes the IP contract and its examples before K2 installs a provider.
+    if not any(row["id"] == "ipintel.ipapi-is.lookup" for row in rows):
+        rows.append(entry("ipintel.ipapi-is.lookup", "", "", [], "alpha"))
     errors = []
     for row in rows:
         for direction in ("request", "response"):
