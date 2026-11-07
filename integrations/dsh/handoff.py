@@ -31,14 +31,40 @@ def summary(report):
     return marker, "- %s status=%s exit=%d needs_human=%s" % (marker, state, code, needed)
 
 
-def append_report(report_path, memory):
+def report_summary(report_path, config_path):
+    config_path = config_path or ROOT / "config/adspilot.json"
+    if config_path.is_file():
+        with config_path.open(encoding="utf-8") as src:
+            settings = json.load(src)
+        if not isinstance(settings, dict):
+            raise ValueError("invalid AdsPilot config")
+        runs_dir = settings.get("runs_dir", "runs")
+        if not isinstance(runs_dir, str) or not runs_dir:
+            raise ValueError("invalid AdsPilot runs_dir")
+    else:
+        if config_path != ROOT / "config/adspilot.json":
+            raise ValueError("specified config is unavailable")
+        runs_dir = "runs"
+    runs = (ROOT / runs_dir).resolve(strict=True)
+    report_path = report_path.absolute()
+    if (report_path.name != "report.json" or report_path.parent.parent.resolve(strict=True) != runs
+            or report_path.resolve(strict=True) != runs / report_path.parent.name / "report.json"
+            or report_path.is_symlink() or report_path.parent.is_symlink()):
+        raise ValueError("expected a report directly inside the configured runs directory")
+    with report_path.open(encoding="utf-8") as src:
+        report = json.load(src)
+    if not isinstance(report, dict) or report.get("run_id") != report_path.parent.name:
+        raise ValueError("report run_id does not match its directory")
+    return summary(report)
+
+
+def append_report(report_path, memory, config_path=None):
     memory = memory.resolve(strict=True)
     handoff = memory / "handoff" / "CURRENT.md"
     if (memory.parent != ROOT.parent or memory == ROOT or not (memory / ".git").exists()
             or handoff.resolve(strict=True) != handoff or not handoff.is_file()):
         raise ValueError("expected a sibling DSH git checkout with handoff/CURRENT.md")
-    with report_path.open(encoding="utf-8") as src:
-        marker, line = summary(json.load(src))
+    marker, line = report_summary(report_path, config_path)
 
     with handoff.open("r+b") as dst:
         if os.name == "nt":
@@ -47,13 +73,18 @@ def append_report(report_path, memory):
         else:
             import fcntl
             fcntl.flock(dst, fcntl.LOCK_EX)
-        # Closing the file releases the OS lock, even after an exception.
+        # Check the opened file, not just the path. A hard link would modify another file.
+        # Closing the handle releases the OS lock, including after an exception.
+        opened = os.fstat(dst.fileno())
+        if opened.st_nlink != 1 or handoff.resolve(strict=True) != handoff:
+            raise ValueError("refusing a linked DSH handoff")
         content = dst.read()
         if any(entry.startswith(("- " + marker + " ").encode("utf-8")) for entry in content.splitlines()):
             return "already recorded"
+        newline = b"\r\n" if b"\r\n" in content else b"\n"
         if content and not content.endswith(b"\n"):
-            dst.write(b"\n")
-        dst.write((line + "\n").encode("utf-8"))
+            dst.write(newline)
+        dst.write(line.encode("utf-8") + newline)
         dst.flush()
         os.fsync(dst.fileno())
     return "appended"
@@ -63,9 +94,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", required=True, type=Path)
     parser.add_argument("--memory", required=True, type=Path)
+    parser.add_argument("--config", type=Path, help="AdsPilot config used for this run")
     args = parser.parse_args()
     try:
-        print(append_report(args.report, args.memory))
+        print(append_report(args.report, args.memory, args.config))
     except (OSError, ValueError) as exc:
         print("handoff failed: %s" % type(exc).__name__, file=sys.stderr)
         return 1
