@@ -17,6 +17,9 @@ CORE = {
     "ledger.reconcile": ("core/ledger/reconcile.py", "--commissions={commissions:json} --db={db} --conversion-name={conversion_name} --window-days={window_days}", "转化、撤销、摘要"),
     "ledger.subid": ("core/ledger/subid.py", "{operation} {argument} --db={db} --n={n} --since={since} --out={out} --url={url} --token={token} --campaign={campaign}", "mint/lookup/stats/record/import/pull/export 的结果"),
     "loop.run": ("core/loop/daily.py", "--config={config} --run-id={run_id}", "日志；结果取 runs/<id>/report.json"),
+    "loop.simulate": ("core/loop/daily.py", "--simulate-days={days} --runs-dir={runs_dir}", "生成的离线样例天数、目录"),
+    "selfcheck.acceptance": ("core/selfcheck/validate.py", "--acceptance {runs_dir} --ledger={ledger}", "验收判定、证据类型或失败原因"),
+    "judge.calibrate": ("core/judge/calibrate.py", "--runs-dir={runs_dir} --ledger={ledger} --soul={soul} --config={reference_config}", "阈值提议、样本数、依据和本地文件名"),
     "loop.ack": ("core/loop/daily.py", "--ack={run_id} --config={config}", "确认的动作数"),
     "selfcheck.validate": ("core/selfcheck/validate.py", "--file {schema} {document:json}", "文本判定转 JSON"),
 }
@@ -60,10 +63,16 @@ def short_id(identifier):
 def entry(identifier, script, template, apis, status):
     key = short_id(identifier)
     prefix = "schemas/interfaces/" + key
+    request_prefix = prefix
+    if key == "affiliate.offers":
+        request_prefix = "schemas/interfaces/" + identifier
+        flags = {"affiliate.cj.offers": "--advertiser-ids={advertiser_ids:csv} --with-links={with_links:flag}",
+                 "affiliate.impact.offers": "--campaign-ids={campaign_ids:csv} --with-terms={with_terms:flag}"}
+        template = "--json={offers:json} " + flags[identifier]
     existing = EXISTING.get(key)
     response = "schemas/" + existing + ".schema.json" if existing else prefix + ".response.schema.json"
     return {"id": identifier, "script": script, "argv_template": template.split(),
-            "request_schema": prefix + ".request.schema.json", "response_schema": response,
+            "request_schema": request_prefix + ".request.schema.json", "response_schema": response,
             "exit_codes": CODES, "dry_run_default": True, "external_apis": apis, "status": status,
             "selftest": ["adspilot.py", identifier, "--selftest"],
             "fixture": "tests/fixtures/interfaces/" + identifier + ".request.json"}
@@ -110,6 +119,11 @@ def check_fixtures():
             path = FIXTURES / (row["id"] + "." + direction + ".json")
             if not path.is_file() or validate(read(ROOT / row[direction + "_schema"]), read(path)):
                 errors.append(path.name)
+    previous = read(ROOT / "schemas/interfaces/affiliate.offers.request.schema.json")
+    for provider in ("cj","impact"):
+        path = FIXTURES / ("affiliate."+provider+".offers.request.json")
+        if validate(previous,read(path)):
+            errors.append("2.1.0 compatibility: "+path.name)
     for error in errors:
         print("FAIL fixture " + error)
     print("interface fixtures: %d checked, %d failed" % (len(rows) * 2, len(errors)))
@@ -126,6 +140,9 @@ BASELINE = {
     "ledger.reconcile": ("--commissions FILE [--db] [--batch] [--out] [--conversion-name] [--window-days]", "commissions 与本地 SQLite", "输入 commissions；输出无"),
     "ledger.subid": ("mint/record/import/pull/lookup/stats/export [--db] [动作选项]", "映射 JSONL、本地 SQLite 或 token", "无"),
     "loop.run": ("[--dry-run/--apply] [--config] [--run-id]", "配置、本地报表、账本", "输出 report"),
+    "loop.simulate": ("--simulate-days N --runs-dir DIR", "内置离线 fixtures", "2.1.1 新增"),
+    "selfcheck.acceptance": ("--acceptance RUNS [--ledger DB]", "七天报告和匹配账本", "2.1.1 新增"),
+    "judge.calibrate": ("--runs-dir DIR [--ledger DB --soul FILE]", "报告、账本、SOUL 阈值", "2.1.1 新增"),
     "loop.ack": ("--ack RUN_ID [--config]", "run ID、账本", "无"),
     "selfcheck.validate": ("--all/--manifests/--config/--file/--report/--judgment/--spec/--traffic-report/--commissions", "schema 与待验 JSON", "各被校验对象已有 schema"),
     "affiliate.offers": ("[--json FILE] [--out] [供应商筛选项]", "本地 offers 数组或服务商账户", "无"),
@@ -157,12 +174,17 @@ def inventory(entries):
         i = row["id"]
         shape = CORE[i][2] if i in CORE else PLUGIN[short_id(i)][1]
         has = "--selftest" in (ROOT / row["script"]).read_text(encoding="utf-8")
+        if i == "selfcheck.acceptance":
+            has = False
         args, inputs, original = BASELINE.get(short_id(i), (" ".join(row["argv_template"]), "JSON", "无"))
+        if short_id(i) == "affiliate.offers":
+            args = " ".join(row["argv_template"])
         lines.append("| `%s` | `%s` | `%s` | %s → %s | %s | %s |" % (i, row["script"], args, inputs, shape, original, "有" if has else "无；统一入口样例"))
     lines += ["", "## 使用方法", "", "列出接口用 `python3 adspilot.py --list`。例如 `python3 adspilot.py judge.judge --input tests/fixtures/interfaces/judge.judge.request.json`。每个接口可用同名请求样例或运行 `python3 adspilot.py <id> --selftest`。stdout 为 JSON，退出码 0/2/3/4/1 分别表示成功、需本人、外部失败、配置错误、其他错误。",
               "", "默认离线。脚本原本必须联系外部服务的动作返回含 dry_run、interface、action 的计划；它只说明待执行的动作。可在本地重放的数据直接调用原脚本。请求和本地配置必须同时允许 apply 才会联网或提交写动作。日循环按指定配置留下本地报告。服务商凭据仅由环境传入；私有账本/转化文件通过 data/ 或 runs/ 下文件引用，不把点击标识放进请求。", "",
               "仅合规过滤。Cloudflare 的 roundtrip 和开局 verify 原脚本会走测试点击；接口不开放该探测。开局的 campaign/deploy/offers/page/go/teardown/status 使用 step，账本的 mint/stats/lookup/record/import/pull/export 使用 operation；含点击标识的数据仅用本机私有文件导入。", "",
               "生成注册表和本盘点：`python3 -m core.agent.interfaces --generate`；随后跑 `python3 core/selfcheck/validate.py --interfaces` 与 `python3 adspilot.py --selftest`。"]
+    lines += ["", '''2.1.1 的本地工具始终离线。先执行 `echo '{"days":7,"runs_dir":"runs/fixture-week"}' | python3 adspilot.py loop.simulate`。再把 `{"runs_dir":"runs/fixture-week"}` 分别交给 `selfcheck.acceptance`、`judge.calibrate`。验收不足七天返回退出码 1 和 fail 原因。校准只在所选运行目录保存提议，并返回各阈值的样本数。默认只用同币种或同轮留存的换算记录。显式传 `use_config_fx: true` 才允许当前配置作参考，输出的 `reference_configuration` 与 `per_run_configuration` 分开计数。三个接口均将文件限制在所选本地配置的运行/数据目录；验收和校准也可读取自己的真实跑数目录。''']
     if not any(r["id"].startswith("ipintel.") for r in entries):
         lines += ["", "ipintel.lookup 在本版只有契约、schema 与样例；装入提供者 manifest 后登记可调用接口。"]
     return "\n".join(lines) + "\n"

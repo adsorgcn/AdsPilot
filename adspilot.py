@@ -48,6 +48,13 @@ def selftest(rows):
             shutil.copy2(ROOT/filename,checkout/filename)
         env = environment(False)
         for row in rows:
+            if row["id"] in ("selfcheck.acceptance","judge.calibrate"):
+                request = read(checkout/row["fixture"])
+                days = 7 if row["id"] == "selfcheck.acceptance" else 1
+                # Each call receives its own fixture, even when tested on its own.
+                subprocess.run([sys.executable,str(checkout/"core/loop/daily.py"),"--simulate-days",str(days),
+                                "--runs-dir",str(checkout/request["runs_dir"])],check=True,capture_output=True,
+                               cwd=checkout,env=env,timeout=180)
             proc = subprocess.run([sys.executable,str(checkout/"adspilot.py"),row["id"],"--input",row["fixture"]],
                                   cwd=checkout,env=env,capture_output=True,encoding="utf-8",timeout=600)
             ok = proc.returncode == 0
@@ -56,9 +63,13 @@ def selftest(rows):
                 expected = read(ROOT/"tests/fixtures/interfaces"/(row["id"]+".response.json"))
                 # Compare stable discriminators. The full response is schema-checked by dispatch.
                 if isinstance(expected,dict):
-                    keys = {"type","dry_run","interface","action","valid","verdict","node","choice","mode","sub_id_param","run_id","rows","adjustments"}
+                    keys = {"type","dry_run","interface","action","valid","verdict","node","choice","mode","sub_id_param","run_id","rows","adjustments","proposal_only","days","thresholds","evidence","dates","runs_dir","fx","money_unit"}
+                    if row["id"] == "loop.run":
+                        keys.discard("evidence")
                     for key in keys.intersection(expected):
-                        if key == "rows" and isinstance(expected[key], list):
+                        if key == "rows" and row["id"].startswith("ipintel."):
+                            ok &= actual.get(key) == expected[key]
+                        elif key == "rows" and isinstance(expected[key], list):
                             ok &= isinstance(actual.get(key), list) and len(actual[key]) == len(expected[key])
                         else:
                             ok &= actual.get(key) == expected[key]
@@ -121,7 +132,7 @@ if __name__ == "__main__":
         body, rc = main(sys.argv[1:])
     except InterfaceError as exc:
         rc = exc.code
-        body = {"error":str(exc),"exit_code":rc}
+        body = exc.body if exc.body is not None else {"error":str(exc),"exit_code":rc}
     except (ValueError, OSError, KeyError, TypeError, IndexError, AttributeError, RuntimeError, OverflowError, sqlite3.Error, subprocess.SubprocessError):
         rc = 1
         body = {"error":"invalid input or interface execution failed","exit_code":1}

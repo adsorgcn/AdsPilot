@@ -28,7 +28,11 @@
       "type": "object",
       "properties": {
         "mode": {
-          "type": "string"
+          "enum": [
+            "dry",
+            "apply",
+            "validate"
+          ]
         },
         "results": {
           "type": "array"
@@ -44,22 +48,42 @@
       "type": "object",
       "properties": {
         "mode": {
-          "type": "string"
+          "const": "dry"
         },
         "created": {
           "type": "object"
         },
+        "applied": {
+          "const": false
+        },
         "plan": {
           "type": "array"
-        },
-        "applied": {
-          "type": "boolean"
         }
       },
       "required": [
         "mode",
         "created",
-        "plan",
+        "applied",
+        "plan"
+      ],
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "const": "apply"
+        },
+        "created": {
+          "type": "object"
+        },
+        "applied": {
+          "const": true
+        }
+      },
+      "required": [
+        "mode",
+        "created",
         "applied"
       ],
       "additionalProperties": true
@@ -68,11 +92,58 @@
       "type": "object",
       "properties": {
         "campaign": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
+        },
+        "campaign_removed": {
+          "type": "boolean"
         }
       },
       "required": [
-        "campaign"
+        "campaign",
+        "campaign_removed"
+      ],
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "properties": {
+        "campaign": {
+          "type": "string",
+          "minLength": 1
+        },
+        "plan": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "campaign",
+        "plan"
+      ],
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "properties": {
+        "campaign": {
+          "type": "string",
+          "minLength": 1
+        },
+        "from": {},
+        "to": {
+          "type": "string",
+          "minLength": 1
+        },
+        "applied": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "campaign",
+        "from",
+        "to",
+        "applied"
       ],
       "additionalProperties": true
     }

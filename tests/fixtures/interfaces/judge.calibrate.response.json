@@ -1,0 +1,305 @@
+{
+  "type": "adspilot.calibration.proposal",
+  "proposal_only": true,
+  "soul": "default@2.4.0",
+  "evidence": "fixture-simulation",
+  "reports": 1,
+  "thresholds": [
+    {
+      "parameter": "stop_loss.spend_no_conversion",
+      "current": 100.0,
+      "suggested": 100.0,
+      "samples": 0,
+      "basis": "系列从观测窗口首日到首个有转化日的累计花费 P90（SOUL 币种），仅含观察到转化的系列；无匹配样本，保留现值"
+    },
+    {
+      "parameter": "stop_loss.test_spend_total",
+      "current": 300.0,
+      "suggested": 300.0,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "stop_loss.days_before_budget_down",
+      "current": 7,
+      "suggested": 7,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "stop_loss.roi_floor",
+      "current": 0.5,
+      "suggested": 0.5,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "offer.min_keyword_searches",
+      "current": 50,
+      "suggested": 50,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "offer.max_bid_ratio",
+      "current": 1.0,
+      "suggested": 1.0,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "offer.min_epc",
+      "current": 5.0,
+      "suggested": 5.0,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "offer.max_reversal_rate",
+      "current": 0.2,
+      "suggested": 0.2,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "offer.min_cookie_days",
+      "current": 7,
+      "suggested": 7,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "keyword.pause_after_clicks_no_conv",
+      "current": 30,
+      "suggested": 30,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "keyword.bid_down_pct",
+      "current": 10,
+      "suggested": 10,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "conversion.window_days",
+      "current": 90,
+      "suggested": 90,
+      "samples": 0,
+      "basis": "匹配本轮账本的转化延迟天数 P90，向上取整并限制在 1..90，历史窗口可能截断长尾；无匹配样本，保留现值"
+    },
+    {
+      "parameter": "conversion.min_rows",
+      "current": 1,
+      "suggested": 1,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "anomaly.spend_spike_x",
+      "current": 3.0,
+      "suggested": 3.0,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "anomaly.disapproval_appeal_max",
+      "current": 1,
+      "suggested": 1,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "authority.within_caps",
+      "current": 0.85,
+      "suggested": 0.85,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "authority.over_caps",
+      "current": 0.4,
+      "suggested": 0.4,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "authority.propose_only",
+      "current": 0.5,
+      "suggested": 0.5,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "reversibility.keep",
+      "current": 0.95,
+      "suggested": 0.95,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "reversibility.pause",
+      "current": 0.95,
+      "suggested": 0.95,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "reversibility.pause_all",
+      "current": 0.9,
+      "suggested": 0.9,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "reversibility.bid_down",
+      "current": 0.9,
+      "suggested": 0.9,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "reversibility.budget_down",
+      "current": 0.9,
+      "suggested": 0.9,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "reversibility.negative",
+      "current": 0.9,
+      "suggested": 0.9,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "reversibility.budget_up",
+      "current": 0.7,
+      "suggested": 0.7,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "reversibility.go",
+      "current": 0.6,
+      "suggested": 0.6,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "reversibility.publish",
+      "current": 0.8,
+      "suggested": 0.8,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "reversibility.upload",
+      "current": 0.45,
+      "suggested": 0.45,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "reversibility.select",
+      "current": 0.75,
+      "suggested": 0.75,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "reversibility.hold",
+      "current": 0.95,
+      "suggested": 0.95,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "reversibility.fix",
+      "current": 0.95,
+      "suggested": 0.95,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "reversibility.continue",
+      "current": 0.95,
+      "suggested": 0.95,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "reversibility.escalate",
+      "current": 0.95,
+      "suggested": 0.95,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "reversibility.none",
+      "current": 0.95,
+      "suggested": 0.95,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "vector_base.int",
+      "current": 0.9,
+      "suggested": 0.9,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "vector_base.cap",
+      "current": 0.8,
+      "suggested": 0.8,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "vector_base.rel",
+      "current": 0.7,
+      "suggested": 0.7,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "vector_base.sov",
+      "current": 1.0,
+      "suggested": 1.0,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "vector_base.ext",
+      "current": 0.9,
+      "suggested": 0.9,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "user_decision.default_days",
+      "current": 7,
+      "suggested": 7,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    },
+    {
+      "parameter": "user_decision.max_extra_spend",
+      "current": 100.0,
+      "suggested": 100.0,
+      "samples": 0,
+      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+    }
+  ],
+  "money_unit": "USD",
+  "fx": {
+    "used_reports": {
+      "same_currency": 1
+    },
+    "skipped_reports": 0,
+    "skip_reasons": {}
+  },
+  "proposal_file": "calibration-2026-09-01.json"
+}

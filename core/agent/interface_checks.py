@@ -7,6 +7,8 @@ import sys
 import tempfile
 
 from core.agent.interface_runner import sanitize
+from core.agent.interfaces import read
+from core.selfcheck.validate import validate
 
 
 def check(checkout):
@@ -25,6 +27,27 @@ def check(checkout):
         results[name] = child.returncode == rc and (assertion(output) if assertion else True)
         return output
 
+    for provider, bad_key, good_key in (("cj","campaign_ids","advertiser_ids"),("impact","advertiser_ids","campaign_ids")):
+        action = "affiliate."+provider+".offers"
+        call(provider+" rejects another provider's filter",action,{bad_key:["sample"]},1)
+        call(provider+" accepts its own filter in preview",action,{good_key:["sample"]},0,lambda r:r["dry_run"] is True)
+    for schema in ("traffic.budget","traffic.deploy","traffic.convert_api","judgment.judge"):
+        doc=read(checkout/"schemas/interfaces"/(schema+".response.schema.json"))
+        results[schema+" rejects empty successful response"] = bool(validate(doc,{}))
+    deploy=read(checkout/"schemas/interfaces/traffic.deploy.response.schema.json")
+    results["Google deploy apply response permits absent dry plan"] = not validate(
+        deploy,{"mode":"apply","created":{"campaign":["sample"]},"applied":True})
+    call("incomplete week yields safe fail JSON","selfcheck.acceptance",{"runs_dir":"runs/missing-week"},1,
+         lambda r:r == {"verdict":"fail","reason":"ledger.db missing"})
+    call("simulator cannot target production runs directory","loop.simulate",{"runs_dir":"runs","days":1},4)
+    for action, req in (("loop.simulate",{"days":1}),("selfcheck.acceptance",{}),("judge.calibrate",{})):
+        call(action+" rejects escaping path",action,dict(req,runs_dir="../outside"),4)
+        call(action+" rejects apply",action,dict(req,runs_dir="runs/test",apply=True,config=relative),1)
+    call("IP lookup refuses apply without host consent","ipintel.ipapi-is.lookup",{"ips":["192.0.2.23"],"apply":True},4)
+    call("IP lookup needs a key even with host consent","ipintel.ipapi-is.lookup",
+         {"ips":["192.0.2.23"],"apply":True,"config":relative},4,extra_env={"IPAPI_IS_KEY":""})
+    call("IP lookup does not fabricate unknown address data","ipintel.ipapi-is.lookup",
+         {"ips":["192.0.2.77"]},0,lambda r:r=={"rows":[]})
     call("apply needs local consent","deploy.cloudflare.publish",{"site":True,"apply":True},4)
     call("local consent alone stays dry","deploy.cloudflare.publish",{"site":True,"config":relative},0,
          lambda r:r["dry_run"] is True)
@@ -93,6 +116,8 @@ def check(checkout):
             _winapi.CreateJunction(str(outside),str(linked_dir))
         else:
             linked_dir.symlink_to(outside,target_is_directory=True)
+        for action, req in (("loop.simulate",{"days":1}),("selfcheck.acceptance",{}),("judge.calibrate",{})):
+            call(action+" rejects linked run tree",action,dict(req,runs_dir="runs/linked-canary"),4)
         call("implicit run target rejects linked directory","loop.run",{"run_id":"linked-canary"},4)
         results["run canary preserved"]=list(outside.iterdir())==[canary]
         if os.name=="nt":

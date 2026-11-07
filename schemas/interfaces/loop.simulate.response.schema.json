@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "loop.simulate response",
+  "type": "object",
+  "properties": {
+    "days": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 366
+    },
+    "evidence": {
+      "const": "fixture-simulation"
+    },
+    "runs_dir": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "days",
+    "evidence",
+    "runs_dir"
+  ],
+  "additionalProperties": false
+}

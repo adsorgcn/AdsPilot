@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "selfcheck.acceptance response",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "verdict": {
+          "const": "pass"
+        },
+        "dates": {
+          "type": "string",
+          "minLength": 1
+        },
+        "days": {
+          "const": 7
+        },
+        "evidence": {
+          "enum": [
+            "fixture-simulation",
+            "local-ledger-and-reports"
+          ]
+        }
+      },
+      "required": [
+        "verdict",
+        "dates",
+        "days",
+        "evidence"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "verdict": {
+          "const": "fail"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "verdict",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

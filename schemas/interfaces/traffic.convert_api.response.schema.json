@@ -52,7 +52,11 @@
       "type": "object",
       "properties": {
         "mode": {
-          "type": "string"
+          "enum": [
+            "dry",
+            "apply",
+            "validate"
+          ]
         },
         "rows": {
           "type": "integer",
@@ -61,12 +65,21 @@
         "retractions": {
           "type": "integer",
           "minimum": 0
+        },
+        "applied": {
+          "type": "boolean"
+        },
+        "conversion_name": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "required": [
         "mode",
         "rows",
-        "retractions"
+        "retractions",
+        "applied",
+        "conversion_name"
       ],
       "additionalProperties": true
     }

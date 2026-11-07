@@ -7,6 +7,7 @@ AdsPilot schema 自检（主干，schema 与自检部件）
 不认识的关键字直接报错，不会悄悄跳过。
 
 用法：
+  python3 core/selfcheck/validate.py --acceptance <runs_dir> [--ledger <db>]  # 七天账本和报告
   python3 core/selfcheck/validate.py --interfaces                # 注册表、脚本、schema 与自测
   python3 core/selfcheck/validate.py --manifests                 # 校验所有插件 manifest
   python3 core/selfcheck/validate.py --config                    # 校验 config/adspilot.json
@@ -21,6 +22,7 @@ AdsPilot schema 自检（主干，schema 与自检部件）
 退出码：0 全过；1 有不合格。
 也可 import：from validate import validate, load_schema
 """
+import argparse
 import glob
 import json
 import os
@@ -332,6 +334,13 @@ def main(argv):
         return check_config(argv[1] if len(argv) > 1 else None)
     if cmd == "--file":
         return check_file(argv[1], argv[2])
+    if cmd == "--acceptance":
+        from core.selfcheck.acceptance import main as acceptance
+        parser = argparse.ArgumentParser(prog="validate.py --acceptance")
+        parser.add_argument("runs_dir")
+        parser.add_argument("--ledger")
+        args = parser.parse_args(argv[1:])
+        return acceptance(args.runs_dir, args.ledger)
     if cmd == "--interfaces":
         from core.agent.interfaces import check_interfaces
         return check_interfaces()

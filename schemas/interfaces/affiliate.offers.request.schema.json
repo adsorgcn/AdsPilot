@@ -45,5 +45,7 @@
     }
   },
   "required": [],
-  "additionalProperties": false
+  "additionalProperties": false,
+  "deprecated": true,
+  "description": "2.1.0 共用形状。可调用的 CJ 与 Impact 接口使用注册表中各提供者的请求 schema。"
 }

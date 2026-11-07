@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "judge.calibrate response",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "adspilot.calibration.proposal"
+    },
+    "proposal_only": {
+      "const": true
+    },
+    "soul": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence": {
+      "enum": [
+        "fixture-simulation",
+        "local-records"
+      ]
+    },
+    "reports": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "thresholds": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "parameter": {
+            "type": "string",
+            "minLength": 1
+          },
+          "current": {
+            "type": "number"
+          },
+          "suggested": {
+            "type": "number"
+          },
+          "samples": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "basis": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "parameter",
+          "current",
+          "suggested",
+          "samples",
+          "basis"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "proposal_file": {
+      "type": "string",
+      "pattern": "^calibration-[0-9]{4}-[0-9]{2}-[0-9]{2}[.]json$"
+    },
+    "money_unit": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "fx": {
+      "type": "object",
+      "properties": {
+        "used_reports": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "skipped_reports": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skip_reasons": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "required": [
+        "used_reports",
+        "skipped_reports",
+        "skip_reasons"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "type",
+    "proposal_only",
+    "soul",
+    "evidence",
+    "reports",
+    "thresholds",
+    "proposal_file",
+    "money_unit",
+    "fx"
+  ],
+  "additionalProperties": false
+}

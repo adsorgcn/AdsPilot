@@ -6,11 +6,34 @@
       "type": "object",
       "properties": {
         "dry_run": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
+        },
+        "query": {
+          "type": "string",
+          "minLength": 1
         }
       },
       "required": [
-        "dry_run"
+        "dry_run",
+        "query"
+      ],
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "properties": {
+        "dry_run": {
+          "type": "string",
+          "minLength": 1
+        },
+        "body": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "dry_run",
+        "body"
       ],
       "additionalProperties": true
     },
@@ -18,18 +41,65 @@
       "type": "object",
       "properties": {
         "type": {
-          "enum": [
-            "adspilot.budget_recommendation",
-            "adspilot.budget_recommendations"
-          ]
+          "const": "adspilot.budget_recommendations"
         },
         "currency": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
+        },
+        "pulled_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "campaigns": {
+          "type": "object"
         }
       },
       "required": [
         "type",
-        "currency"
+        "currency",
+        "pulled_at",
+        "campaigns"
+      ],
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "adspilot.budget_recommendation"
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pulled_at": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recommended": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "options": {
+          "type": "array"
+        },
+        "current": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "currency",
+        "pulled_at",
+        "recommended",
+        "options",
+        "current"
       ],
       "additionalProperties": true
     }

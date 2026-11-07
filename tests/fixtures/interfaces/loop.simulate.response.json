@@ -1,0 +1,5 @@
+{
+  "days": 7,
+  "evidence": "fixture-simulation",
+  "runs_dir": "runs/interface-simulation"
+}

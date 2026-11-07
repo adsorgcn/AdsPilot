@@ -98,11 +98,9 @@
     "argv_template": [
       "--json={offers:json}",
       "--advertiser-ids={advertiser_ids:csv}",
-      "--campaign-ids={campaign_ids:csv}",
-      "--with-links={with_links:flag}",
-      "--with-terms={with_terms:flag}"
+      "--with-links={with_links:flag}"
     ],
-    "request_schema": "schemas/interfaces/affiliate.offers.request.schema.json",
+    "request_schema": "schemas/interfaces/affiliate.cj.offers.request.schema.json",
     "response_schema": "schemas/interfaces/affiliate.offers.response.schema.json",
     "exit_codes": {
       "0": "success",
@@ -227,12 +225,10 @@
     "script": "plugins/affiliate/impact/offers.py",
     "argv_template": [
       "--json={offers:json}",
-      "--advertiser-ids={advertiser_ids:csv}",
       "--campaign-ids={campaign_ids:csv}",
-      "--with-links={with_links:flag}",
       "--with-terms={with_terms:flag}"
     ],
-    "request_schema": "schemas/interfaces/affiliate.offers.request.schema.json",
+    "request_schema": "schemas/interfaces/affiliate.impact.offers.request.schema.json",
     "response_schema": "schemas/interfaces/affiliate.offers.response.schema.json",
     "exit_codes": {
       "0": "success",
@@ -370,6 +366,59 @@
       "--selftest"
     ],
     "fixture": "tests/fixtures/interfaces/deploy.cloudflare.status.request.json"
+  },
+  {
+    "id": "ipintel.ipapi-is.lookup",
+    "script": "plugins/ipintel/ipapi-is/lookup.py",
+    "argv_template": [],
+    "request_schema": "schemas/interfaces/ipintel.lookup.request.schema.json",
+    "response_schema": "schemas/interfaces/ipintel.lookup.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "https://api.ipapi.is"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "ipintel.ipapi-is.lookup",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/ipintel.ipapi-is.lookup.request.json"
+  },
+  {
+    "id": "judge.calibrate",
+    "script": "core/judge/calibrate.py",
+    "argv_template": [
+      "--runs-dir={runs_dir}",
+      "--ledger={ledger}",
+      "--soul={soul}",
+      "--config={reference_config}"
+    ],
+    "request_schema": "schemas/interfaces/judge.calibrate.request.schema.json",
+    "response_schema": "schemas/interfaces/judge.calibrate.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "judge.calibrate",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/judge.calibrate.request.json"
   },
   {
     "id": "judge.judge",
@@ -697,6 +746,32 @@
     "fixture": "tests/fixtures/interfaces/loop.run.request.json"
   },
   {
+    "id": "loop.simulate",
+    "script": "core/loop/daily.py",
+    "argv_template": [
+      "--simulate-days={days}",
+      "--runs-dir={runs_dir}"
+    ],
+    "request_schema": "schemas/interfaces/loop.simulate.request.schema.json",
+    "response_schema": "schemas/interfaces/loop.simulate.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "loop.simulate",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/loop.simulate.request.json"
+  },
+  {
     "id": "lp.check",
     "script": "core/lp/lp_check.py",
     "argv_template": [
@@ -722,6 +797,33 @@
       "--selftest"
     ],
     "fixture": "tests/fixtures/interfaces/lp.check.request.json"
+  },
+  {
+    "id": "selfcheck.acceptance",
+    "script": "core/selfcheck/validate.py",
+    "argv_template": [
+      "--acceptance",
+      "{runs_dir}",
+      "--ledger={ledger}"
+    ],
+    "request_schema": "schemas/interfaces/selfcheck.acceptance.request.schema.json",
+    "response_schema": "schemas/interfaces/selfcheck.acceptance.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "selfcheck.acceptance",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/selfcheck.acceptance.request.json"
   },
   {
     "id": "selfcheck.validate",

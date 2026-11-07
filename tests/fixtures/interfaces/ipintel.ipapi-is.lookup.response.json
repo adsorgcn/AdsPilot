@@ -5,6 +5,12 @@
       "country": "US",
       "is_datacenter": false,
       "is_proxy": false
+    },
+    {
+      "ip": "2001:db8::23",
+      "country": "CA",
+      "is_datacenter": false,
+      "is_proxy": true
     }
   ]
 }

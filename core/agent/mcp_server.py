@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -99,6 +100,11 @@ class Server:
             result = subprocess.run(command, cwd=ROOT, input=json.dumps(arguments, allow_nan=False),
                                     capture_output=True, encoding="utf-8", timeout=300,
                                     env=dict(os.environ, PYTHONUTF8="1"))
+            if result.returncode == 1 and name == "selfcheck.acceptance":
+                failure = json.loads(result.stdout)
+                if (isinstance(failure,dict) and set(failure)=={"verdict","reason"} and
+                        failure["verdict"]=="fail" and isinstance(failure["reason"],str)):
+                    return tool_result(protected_output(failure,arguments,name),True)
             if result.returncode:
                 return tool_result(json.dumps({"error": "tool failed", "exit_code": result.returncode}), True)
             return tool_result(protected_output(json.loads(result.stdout), arguments, name))
@@ -180,13 +186,16 @@ def selftest():
         name = "affiliate." + provider + ".link"
         sample = json_file(ROOT / ("tests/fixtures/interfaces/" + name + ".request.json"))
         calls.append((index, "tools/call", {"name": name, "arguments": sample}))
+    name = "runs/missing-mcp-fixture-"+uuid.uuid4().hex
+    calls.append((8,"tools/call",{"name":"selfcheck.acceptance","arguments":{"runs_dir":name,
+                  "ledger":"data/missing-"+uuid.uuid4().hex+".db"}}))
     messages = []
     for identifier, method, params in calls:
         message = {"jsonrpc": "2.0", "method": method, "params": params}
         if identifier is not None:
             message["id"] = identifier
         messages.append(json.dumps(message))
-    child = subprocess.run([sys.executable, __file__], input="\n".join(messages) + "\n", capture_output=True,
+    child = subprocess.run([sys.executable, __file__, "--config",str(ROOT/"config/adspilot.example.json")], input="\n".join(messages) + "\n", capture_output=True,
                            encoding="utf-8", timeout=60, cwd=ROOT)
     if child.returncode:
         raise ValueError("stdio server failed")
@@ -203,13 +212,16 @@ def selftest():
         payload = json.loads(link["content"][0]["text"])
         assert param + "=" + payload["token"] in payload["url"]
 
+    failed = replies[8]["result"]
+    assert failed["isError"] and json.loads(failed["content"][0]["text"]) == {"verdict":"fail","reason":"ledger.db missing"}
+
     for result in ({"secret": "synthetic"}, {"message": "gclid=example"}, {"extra": "synthetic"}):
         try:
             protected_output(result, {"gclid": "synthetic"})
         except ValueError:
             continue
         raise ValueError("Privacy check failed")
-    print("MCP stdio: initialize ok; tools/list %d; judge.judge ok; affiliate links ok; config override rejected; privacy checks ok" % len(names))
+    print("MCP stdio: initialize ok; tools/list %d; judge.judge ok; affiliate links ok; acceptance fail reason retained; config override rejected; privacy checks ok" % len(names))
     return 0
 
 

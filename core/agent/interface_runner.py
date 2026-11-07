@@ -31,9 +31,10 @@ SENSITIVE_TEXT = re.compile(
 
 
 class InterfaceError(Exception):
-    def __init__(self, message, code=1):
+    def __init__(self, message, code=1, body=None):
         super().__init__(message)
         self.code = code
+        self.body = body
 
 
 def credential_values():
@@ -300,6 +301,111 @@ def checked_location(value, directory):
     return target
 
 
+OFFLINE_RUN_TOOLS = ("loop.simulate", "selfcheck.acceptance", "judge.calibrate")
+
+
+def private_run_paths(key, req, cfg):
+    """Accept the configured run tree only, even on a host with absolute storage paths."""
+    runs_base = checked_location(cfg["runs_dir"], None)
+    data_base = checked_location(cfg["data_dir"], None)
+    if any(p in (ROOT,Path(p.anchor)) for p in (runs_base,data_base)):
+        raise InterfaceError("data/runs directory must be dedicated",4)
+    target = checked_location(req["runs_dir"], None)
+    if not within(target,runs_base) or (key == "loop.simulate" and target == runs_base):
+        raise InterfaceError("choose a directory within configured runs_dir",4)
+    if target.exists() and not target.is_dir():
+        raise InterfaceError("runs_dir must be a directory",4)
+    audit_tree(target)
+    req["runs_dir"] = target
+    if key == "loop.simulate":
+        return
+    if req.get("ledger"):
+        ledger = checked_location(req["ledger"],None)
+    elif (target/".adspilot-simulation.json").is_file():
+        ledger = target/"data/ledger.db"
+    elif target == runs_base:
+        ledger = data_base/"ledger.db"
+    else:
+        ledger = target.parent/"data/ledger.db"
+    if not any(within(ledger,p) for p in (runs_base,data_base)) or ledger.suffix.lower() not in (".db",".sqlite",".sqlite3"):
+        raise InterfaceError("ledger must be a private SQLite file",4)
+    for suffix in ("","-wal","-shm","-journal"):
+        checked_location(str(ledger)+suffix,None)
+    req["ledger"] = ledger
+    if key == "judge.calibrate":
+        soul = safe_path(req.get("soul",cfg["soul"]),["soul"],".md")
+        if not soul.name.endswith(".soul.md"):
+            raise InterfaceError("expected a SOUL file",4)
+        req["soul"] = soul
+        if req.get("use_config_fx"):
+            req["reference_config"] = req["config"]
+
+
+def audit_tree(root):
+    if root.exists():
+        # Never traverse a linked directory, including a dangling link.
+        stack = [root]
+        while stack:
+            location = stack.pop()
+            with os.scandir(location) as listing:
+                for item in listing:
+                    node = Path(item.path)
+                    check_node(node)
+                    if item.is_dir(follow_symlinks=False):
+                        stack.append(node)
+
+
+def acceptance_result(output, rc):
+    if rc == 0:
+        match = re.fullmatch(r"pass dates=(\d{4}-\d\d-\d\d\.\.\d{4}-\d\d-\d\d) days=7 evidence=(fixture-simulation|local-ledger-and-reports)",output.strip())
+        if not match:
+            raise InterfaceError("unrecognized acceptance result")
+        return {"verdict":"pass","dates":match[1],"days":7,"evidence":match[2]}
+    # Do not return directory names, run identifiers or other text from a ledger.
+    known = ("ledger.db missing","runs table is empty","invalid ledger run id","unexpected report symlink",
+             "missing report","invalid report schema","report date disagrees with ledger","report disagrees with ledger",
+             "needs_human reason outside kyc/payment/appeal or missing","exit 2 without required human intervention",
+             "run directory without a ledger row","unfinished or inconsistent ledger timestamps")
+    reason = next((item for item in known if output.startswith("fail "+item)),None)
+    day = re.fullmatch(r"fail (\d{4}-\d\d-\d\d has \d+ runs; expected exactly 1)",output.strip())
+    if day:
+        reason = day[1]
+    code = re.match(r"fail exit code (-?\d+) for ",output)
+    if code:
+        reason = "disallowed exit code "+code[1]
+    return {"verdict":"fail","reason":reason or "invalid local ledger or report evidence"}
+
+
+def offline_run(entry, req, cfg, tmp):
+    key = entry["id"]
+    private_run_paths(key,req,cfg)
+    args = arguments(entry["argv_template"],req,tmp)
+    rc, stdout = legacy(entry,args,False)
+    if key == "selfcheck.acceptance":
+        result = acceptance_result(stdout,rc)
+        if rc:
+            raise InterfaceError("acceptance failed",body=result)
+        return result
+    if rc:
+        raise InterfaceError(OUTCOMES.get(rc,OUTCOMES[1]),rc if rc in OUTCOMES else 1)
+    if key == "loop.simulate":
+        manifest = read(req["runs_dir"]/".adspilot-simulation.json")
+        if manifest.get("kind") != "fixture-simulation" or manifest.get("days") != req["days"]:
+            raise InterfaceError("invalid simulation result")
+        base = ROOT if within(req["runs_dir"],ROOT) else checked_location(cfg["runs_dir"],None)
+        location = req["runs_dir"].relative_to(base).as_posix()
+        return {"days":req["days"],"evidence":"fixture-simulation","runs_dir":location}
+    output = json.loads(stdout)
+    proposal = Path(output["proposal"])
+    if proposal.parent != req["runs_dir"] or not re.fullmatch(r"calibration-\d{4}-\d\d-\d\d\.json",proposal.name):
+        raise InterfaceError("invalid calibration output path")
+    check_node(proposal)
+    result = read(proposal)
+    if result.get("evidence") != output.get("evidence") or result.get("proposal_only") is not True:
+        raise InterfaceError("invalid calibration proposal")
+    return dict(result,proposal_file=proposal.name)
+
+
 def guard_outputs(key, cfg):
     """Legacy scripts derive additional paths internally. Audit just their potential roots."""
     roots = set()
@@ -330,17 +436,7 @@ def guard_outputs(key, cfg):
             raise InterfaceError("data/runs directory must be a dedicated directory",4)
         if any(within(root, previous) for previous in checked):
             continue
-        if root.exists():
-            # Never traverse a linked directory, including a dangling link.
-            stack = [root]
-            while stack:
-                location = stack.pop()
-                with os.scandir(location) as listing:
-                    for item in listing:
-                        node = Path(item.path)
-                        check_node(node)
-                        if item.is_dir(follow_symlinks=False):
-                            stack.append(node)
+        audit_tree(root)
         checked.add(root)
 
 
@@ -394,6 +490,8 @@ def run_request(entry, request, tmp):
         raise InterfaceError("sensitive fields must stay in the private local input file")
     cp, cfg, apply = config_for(request)
     req = dict(request,config=cp)
+    if key in OFFLINE_RUN_TOOLS:
+        return sanitize(offline_run(entry,req,cfg,tmp),secrets)
     guard_outputs(key, cfg)
     for name, value in request.items():
         if isinstance(value, str) and value.startswith("--"):
@@ -520,7 +618,12 @@ def run_request(entry, request, tmp):
 
 def dispatch(entry, request):
     with tempfile.TemporaryDirectory(prefix="adspilot-interface-") as directory:
-        result = run_request(entry,request,Path(directory))
+        try:
+            result = run_request(entry,request,Path(directory))
+        except InterfaceError as error:
+            if error.body is not None and validate(read(ROOT / entry["response_schema"]),error.body):
+                raise InterfaceError("invalid interface failure response")
+            raise
     if validate(read(ROOT / entry["response_schema"]), result):
         raise InterfaceError("script output does not match " + entry["response_schema"])
     return result
