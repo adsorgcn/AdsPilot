@@ -36,7 +36,7 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-10-20, version 2.0.21. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-11-06, version 2.1.0. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
@@ -54,11 +54,14 @@ As of 2026-10-20, version 2.0.21. Every part below has code, a usage method and 
 | Plugin Cloudflare landing site | **live-tested on a real account** | one key builds KV, Worker, domain and certificate; page 200, /go 302 with sid, /export into the ledger: all pass |
 | Offer rule 1 (keyword bid < earnings per click) | **live-tested on a real account** | top 10 CJ offers checked against real bids: 3 pass, 7 out; passing keywords go straight to campaign creation |
 | Plugin keywords (Google Ads Keyword Planner) | **live-tested on a real account** | homepage URL as seed yields category keywords with monthly searches and top-of-page bids |
+| JSON CLI and MCP | alpha | offline self-tests |
 | Plugin ipintel | contract only | first release pending |
 
-In one sentence: onboarding is now one action, hand over three keys (Cloudflare, Google Ads, CJ), then run launch and get a real campaign. The whole chain from landing site to campaign to ledger has closed once in the real world. The only part not yet touched by real data is the SOUL thresholds, which can only be calibrated by running. Next is the first student environment running seven unattended days, after which the plugins move from alpha to stable.
+The previous launch record covers the landing site, campaign and ledger in the historical table above. This series adds interfaces with offline evidence. SOUL calibration and seven unattended days still require a real student environment.
 
 ## Progress log
+
+**2026-11-06, 2.1.0.** The interface registry connects 9 core and 23 plugin actions to their original scripts. The CLI and local MCP server share the same requests, responses and offline fixtures. External execution requires both an explicit apply request and permission in the local configuration. The three agent entry files link to the usage instructions and pass the pinned iLang grammar check.
 
 **2026-10-20, 2.0.21.** A second network: Impact. `plugins/affiliate/impact/` implements the four contract actions against the impact.com Partner API: offers come from joined programs plus contract terms, links append `subId1` to carry the token, commissions come from Actions windowed by last-updated time, and a reversal, which in Impact is the same Action changing state to REVERSED, becomes one negative chargeback row whose amount is taken from the ActionUpdates DeltaPayout. Two things to know: the Partner API exposes no program-level EPC at all, so epc stays null, nothing is invented, offer rule 1 cannot be computed, the first launch needs the user to pick, and real EPC comes later from the partner's own reports; paid-search policy is still free text in the contract, and only HasStandDownPolicy maps directly to "no brand bidding". Two small touches in the core: launch now takes the sub-id parameter name from the plugin manifest when it writes the offer table, and the landing page check recognizes Impact tracking links by path shape. A read-only run with the owner's real credentials: auth passes, the account has joined no program yet, the three actions return 0 rows, Contracts returns 403 because the token lacks that scope and the plugin degrades as designed; nothing was written.
 

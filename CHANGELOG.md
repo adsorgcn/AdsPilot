@@ -2,6 +2,10 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。本文件记细节，README 的「进度记录」记叙事，每版两处都写。
 
+## 2.1.0（2026-11-06）统一 JSON 接口与 MCP
+
+`schemas/interfaces.json` 登记 9 项主干和 23 项插件动作；`docs/接口盘点.md` 对照原脚本参数及证据。CLI 和本地 MCP 共用同一份请求、响应和自测样例。对外执行要求调用者显式开启 apply，且本机配置同意。三份入口补充使用方法，严格检查使用钉版的 iLang 校验器。证据为离线自测。
+
 ## 2.0.21（2026-10-20）首发 Impact 联盟插件
 
 第二家联盟。`plugins/affiliate/impact/`：照 `plugins/affiliate/契约.md` 的四个动作，把 impact.com 伙伴 API（v16）翻译成主干认的形状；只用标准库，凭据 `IMPACT_ACCOUNT_SID`、`IMPACT_AUTH_TOKEN` 只住环境变量，HTTP Basic。
