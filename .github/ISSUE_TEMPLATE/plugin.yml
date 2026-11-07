@@ -1,0 +1,23 @@
+name: 插件提案
+description: 提交一种提供者的插件契约与自测计划
+body:
+  - type: input
+    id: provider
+    attributes:
+      label: 插件类别、提供者与官方 API 文档
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: 动作与接口
+      description: 列出请求、响应 schema、环境变量名、dry-run 退路和退出码。
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 样例、自测与证据计划
+      description: 说明离线覆盖范围；只给虚构数据，省略所有凭据、原始点击标识与他人资料。
+    validations:
+      required: true

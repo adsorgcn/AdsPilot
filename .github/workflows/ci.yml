@@ -3,15 +3,36 @@ on:
   push:
     branches: [main, "v2/**"]
   pull_request:
+permissions:
+  contents: read
 jobs:
   selftest:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest]
         python: ["3.9", "3.12"]
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHON: python
+      PYTHONUTF8: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - run: bash tests/run.sh
+      - name: Scan for credential patterns
+        run: python core/agent/selfcheck.py --secrets
+      - name: Validate schemas and interfaces
+        run: |
+          python core/selfcheck/validate.py --all
+          python core/selfcheck/validate.py --interfaces
+      - name: Verify pinned grammar checker and lint entry files
+        run: |
+          python -c "import hashlib,json,pathlib,sys; p=pathlib.Path('reference/ilang'); s=json.loads((p/'ilang_grammar_validator.source.json').read_text()); sys.exit(hashlib.sha256((p/s['file']).read_bytes()).hexdigest() != s['sha256'])"
+          python reference/ilang/ilang_grammar_validator.py --lint CONTRIBUTING.md AGENTS.md CLAUDE.md .cursor/rules/adspilot.mdc --strict
+      - name: Run offline selftests
+        run: bash tests/run.sh

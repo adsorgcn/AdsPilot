@@ -18,6 +18,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import socket
 import subprocess
@@ -27,7 +28,10 @@ import time
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 MIN_PY = (3, 9)
-SECRET_MARKERS = ("github_pat_", "ghp_", "AIza", "sk-ant-", "-----BEGIN ", "xoxb-", "AKIA")
+# Split known prefixes so the scanner can also inspect its own source.
+SECRET_MARKERS = ("github_" + "pat_", "gh" + "p_", "AI" + "za", "sk-" + "ant-",
+                  "-----" + "BEGIN ", "xo" + "xb-", "AK" + "IA")
+SECRET_PATTERN = re.compile("|".join(map(re.escape, SECRET_MARKERS)) + r"|\bsk-(?:proj-)?[A-Za-z0-9_-]{32,}\b")
 
 
 def _res(name, status, detail="", fix=""):
@@ -43,7 +47,7 @@ def check_python():
 
 def check_shell():
     try:
-        out = subprocess.run(["echo", "adspilot"], capture_output=True, text=True, timeout=5)
+        out = subprocess.run([sys.executable, "-c", "print('adspilot')"], capture_output=True, text=True, timeout=5)
         ok = out.returncode == 0 and out.stdout.strip() == "adspilot"
         return _res("shell_exec", "pass" if ok else "fail", "subprocess ok" if ok else out.stderr.strip())
     except Exception as e:  # noqa: BLE001
@@ -202,13 +206,13 @@ def check_soul(cfg):
     return _res("soul", "pass", detail)
 
 
-def check_secrets_in_repo():
+def check_secrets_in_repo(root=ROOT):
     hits = []
     skip_dirs = {".git", "data", "runs", "node_modules", "__pycache__"}
-    for dirpath, dirnames, filenames in os.walk(ROOT):
+    for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d not in skip_dirs]
         for fn in filenames:
-            if fn == "selfcheck.py" or fn.endswith((".png", ".jpg", ".db", ".sqlite")):
+            if fn.endswith((".png", ".jpg", ".db", ".sqlite")):
                 continue
             p = os.path.join(dirpath, fn)
             try:
@@ -216,10 +220,8 @@ def check_secrets_in_repo():
                     txt = f.read()
             except Exception:  # noqa: BLE001
                 continue
-            for m in SECRET_MARKERS:
-                if m in txt:
-                    hits.append("%s (%s)" % (os.path.relpath(p, ROOT), m.strip()))
-                    break
+            if SECRET_PATTERN.search(txt):
+                hits.append(os.path.relpath(p, root))
     return _res("no_secrets_in_repo", "fail" if hits else "pass", "; ".join(hits) if hits else "clean",
                 "把凭据移到环境变量，仓库里只留变量名" if hits else "")
 
@@ -252,6 +254,10 @@ def check_plugins():
 
 
 def main(argv):
+    if "--secrets" in argv:
+        scan = check_secrets_in_repo()
+        print("no_secrets_in_repo", scan["detail"])
+        return 0 if scan["status"] == "pass" else 1
     quick = "--quick" in argv
     as_json = "--json" in argv
     t0 = time.time()

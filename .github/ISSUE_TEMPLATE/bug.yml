@@ -1,0 +1,22 @@
+name: Bug 报告
+description: 提交可用离线样例复现的问题
+body:
+  - type: input
+    id: environment
+    attributes:
+      label: AdsPilot 版本、操作系统及 Python 版本
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 最小复现步骤与样例输入
+      description: 用虚构数据复现；省略凭据、原始点击标识与他人资料。
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: 预期结果、实际结果、脱敏输出与退出码
+    validations:
+      required: true
