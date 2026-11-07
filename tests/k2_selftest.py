@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import warnings
 
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON = sys.executable
@@ -76,38 +77,48 @@ class K2(unittest.TestCase):
             self.assertEqual(load(path.parent / "fx.json")["reported_at"], report["reported_at"])
 
     def test_external_run_evidence_and_private_input_paths(self):
-        # On Windows CI the checkout and temp dir can be on different drives.
-        sys.path.insert(0, str(ROOT))
-        from core.loop import daily
-        config = load(ROOT / "config/adspilot.example.json")
-        external = Path(self.case.name)
-        source = external / "private-input-filename.csv"
-        shutil.copyfile(ROOT / "tests/fixtures/google-ads-report.csv", source)
-        config.update(runs_dir=str(external / "external-runs"), data_dir=str(external / "external-data"))
-        config["traffic"]["report_csv"] = str(source)
-        config["affiliate"].update(commissions_source="json", commissions_json=str(ROOT / "tests/fixtures/commissions.cj.json"))
-        run = daily.Run(config, "portable-test", False)
-        try:
-            rep = run.step_traffic_report()
-            commissions = run.step_commissions()
-            reconciled = run.step_reconcile(commissions)
-            report, valid = run.build_report(rep, reconciled, 0)
-            self.assertTrue(valid)
-            refs = [item["ref"] for item in report["evidence"]]
-            self.assertEqual(refs, ["./traffic-report.json", "./commissions.json", "./conversions.json"])
-            for ref in refs:
-                self.assertTrue((Path(run.dir) / ref).is_file())
-            outbox = Path(config["data_dir"]) / "outbox" / "conversions-portable-test.csv"
-            self.assertEqual(run.path_ref(outbox), "config.data_dir/outbox/conversions-portable-test.csv")
-            source.unlink()
-            self.assertIsNone(run.step_traffic_report())
-            saved = Path(run.path("run.log")).read_text(encoding="utf-8") + json.dumps(run.needs_human)
-            self.assertIn("config.traffic.report_csv", saved)
-            self.assertNotIn(source.name, saved)
-            self.assertNotIn(str(external), saved)
-        finally:
-            run.log_fp.close()
-            run.con.close()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ResourceWarning)  # Legacy scripts open short-lived JSON handles.
+            # On Windows CI the checkout and temp dir can be on different drives.
+            sys.path.insert(0, str(ROOT))
+            from core.loop import daily
+            config = load(ROOT / "config/adspilot.example.json")
+            external = Path(self.case.name)
+            source = external / "private-input-filename.csv"
+            shutil.copyfile(ROOT / "tests/fixtures/google-ads-report.csv", source)
+            config.update(runs_dir=str(external / "external-runs"), data_dir=str(external / "external-data"))
+            config["traffic"]["report_csv"] = str(source)
+            config["affiliate"].update(commissions_source="json", commissions_json=str(ROOT / "tests/fixtures/commissions.cj.json"))
+            run = daily.Run(config, "portable-test", False)
+            try:
+                rep = run.step_traffic_report()
+                commissions = run.step_commissions()
+                reconciled = run.step_reconcile(commissions)
+                report, valid = run.build_report(rep, reconciled, 0)
+                self.assertTrue(valid)
+                refs = [item["ref"] for item in report["evidence"]]
+                self.assertEqual(refs, ["./traffic-report.json", "./commissions.json", "./conversions.json"])
+                for ref in refs:
+                    self.assertTrue((Path(run.dir) / ref).is_file())
+                outbox = Path(config["data_dir"]) / "outbox" / "conversions-portable-test.csv"
+                self.assertEqual(run.path_ref(outbox), "config.data_dir/outbox/conversions-portable-test.csv")
+                source.unlink()
+                self.assertIsNone(run.step_traffic_report())
+                saved = Path(run.path("run.log")).read_text(encoding="utf-8") + json.dumps(run.needs_human)
+                self.assertIn("config.traffic.report_csv", saved)
+                self.assertNotIn(source.name, saved)
+                self.assertNotIn(str(external), saved)
+            finally:
+                run.log_fp.close()
+                run.con.close()
+            standard = daily.Run.__new__(daily.Run)
+            standard.cfg = {}
+            standard.run_id = "portable-test"
+            standard.dir = str(ROOT / "runs/portable-test")
+            standard.data_dir = str(ROOT / "data")
+            self.assertEqual(standard.path_ref(ROOT / "runs/portable-test/report.json"), "runs/portable-test/report.json")
+            self.assertEqual(standard.path_ref(ROOT / "data/outbox/conversions-portable-test.csv"),
+                             "data/outbox/conversions-portable-test.csv")
 
     def test_reject_unowned_dir_and_modified_simulation(self):
         occupied = self.runs.parent / "existing"
@@ -216,8 +227,11 @@ class K2(unittest.TestCase):
     @unittest.skipUnless(os.name == "nt", "Windows PowerShell preview")
     def test_windows_preview(self):
         proc = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "RemoteSigned",
-                               "-File", str(ROOT / "tests/k2_windows_preview.ps1"), "-Python", sys.executable], cwd=ROOT)
-        self.assertEqual(proc.returncode, 0)
+                               "-File", str(ROOT / "tests/k2_windows_preview.ps1"), "-Python", sys.executable],
+                              cwd=ROOT, capture_output=True, encoding="utf-8", errors="replace")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("Windows templates: parsed, two triggers", proc.stdout,
+                      "PowerShell must execute the template checks and emit their completion marker")
 
 
 if __name__ == "__main__":
