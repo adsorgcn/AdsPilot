@@ -36,7 +36,7 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-11-06, version 2.1.2. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-11-06, version 2.1.3. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
@@ -62,6 +62,8 @@ As of 2026-11-06, version 2.1.2. Every part below has code, a usage method and a
 The previous launch record covers the landing site, campaign and ledger in the historical table above. This series adds interfaces with offline evidence. SOUL calibration and seven unattended days still require a real student environment.
 
 ## Progress log
+
+**2026-11-06, 2.1.3.** The contribution guide specifies each plugin's contract, schemas, tests and evidence. PR and issue templates and ownership rules cover contribution and review. CI is configured for Linux and Windows on both Python versions, with suite, schema, registry and credential-pattern checks. Scanning covers tracked files and UTF-16 sources and reports match counts. Windows run artifacts on a separate drive use resolvable relative references. Local evidence comes from self-tests. Each push to v2.1/interfaces triggers the hosted jobs. Their results appear on the commit in GitHub Actions and in the batch report.
 
 **2026-11-06, 2.1.2.** The DSH skill, MCP configuration and agent entry files place AdsPilot alongside the memory repository. The handoff helper appends a one-line summary to CURRENT.md and recognizes a repeated run. Evidence comes from local samples. The usage instructions give all ten stdio fields and a creator-mode setup prompt. The official DSH client listed 36 tools offline and called the local judge.
 
