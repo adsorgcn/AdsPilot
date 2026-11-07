@@ -21,6 +21,7 @@ import platform
 import re
 import shutil
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
@@ -206,23 +207,121 @@ def check_soul(cfg):
     return _res("soul", "pass", detail)
 
 
+def _stream_has_secret(stream, size=None):
+    # ASCII prefixes also occur as UTF-16 code units in PowerShell-generated files.
+    # Keep enough overlap for a prefix and a full minimum-length key at a block boundary.
+    tail, found = b"", False
+    while size is None or size > 0:
+        block = stream.read(65536 if size is None else min(size, 65536))
+        if not block:
+            if size:
+                raise ValueError("short git blob")
+            break
+        if size is not None:
+            size -= len(block)
+        if not found:
+            data = tail + block
+            encodings = ("utf-8", "utf-16-le", "utf-16-be") if b"\0" in data else ("utf-8",)
+            found = any(SECRET_PATTERN.search(data.decode(enc, errors="replace")) for enc in encodings)
+            if found and size is None:
+                return True
+            tail = data[-256:]
+    return found
+
+
+def _tracked_paths(root, hits):
+    """Scan index blobs, including ignored-but-tracked files and staged-only content."""
+    if not os.path.exists(os.path.join(root, ".git")):
+        return set()
+    env = dict(os.environ, GIT_OPTIONAL_LOCKS="0", GIT_NO_LAZY_FETCH="1", GIT_ALLOW_PROTOCOL="")
+    git = ["git", "-C", root]
+    listing = subprocess.run(git + ["ls-files", "--stage", "-z"], stdout=subprocess.PIPE,
+                             stderr=subprocess.DEVNULL, env=env, check=True).stdout
+    paths, by_blob = set(), {}
+    for entry in listing.split(b"\0"):
+        if not entry:
+            continue
+        attrs, name = entry.split(b"\t", 1)
+        mode, oid, _stage = attrs.split()
+        rel = os.fsdecode(name)
+        paths.add(rel)
+        if SECRET_PATTERN.search(rel):
+            hits.add(rel)
+        if mode != b"160000":  # gitlinks contain commit IDs, not file contents.
+            by_blob.setdefault(oid, []).append(rel)
+    with subprocess.Popen(git + ["cat-file", "--batch"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                          stderr=subprocess.DEVNULL, env=env) as process:
+        for oid, names in by_blob.items():
+            process.stdin.write(oid + b"\n")
+            process.stdin.flush()
+            header = process.stdout.readline().split()
+            if len(header) != 3 or header[:2] != [oid, b"blob"]:
+                raise ValueError("missing git blob")
+            if _stream_has_secret(process.stdout, int(header[2])):
+                hits.update(names)
+            if process.stdout.read(1) != b"\n":
+                raise ValueError("invalid git blob boundary")
+        process.stdin.close()
+        if process.wait():
+            raise ValueError("cannot read git blobs")
+    return paths
+
+
+def _is_link(info):
+    return (stat.S_ISLNK(info.st_mode) or
+            getattr(info, "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0))
+
+
+def _worktree_file(root, rel):
+    # Check every component. A tracked directory can be replaced by an external link.
+    path = root
+    try:
+        for part in rel.split("/"):
+            path = os.path.join(path, part)
+            info = os.lstat(path)
+            if _is_link(info):
+                return None
+    except (FileNotFoundError, NotADirectoryError):
+        return None
+    return path if stat.S_ISREG(info.st_mode) else None
+
+
+def _raise_walk_error(error):
+    raise error
+
+
 def check_secrets_in_repo(root=ROOT):
-    hits = []
-    skip_dirs = {".git", "data", "runs", "node_modules", "__pycache__"}
-    for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in skip_dirs]
-        for fn in filenames:
-            if fn.endswith((".png", ".jpg", ".db", ".sqlite")):
-                continue
-            p = os.path.join(dirpath, fn)
-            try:
-                with open(p, "r", encoding="utf-8", errors="ignore") as f:
-                    txt = f.read()
-            except Exception:  # noqa: BLE001
-                continue
-            if SECRET_PATTERN.search(txt):
-                hits.append(os.path.relpath(p, root))
-    return _res("no_secrets_in_repo", "fail" if hits else "pass", "; ".join(hits) if hits else "clean",
+    root = os.path.abspath(root)
+    hits = set()
+    try:
+        tracked = _tracked_paths(root, hits)
+        paths = set(tracked)
+        for folder, dirs, files in os.walk(root, onerror=_raise_walk_error):
+            skip = {".git", "__pycache__", "node_modules"}
+            if folder == root:
+                skip.update(("data", "runs", "site"))
+            dirs[:] = [name for name in dirs if name not in skip and
+                       not _is_link(os.lstat(os.path.join(folder, name)))]
+            for name in files:
+                rel = os.path.relpath(os.path.join(folder, name), root).replace(os.sep, "/")
+                if rel == "config/adspilot.json" or rel == ".env" or rel.startswith(".env."):
+                    continue
+                if name.endswith((".db", ".sqlite", ".pyc")):
+                    continue
+                paths.add(rel)
+        for rel in paths:
+            if SECRET_PATTERN.search(rel):
+                hits.add(rel)
+            path = _worktree_file(root, rel)
+            if path is not None:
+                with open(path, "rb") as stream:
+                    if _stream_has_secret(stream):
+                        hits.add(rel)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return _res("no_secrets_in_repo", "fail", "scan incomplete", "检查仓库文件和 Git 索引是否可读")
+    # File names can contain sensitive values or terminal control characters; report counts only.
+    detail = "%d file(s) matched" % len(hits) if hits else "clean"
+    return _res("no_secrets_in_repo", "fail" if hits else "pass", detail,
                 "把凭据移到环境变量，仓库里只留变量名" if hits else "")
 
 
