@@ -36,7 +36,7 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-11-06, version 2.1.3. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-11-06, version 2.1.4. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
@@ -62,6 +62,8 @@ As of 2026-11-06, version 2.1.3. Every part below has code, a usage method and a
 The previous launch record covers the landing site, campaign and ledger in the historical table above. This series adds interfaces with offline evidence. SOUL calibration and seven unattended days still require a real student environment.
 
 ## Progress log
+
+**2026-11-06, 2.1.4.** Records the test changes from 302291f. The Windows task-template test checks both the PowerShell exit code and its completion marker, preventing a placeholder process that merely returns zero from passing, and includes captured error output on failure. Regression assertions preserve the original runs and data/outbox references for default same-drive paths; ResourceWarning from legacy scripts is ignored only inside that path regression test. The test commit passed CI on Linux and Windows with Python 3.9 and 3.12; no new live-account testing was performed.
 
 **2026-11-06, 2.1.3.** The contribution guide specifies each plugin's contract, schemas, tests and evidence. PR and issue templates and ownership rules cover contribution and review. CI is configured for Linux and Windows on both Python versions, with suite, schema, registry and credential-pattern checks. Scanning covers tracked files and UTF-16 sources and reports match counts. Windows run artifacts on a separate drive use resolvable relative references. Local evidence comes from self-tests. Each push to v2.1/interfaces triggers the hosted jobs. Their results appear on the commit in GitHub Actions and in the batch report.
 
