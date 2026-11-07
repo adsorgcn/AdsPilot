@@ -33,6 +33,7 @@ run "$PY" plugins/traffic/google-ads/convert_api.py --selftest
 run "$PY" plugins/ipintel/ipapi-is/lookup.py --selftest
 run "$PY" core/judge/calibrate.py --selftest
 run "$PY" tests/k2_selftest.py
+run "$PY" tests/dsh_handoff.py
 run "$PY" plugins/affiliate/cj/commissions.py --selftest
 run "$PY" plugins/affiliate/cj/chargebacks.py --selftest
 run "$PY" plugins/affiliate/cj/offers.py --selftest
