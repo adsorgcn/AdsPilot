@@ -36,7 +36,7 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-11-06, version 2.1.0. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-11-06, version 2.1.1. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
@@ -55,11 +55,14 @@ As of 2026-11-06, version 2.1.0. Every part below has code, a usage method and a
 | Offer rule 1 (keyword bid < earnings per click) | **live-tested on a real account** | top 10 CJ offers checked against real bids: 3 pass, 7 out; passing keywords go straight to campaign creation |
 | Plugin keywords (Google Ads Keyword Planner) | **live-tested on a real account** | homepage URL as seed yields category keywords with monthly searches and top-of-page bids |
 | JSON CLI and MCP | alpha | offline self-tests |
-| Plugin ipintel | contract only | first release pending |
+| Plugin ipintel (ipapi.is) | alpha | offline sample |
+| Seven-day acceptance and calibration proposals | alpha | fixture self-tests |
 
 The previous launch record covers the landing site, campaign and ledger in the historical table above. This series adds interfaces with offline evidence. SOUL calibration and seven unattended days still require a real student environment.
 
 ## Progress log
+
+**2026-11-06, 2.1.1.** The alpha ipapi.is plugin returns country, datacenter and proxy flags for filtering. A fixture-driven simulation produces seven dated runs. The acceptance checker inspects reports and the ledger, and calibration writes threshold proposals. Windows daily-task and hourly-sentinel templates are included. The registry adds IP lookup, simulation, acceptance and calibration. CJ and Impact offer filters now use provider-specific schemas. Evidence is from samples and self-tests. A seven-day run in a student environment is still pending.
 
 **2026-11-06, 2.1.0.** The interface registry connects 9 core and 23 plugin actions to their original scripts. The CLI and local MCP server share the same requests, responses and offline fixtures. External execution requires both an explicit apply request and permission in the local configuration. The three agent entry files link to the usage instructions and pass the pinned iLang grammar check.
 
