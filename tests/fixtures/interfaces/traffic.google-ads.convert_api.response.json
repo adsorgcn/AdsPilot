@@ -1,0 +1,9 @@
+{
+  "mode": "dry",
+  "customer": "***",
+  "conversion_name": "sample",
+  "rows": 0,
+  "retractions": 0,
+  "unlinked_chargebacks": [],
+  "applied": false
+}

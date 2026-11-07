@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "launch.run response",
+  "anyOf": [
+    {
+      "type": "object",
+      "properties": {
+        "interface": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dry_run": {
+          "const": true
+        }
+      },
+      "required": [
+        "interface",
+        "action",
+        "dry_run"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "step": {
+          "enum": [
+            "status",
+            "deploy",
+            "offers",
+            "page",
+            "campaign",
+            "go",
+            "teardown"
+          ]
+        }
+      },
+      "required": [
+        "step"
+      ],
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "object"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "next": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "state",
+        "steps",
+        "next"
+      ],
+      "additionalProperties": true
+    }
+  ]
+}

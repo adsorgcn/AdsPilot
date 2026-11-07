@@ -1,0 +1,5 @@
+{
+  "interface": "deploy.cloudflare.publish",
+  "dry_run": true,
+  "action": "publish"
+}

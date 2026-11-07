@@ -1,0 +1,5 @@
+{
+  "url": "https://example.com/product?subId1=SAMPLE00001",
+  "sub_id_param": "subId1",
+  "token": "SAMPLE00001"
+}

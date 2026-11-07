@@ -1,0 +1,987 @@
+[
+  {
+    "id": "affiliate.cj.chargebacks",
+    "script": "plugins/affiliate/cj/chargebacks.py",
+    "argv_template": [
+      "--commissions={commissions:json}",
+      "--days={days}"
+    ],
+    "request_schema": "schemas/interfaces/affiliate.chargebacks.request.schema.json",
+    "response_schema": "schemas/interfaces/affiliate.chargebacks.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "commissions.api.cj.com (GraphQL Commission Detail)",
+      "advertiser-lookup.api.cj.com/v2",
+      "link-search.api.cj.com/v2",
+      "CJ 后台（csv 退路）"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "affiliate.cj.chargebacks",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/affiliate.cj.chargebacks.request.json"
+  },
+  {
+    "id": "affiliate.cj.commissions",
+    "script": "plugins/affiliate/cj/commissions.py",
+    "argv_template": [
+      "--csv={csv:text}",
+      "--days={days}"
+    ],
+    "request_schema": "schemas/interfaces/affiliate.commissions.request.schema.json",
+    "response_schema": "schemas/interfaces/affiliate.commissions.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "commissions.api.cj.com (GraphQL Commission Detail)",
+      "advertiser-lookup.api.cj.com/v2",
+      "link-search.api.cj.com/v2",
+      "CJ 后台（csv 退路）"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "affiliate.cj.commissions",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/affiliate.cj.commissions.request.json"
+  },
+  {
+    "id": "affiliate.cj.link",
+    "script": "plugins/affiliate/cj/link.py",
+    "argv_template": [
+      "--base={base}",
+      "--token={token}"
+    ],
+    "request_schema": "schemas/interfaces/affiliate.link.request.schema.json",
+    "response_schema": "schemas/interfaces/affiliate.link.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "commissions.api.cj.com (GraphQL Commission Detail)",
+      "advertiser-lookup.api.cj.com/v2",
+      "link-search.api.cj.com/v2",
+      "CJ 后台（csv 退路）"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "affiliate.cj.link",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/affiliate.cj.link.request.json"
+  },
+  {
+    "id": "affiliate.cj.offers",
+    "script": "plugins/affiliate/cj/offers.py",
+    "argv_template": [
+      "--json={offers:json}",
+      "--advertiser-ids={advertiser_ids:csv}",
+      "--campaign-ids={campaign_ids:csv}",
+      "--with-links={with_links:flag}",
+      "--with-terms={with_terms:flag}"
+    ],
+    "request_schema": "schemas/interfaces/affiliate.offers.request.schema.json",
+    "response_schema": "schemas/interfaces/affiliate.offers.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "commissions.api.cj.com (GraphQL Commission Detail)",
+      "advertiser-lookup.api.cj.com/v2",
+      "link-search.api.cj.com/v2",
+      "CJ 后台（csv 退路）"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "affiliate.cj.offers",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/affiliate.cj.offers.request.json"
+  },
+  {
+    "id": "affiliate.impact.chargebacks",
+    "script": "plugins/affiliate/impact/chargebacks.py",
+    "argv_template": [
+      "--commissions={commissions:json}",
+      "--days={days}"
+    ],
+    "request_schema": "schemas/interfaces/affiliate.chargebacks.request.schema.json",
+    "response_schema": "schemas/interfaces/affiliate.chargebacks.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "api.impact.com/Mediapartners/{SID}/Campaigns（已加入项目）",
+      "api.impact.com/Mediapartners/{SID}/Contracts（佣金率、锁定期、cookie 窗口、特别条款）",
+      "api.impact.com/Mediapartners/{SID}/Actions 与 /ActionUpdates（佣金与撤销）",
+      "api.impact.com/Mediapartners/{SID}/Reports（跑起来以后算自己的 EPC）",
+      "Impact 后台 Action Listing 导出 CSV（csv 退路）"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "affiliate.impact.chargebacks",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/affiliate.impact.chargebacks.request.json"
+  },
+  {
+    "id": "affiliate.impact.commissions",
+    "script": "plugins/affiliate/impact/commissions.py",
+    "argv_template": [
+      "--csv={csv:text}",
+      "--days={days}"
+    ],
+    "request_schema": "schemas/interfaces/affiliate.commissions.request.schema.json",
+    "response_schema": "schemas/interfaces/affiliate.commissions.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "api.impact.com/Mediapartners/{SID}/Campaigns（已加入项目）",
+      "api.impact.com/Mediapartners/{SID}/Contracts（佣金率、锁定期、cookie 窗口、特别条款）",
+      "api.impact.com/Mediapartners/{SID}/Actions 与 /ActionUpdates（佣金与撤销）",
+      "api.impact.com/Mediapartners/{SID}/Reports（跑起来以后算自己的 EPC）",
+      "Impact 后台 Action Listing 导出 CSV（csv 退路）"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "affiliate.impact.commissions",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/affiliate.impact.commissions.request.json"
+  },
+  {
+    "id": "affiliate.impact.link",
+    "script": "plugins/affiliate/impact/link.py",
+    "argv_template": [
+      "--base={base}",
+      "--token={token}"
+    ],
+    "request_schema": "schemas/interfaces/affiliate.link.request.schema.json",
+    "response_schema": "schemas/interfaces/affiliate.link.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "api.impact.com/Mediapartners/{SID}/Campaigns（已加入项目）",
+      "api.impact.com/Mediapartners/{SID}/Contracts（佣金率、锁定期、cookie 窗口、特别条款）",
+      "api.impact.com/Mediapartners/{SID}/Actions 与 /ActionUpdates（佣金与撤销）",
+      "api.impact.com/Mediapartners/{SID}/Reports（跑起来以后算自己的 EPC）",
+      "Impact 后台 Action Listing 导出 CSV（csv 退路）"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "affiliate.impact.link",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/affiliate.impact.link.request.json"
+  },
+  {
+    "id": "affiliate.impact.offers",
+    "script": "plugins/affiliate/impact/offers.py",
+    "argv_template": [
+      "--json={offers:json}",
+      "--advertiser-ids={advertiser_ids:csv}",
+      "--campaign-ids={campaign_ids:csv}",
+      "--with-links={with_links:flag}",
+      "--with-terms={with_terms:flag}"
+    ],
+    "request_schema": "schemas/interfaces/affiliate.offers.request.schema.json",
+    "response_schema": "schemas/interfaces/affiliate.offers.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "api.impact.com/Mediapartners/{SID}/Campaigns（已加入项目）",
+      "api.impact.com/Mediapartners/{SID}/Contracts（佣金率、锁定期、cookie 窗口、特别条款）",
+      "api.impact.com/Mediapartners/{SID}/Actions 与 /ActionUpdates（佣金与撤销）",
+      "api.impact.com/Mediapartners/{SID}/Reports（跑起来以后算自己的 EPC）",
+      "Impact 后台 Action Listing 导出 CSV（csv 退路）"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "affiliate.impact.offers",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/affiliate.impact.offers.request.json"
+  },
+  {
+    "id": "agent.selfcheck",
+    "script": "core/agent/selfcheck.py",
+    "argv_template": [
+      "--quick",
+      "--json"
+    ],
+    "request_schema": "schemas/interfaces/agent.selfcheck.request.schema.json",
+    "response_schema": "schemas/interfaces/agent.selfcheck.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "agent.selfcheck",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/agent.selfcheck.request.json"
+  },
+  {
+    "id": "deploy.cloudflare.publish",
+    "script": "plugins/deploy/cloudflare/publish.py",
+    "argv_template": [
+      "--page={page:text}",
+      "--slug={slug}",
+      "--site={site:flag}",
+      "--site-name={site_name}",
+      "--contact={contact}",
+      "--offers={offers:json}"
+    ],
+    "request_schema": "schemas/interfaces/deploy.publish.request.schema.json",
+    "response_schema": "schemas/interfaces/deploy.publish.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "Cloudflare API v4（Workers Scripts、Workers KV、Workers Custom Domains、Zones）",
+      "用户自有域名上的 /<slug> /go /export /health"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "deploy.cloudflare.publish",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/deploy.cloudflare.publish.request.json"
+  },
+  {
+    "id": "deploy.cloudflare.setup",
+    "script": "plugins/deploy/cloudflare/setup.py",
+    "argv_template": [
+      "--host={host}",
+      "--teardown={teardown:flag}"
+    ],
+    "request_schema": "schemas/interfaces/deploy.setup.request.schema.json",
+    "response_schema": "schemas/interfaces/deploy.setup.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "Cloudflare API v4（Workers Scripts、Workers KV、Workers Custom Domains、Zones）",
+      "用户自有域名上的 /<slug> /go /export /health"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "deploy.cloudflare.setup",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/deploy.cloudflare.setup.request.json"
+  },
+  {
+    "id": "deploy.cloudflare.status",
+    "script": "plugins/deploy/cloudflare/status.py",
+    "argv_template": [],
+    "request_schema": "schemas/interfaces/deploy.status.request.schema.json",
+    "response_schema": "schemas/interfaces/deploy.status.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "Cloudflare API v4（Workers Scripts、Workers KV、Workers Custom Domains、Zones）",
+      "用户自有域名上的 /<slug> /go /export /health"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "deploy.cloudflare.status",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/deploy.cloudflare.status.request.json"
+  },
+  {
+    "id": "judge.judge",
+    "script": "core/judge/judge.py",
+    "argv_template": [
+      "--node={node}",
+      "--state={state:json}",
+      "--choices={choices:json}",
+      "--evidence={evidence:csv}",
+      "--provider={provider}",
+      "--config={config}"
+    ],
+    "request_schema": "schemas/interfaces/judge.judge.request.schema.json",
+    "response_schema": "schemas/judgment.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "judge.judge",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/judge.judge.request.json"
+  },
+  {
+    "id": "judgment.jev.judge",
+    "script": "plugins/judgment/jev/provider.py",
+    "argv_template": [
+      "--config={judgment_config:literal}"
+    ],
+    "request_schema": "schemas/interfaces/judgment.judge.request.schema.json",
+    "response_schema": "schemas/interfaces/judgment.judge.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "Jev decide 接口（早期接入，形状待锁死）"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "judgment.jev.judge",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/judgment.jev.judge.request.json"
+  },
+  {
+    "id": "judgment.llm.judge",
+    "script": "plugins/judgment/llm/provider.py",
+    "argv_template": [
+      "--config={judgment_config:literal}"
+    ],
+    "request_schema": "schemas/interfaces/judgment.judge.request.schema.json",
+    "response_schema": "schemas/interfaces/judgment.judge.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "OpenAI 兼容 /chat/completions（用户选的提供商）"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "judgment.llm.judge",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/judgment.llm.judge.request.json"
+  },
+  {
+    "id": "judgment.soul-api.judge",
+    "script": "plugins/judgment/soul-api/provider.py",
+    "argv_template": [
+      "--config={judgment_config:literal}"
+    ],
+    "request_schema": "schemas/interfaces/judgment.judge.request.schema.json",
+    "response_schema": "schemas/interfaces/judgment.judge.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "iLang Inc. SOUL API /v1/judge（服务端不在本仓库）"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "judgment.soul-api.judge",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/judgment.soul-api.judge.request.json"
+  },
+  {
+    "id": "keywords.google-ads.suggest",
+    "script": "plugins/keywords/google-ads/planner.py",
+    "argv_template": [
+      "suggest",
+      "--seed={seed:csv}",
+      "--url={url}",
+      "--country={country}",
+      "--language={language}",
+      "--limit={limit}",
+      "--batch={batch:json}"
+    ],
+    "request_schema": "schemas/interfaces/keywords.suggest.request.schema.json",
+    "response_schema": "schemas/interfaces/keywords.suggest.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "Google Ads API KeywordPlanIdeaService（generateKeywordIdeas、generateKeywordHistoricalMetrics）"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "keywords.google-ads.suggest",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/keywords.google-ads.suggest.request.json"
+  },
+  {
+    "id": "keywords.google-ads.volume",
+    "script": "plugins/keywords/google-ads/planner.py",
+    "argv_template": [
+      "volume",
+      "--keywords={keywords:csv}",
+      "--country={country}",
+      "--language={language}"
+    ],
+    "request_schema": "schemas/interfaces/keywords.volume.request.schema.json",
+    "response_schema": "schemas/interfaces/keywords.volume.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "Google Ads API KeywordPlanIdeaService（generateKeywordIdeas、generateKeywordHistoricalMetrics）"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "keywords.google-ads.volume",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/keywords.google-ads.volume.request.json"
+  },
+  {
+    "id": "launch.run",
+    "script": "core/launch/launch.py",
+    "argv_template": [
+      "{step}",
+      "--brief={brief:json}",
+      "--content={content:json}",
+      "--offers-json={offers:json}",
+      "--host={host}",
+      "--slug={slug}",
+      "--user={user}",
+      "--pick={pick}",
+      "--country={country}",
+      "--language={language}",
+      "--top={top}",
+      "--enable={enable:flag}",
+      "--all={all:flag}",
+      "--config={config}"
+    ],
+    "request_schema": "schemas/interfaces/launch.run.request.schema.json",
+    "response_schema": "schemas/interfaces/launch.run.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "launch.run",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/launch.run.request.json"
+  },
+  {
+    "id": "ledger.reconcile",
+    "script": "core/ledger/reconcile.py",
+    "argv_template": [
+      "--commissions={commissions:json}",
+      "--db={db}",
+      "--conversion-name={conversion_name}",
+      "--window-days={window_days}"
+    ],
+    "request_schema": "schemas/interfaces/ledger.reconcile.request.schema.json",
+    "response_schema": "schemas/interfaces/ledger.reconcile.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "ledger.reconcile",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/ledger.reconcile.request.json"
+  },
+  {
+    "id": "ledger.subid",
+    "script": "core/ledger/subid.py",
+    "argv_template": [
+      "{operation}",
+      "{argument}",
+      "--db={db}",
+      "--n={n}",
+      "--since={since}",
+      "--out={out}",
+      "--url={url}",
+      "--token={token}",
+      "--campaign={campaign}"
+    ],
+    "request_schema": "schemas/interfaces/ledger.subid.request.schema.json",
+    "response_schema": "schemas/interfaces/ledger.subid.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "ledger.subid",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/ledger.subid.request.json"
+  },
+  {
+    "id": "loop.ack",
+    "script": "core/loop/daily.py",
+    "argv_template": [
+      "--ack={run_id}",
+      "--config={config}"
+    ],
+    "request_schema": "schemas/interfaces/loop.ack.request.schema.json",
+    "response_schema": "schemas/interfaces/loop.ack.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "loop.ack",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/loop.ack.request.json"
+  },
+  {
+    "id": "loop.run",
+    "script": "core/loop/daily.py",
+    "argv_template": [
+      "--config={config}",
+      "--run-id={run_id}"
+    ],
+    "request_schema": "schemas/interfaces/loop.run.request.schema.json",
+    "response_schema": "schemas/report.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "loop.run",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/loop.run.request.json"
+  },
+  {
+    "id": "lp.check",
+    "script": "core/lp/lp_check.py",
+    "argv_template": [
+      "{html:text}",
+      "--min-words={min_words}",
+      "--json"
+    ],
+    "request_schema": "schemas/interfaces/lp.check.request.schema.json",
+    "response_schema": "schemas/interfaces/lp.check.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "lp.check",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/lp.check.request.json"
+  },
+  {
+    "id": "selfcheck.validate",
+    "script": "core/selfcheck/validate.py",
+    "argv_template": [
+      "--file",
+      "{schema}",
+      "{document:json}"
+    ],
+    "request_schema": "schemas/interfaces/selfcheck.validate.request.schema.json",
+    "response_schema": "schemas/interfaces/selfcheck.validate.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "selfcheck.validate",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/selfcheck.validate.request.json"
+  },
+  {
+    "id": "traffic.google-ads.budget",
+    "script": "plugins/traffic/google-ads/budget_api.py",
+    "argv_template": [
+      "--new={brief:json}",
+      "--campaigns={campaigns:flag}",
+      "--new-customer={new_customer:flag}"
+    ],
+    "request_schema": "schemas/interfaces/traffic.budget.request.schema.json",
+    "response_schema": "schemas/interfaces/traffic.budget.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "Google Ads 后台（manual 路，Agent 在用户浏览器里操作）",
+      "googleads.googleapis.com searchStream（api 路，用户自有凭据）",
+      "googleads.googleapis.com campaignBudgets/campaigns/campaignCriteria/adGroups/adGroupCriteria/adGroupAds/conversionActions:mutate、uploadConversionAdjustments（api 路）",
+      "datamanager.googleapis.com events:ingest（api 路的转化上传，新接入必走）",
+      "oauth2.googleapis.com token"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "traffic.google-ads.budget",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/traffic.google-ads.budget.request.json"
+  },
+  {
+    "id": "traffic.google-ads.convert",
+    "script": "plugins/traffic/google-ads/convert_export.py",
+    "argv_template": [
+      "--conversions={conversions:json}",
+      "--out={out}",
+      "--timezone={timezone}"
+    ],
+    "request_schema": "schemas/interfaces/traffic.convert.request.schema.json",
+    "response_schema": "schemas/interfaces/traffic.convert.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "Google Ads 后台（manual 路，Agent 在用户浏览器里操作）",
+      "googleads.googleapis.com searchStream（api 路，用户自有凭据）",
+      "googleads.googleapis.com campaignBudgets/campaigns/campaignCriteria/adGroups/adGroupCriteria/adGroupAds/conversionActions:mutate、uploadConversionAdjustments（api 路）",
+      "datamanager.googleapis.com events:ingest（api 路的转化上传，新接入必走）",
+      "oauth2.googleapis.com token"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "traffic.google-ads.convert",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/traffic.google-ads.convert.request.json"
+  },
+  {
+    "id": "traffic.google-ads.convert_api",
+    "script": "plugins/traffic/google-ads/convert_api.py",
+    "argv_template": [
+      "--conversions={conversions:json}",
+      "--remove-action={remove_action}",
+      "--timezone={timezone}",
+      "--conversion-name={conversion_name}",
+      "--transport={transport}"
+    ],
+    "request_schema": "schemas/interfaces/traffic.convert_api.request.schema.json",
+    "response_schema": "schemas/interfaces/traffic.convert_api.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "Google Ads 后台（manual 路，Agent 在用户浏览器里操作）",
+      "googleads.googleapis.com searchStream（api 路，用户自有凭据）",
+      "googleads.googleapis.com campaignBudgets/campaigns/campaignCriteria/adGroups/adGroupCriteria/adGroupAds/conversionActions:mutate、uploadConversionAdjustments（api 路）",
+      "datamanager.googleapis.com events:ingest（api 路的转化上传，新接入必走）",
+      "oauth2.googleapis.com token"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "traffic.google-ads.convert_api",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/traffic.google-ads.convert_api.request.json"
+  },
+  {
+    "id": "traffic.google-ads.deploy",
+    "script": "plugins/traffic/google-ads/deploy_api.py",
+    "argv_template": [
+      "--spec={spec:json}",
+      "--actions={actions:json}",
+      "--remove-campaign={remove_campaign}",
+      "--enable-campaign={enable_campaign}",
+      "--pause-campaign={pause_campaign}",
+      "--enable={enable:flag}",
+      "--config={config}"
+    ],
+    "request_schema": "schemas/interfaces/traffic.deploy.request.schema.json",
+    "response_schema": "schemas/interfaces/traffic.deploy.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "Google Ads 后台（manual 路，Agent 在用户浏览器里操作）",
+      "googleads.googleapis.com searchStream（api 路，用户自有凭据）",
+      "googleads.googleapis.com campaignBudgets/campaigns/campaignCriteria/adGroups/adGroupCriteria/adGroupAds/conversionActions:mutate、uploadConversionAdjustments（api 路）",
+      "datamanager.googleapis.com events:ingest（api 路的转化上传，新接入必走）",
+      "oauth2.googleapis.com token"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "traffic.google-ads.deploy",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/traffic.google-ads.deploy.request.json"
+  },
+  {
+    "id": "traffic.google-ads.report",
+    "script": "plugins/traffic/google-ads/report_import.py",
+    "argv_template": [
+      "--csv={csv:text}",
+      "--currency={currency}"
+    ],
+    "request_schema": "schemas/interfaces/traffic.report.request.schema.json",
+    "response_schema": "schemas/traffic-report.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "Google Ads 后台（manual 路，Agent 在用户浏览器里操作）",
+      "googleads.googleapis.com searchStream（api 路，用户自有凭据）",
+      "googleads.googleapis.com campaignBudgets/campaigns/campaignCriteria/adGroups/adGroupCriteria/adGroupAds/conversionActions:mutate、uploadConversionAdjustments（api 路）",
+      "datamanager.googleapis.com events:ingest（api 路的转化上传，新接入必走）",
+      "oauth2.googleapis.com token"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "traffic.google-ads.report",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/traffic.google-ads.report.request.json"
+  },
+  {
+    "id": "traffic.google-ads.report_api",
+    "script": "plugins/traffic/google-ads/report_api.py",
+    "argv_template": [
+      "--days={days}",
+      "--currency={currency}"
+    ],
+    "request_schema": "schemas/interfaces/traffic.report_api.request.schema.json",
+    "response_schema": "schemas/interfaces/traffic.report_api.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "Google Ads 后台（manual 路，Agent 在用户浏览器里操作）",
+      "googleads.googleapis.com searchStream（api 路，用户自有凭据）",
+      "googleads.googleapis.com campaignBudgets/campaigns/campaignCriteria/adGroups/adGroupCriteria/adGroupAds/conversionActions:mutate、uploadConversionAdjustments（api 路）",
+      "datamanager.googleapis.com events:ingest（api 路的转化上传，新接入必走）",
+      "oauth2.googleapis.com token"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "traffic.google-ads.report_api",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/traffic.google-ads.report_api.request.json"
+  },
+  {
+    "id": "traffic.google-ads.spec",
+    "script": "plugins/traffic/google-ads/spec.py",
+    "argv_template": [
+      "--brief={brief:json}",
+      "--config={config}"
+    ],
+    "request_schema": "schemas/interfaces/traffic.spec.request.schema.json",
+    "response_schema": "schemas/traffic-spec.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [
+      "Google Ads 后台（manual 路，Agent 在用户浏览器里操作）",
+      "googleads.googleapis.com searchStream（api 路，用户自有凭据）",
+      "googleads.googleapis.com campaignBudgets/campaigns/campaignCriteria/adGroups/adGroupCriteria/adGroupAds/conversionActions:mutate、uploadConversionAdjustments（api 路）",
+      "datamanager.googleapis.com events:ingest（api 路的转化上传，新接入必走）",
+      "oauth2.googleapis.com token"
+    ],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "traffic.google-ads.spec",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/traffic.google-ads.spec.request.json"
+  }
+]

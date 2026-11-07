@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "traffic.report request",
+  "type": "object",
+  "properties": {
+    "apply": {
+      "type": "boolean"
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "config": {
+      "type": "string",
+      "minLength": 1
+    },
+    "csv": {
+      "type": "string",
+      "minLength": 1
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "csv"
+  ],
+  "additionalProperties": false
+}

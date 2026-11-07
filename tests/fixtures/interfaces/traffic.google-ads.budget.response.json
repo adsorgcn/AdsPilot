@@ -1,0 +1,4 @@
+{
+  "dry_run": "searchStream",
+  "query": "SELECT recommendation.resource_name, recommendation.campaign, recommendation.campaign_budget_recommendation FROM recommendation WHERE recommendation.type = 'CAMPAIGN_BUDGET'"
+}

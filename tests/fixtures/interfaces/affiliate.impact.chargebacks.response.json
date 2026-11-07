@@ -1,0 +1,30 @@
+{
+  "type": "adspilot.commissions",
+  "schema_version": 1,
+  "network": "impact",
+  "currency": "USD",
+  "pulled_at": "2026-11-07T01:03:09",
+  "window": {
+    "since": "2026-10-13",
+    "until": "2026-10-20"
+  },
+  "rows": [
+    {
+      "event_id": "1234567.1001.900003:rev",
+      "event_time": "2026-09-18T10:00:00Z",
+      "click_time": "2026-09-14T08:00:00Z",
+      "sub_id": "FIXTURETOKEN00000002",
+      "status": "reversed",
+      "amount": -3.68,
+      "sale_amount": 46.0,
+      "currency": "USD",
+      "advertiser": "Brand X Affiliate Program",
+      "advertiser_id": "1001",
+      "offer_ref": "impact:1001:4321",
+      "action": "Online Sale",
+      "is_chargeback": true,
+      "original_event_id": "1234567.1001.900003"
+    }
+  ],
+  "unlinked": []
+}

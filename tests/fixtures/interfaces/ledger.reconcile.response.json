@@ -1,0 +1,47 @@
+{
+  "type": "adspilot.conversions",
+  "schema_version": 1,
+  "batch": "rec-20261107-010310",
+  "network": "cj",
+  "conversion_name": "affiliate_commission",
+  "window_days": 90,
+  "generated_at": "2026-11-07T01:03:10+0000",
+  "rows": [],
+  "chargebacks": [],
+  "unmatched": [
+    {
+      "event_id": "cj-evt-0001",
+      "sub_id": "FIXTURETOKEN00000001",
+      "amount": 18.4,
+      "why": "no_mapping"
+    },
+    {
+      "event_id": "cj-evt-0002",
+      "sub_id": "FIXTURETOKEN00000002",
+      "amount": 7.5,
+      "why": "no_mapping"
+    },
+    {
+      "event_id": "cj-evt-0003",
+      "sub_id": "",
+      "amount": 3.0,
+      "why": "no_mapping"
+    },
+    {
+      "event_id": "cj-evt-0004",
+      "sub_id": "FIXTURETOKEN00000002",
+      "amount": -7.5,
+      "why": "no_mapping"
+    }
+  ],
+  "out_of_window": [],
+  "invalid": [],
+  "summary": {
+    "matched": 0,
+    "chargebacks": 0,
+    "unmatched": 4,
+    "out_of_window": 0,
+    "invalid": 0,
+    "value": 0
+  }
+}

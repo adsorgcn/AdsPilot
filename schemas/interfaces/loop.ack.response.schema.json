@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "loop.ack response",
+  "anyOf": [
+    {
+      "type": "object",
+      "properties": {
+        "interface": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dry_run": {
+          "const": true
+        }
+      },
+      "required": [
+        "interface",
+        "action",
+        "dry_run"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "acknowledged": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "acknowledged"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

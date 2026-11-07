@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ipintel.lookup request",
+  "type": "object",
+  "properties": {
+    "apply": {
+      "type": "boolean"
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "config": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ips": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 45
+      },
+      "minItems": 1,
+      "maxItems": 100
+    }
+  },
+  "required": [
+    "ips"
+  ],
+  "additionalProperties": false
+}

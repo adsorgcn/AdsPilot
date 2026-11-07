@@ -1,0 +1,5 @@
+{
+  "interface": "judgment.jev.judge",
+  "dry_run": true,
+  "action": "judge"
+}

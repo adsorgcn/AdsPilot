@@ -17,6 +17,9 @@ run() { echo "== $*"; if "$@"; then echo "   ok"; else echo "   FAIL"; fail=1; f
 run "$PY" core/agent/ilang_runtime.py verify
 run "$PY" core/agent/selfcheck.py --quick
 run "$PY" core/selfcheck/validate.py --all
+run "$PY" core/selfcheck/validate.py --interfaces
+run "$PY" adspilot.py --selftest
+run "$PY" core/agent/mcp_server.py --selftest
 run "$PY" core/judge/judge.py --selftest
 run "$PY" core/ledger/reconcile.py --selftest
 run "$PY" core/lp/lp_check.py --selftest

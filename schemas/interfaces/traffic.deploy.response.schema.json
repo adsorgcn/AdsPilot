@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "traffic.deploy response",
+  "anyOf": [
+    {
+      "type": "object",
+      "properties": {
+        "interface": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dry_run": {
+          "const": true
+        }
+      },
+      "required": [
+        "interface",
+        "action",
+        "dry_run"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string"
+        },
+        "results": {
+          "type": "array"
+        }
+      },
+      "required": [
+        "mode",
+        "results"
+      ],
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string"
+        },
+        "created": {
+          "type": "object"
+        },
+        "plan": {
+          "type": "array"
+        },
+        "applied": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "mode",
+        "created",
+        "plan",
+        "applied"
+      ],
+      "additionalProperties": true
+    },
+    {
+      "type": "object",
+      "properties": {
+        "campaign": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "campaign"
+      ],
+      "additionalProperties": true
+    }
+  ]
+}

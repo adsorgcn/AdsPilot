@@ -1,0 +1,257 @@
+{
+  "type": "adspilot.report",
+  "schema_version": 1,
+  "adspilot_version": "2.0.21",
+  "reported_at": "2026-01-03T00:00:00",
+  "run_id": "run-2026-01-03",
+  "line": "L2",
+  "seg": 0,
+  "summary": {
+    "window_days": 30,
+    "spend": 115.52,
+    "clicks": 435,
+    "impressions": 6096,
+    "avg_cpc": 0.2656,
+    "conversions": 0,
+    "commission": 0,
+    "chargebacks": 0,
+    "epc": 0.0,
+    "currency": "USD",
+    "campaigns_active": 2
+  },
+  "actions": [
+    {
+      "node": "anomaly.escalate",
+      "target": "account",
+      "choice": "continue",
+      "applied": true,
+      "note": ""
+    },
+    {
+      "node": "campaign.adjust",
+      "target": "Widget Deals",
+      "choice": "budget_down",
+      "applied": false,
+      "note": "todo: 由流量插件 deploy 动作或 Agent 在后台执行"
+    },
+    {
+      "node": "campaign.adjust",
+      "target": "Gadget Test",
+      "choice": "budget_down",
+      "applied": false,
+      "note": "todo: 由流量插件 deploy 动作或 Agent 在后台执行"
+    },
+    {
+      "node": "keyword.action",
+      "target": "Widget Deals/Brand X/widget x review",
+      "choice": "pause",
+      "applied": false,
+      "note": "todo"
+    },
+    {
+      "node": "keyword.action",
+      "target": "Widget Deals/Brand Y/widget y coupon",
+      "choice": "pause",
+      "applied": false,
+      "note": "todo"
+    },
+    {
+      "node": "keyword.action",
+      "target": "Gadget Test/Gadget/gadget z discount",
+      "choice": "pause",
+      "applied": false,
+      "note": "todo"
+    }
+  ],
+  "judgments": [
+    {
+      "node": "anomaly.escalate",
+      "mode": "M1",
+      "conf": 0.7,
+      "provider": "local",
+      "v": {
+        "int": 0.9,
+        "cap": 0.8,
+        "csq": 1.0,
+        "rel": 0.7,
+        "cer": 0.85,
+        "aut": 0.85,
+        "rev": 0.95,
+        "evd": 0.85,
+        "sov": 1.0,
+        "ine": 0.9,
+        "ext": 0.9
+      },
+      "reason": "no_anomaly",
+      "decided_by": "judge",
+      "advice": null
+    },
+    {
+      "node": "campaign.adjust",
+      "mode": "M1",
+      "conf": 0.7,
+      "provider": "local",
+      "v": {
+        "int": 0.9,
+        "cap": 0.8,
+        "csq": 0.95,
+        "rel": 0.7,
+        "cer": 0.85,
+        "aut": 0.85,
+        "rev": 0.9,
+        "evd": 0.85,
+        "sov": 1.0,
+        "ine": 0.7,
+        "ext": 0.9
+      },
+      "reason": "commission_below_roi_floor",
+      "decided_by": "judge",
+      "advice": null
+    },
+    {
+      "node": "campaign.adjust",
+      "mode": "M1",
+      "conf": 0.7,
+      "provider": "local",
+      "v": {
+        "int": 0.9,
+        "cap": 0.8,
+        "csq": 0.96,
+        "rel": 0.7,
+        "cer": 0.85,
+        "aut": 0.85,
+        "rev": 0.9,
+        "evd": 0.85,
+        "sov": 1.0,
+        "ine": 0.7,
+        "ext": 0.9
+      },
+      "reason": "commission_below_roi_floor",
+      "decided_by": "judge",
+      "advice": null
+    },
+    {
+      "node": "keyword.action",
+      "mode": "M1",
+      "conf": 0.7,
+      "provider": "local",
+      "v": {
+        "int": 0.9,
+        "cap": 0.8,
+        "csq": 0.98,
+        "rel": 0.7,
+        "cer": 0.85,
+        "aut": 0.85,
+        "rev": 0.95,
+        "evd": 0.85,
+        "sov": 1.0,
+        "ine": 0.7,
+        "ext": 0.9
+      },
+      "reason": "clicks_without_conversion",
+      "decided_by": "judge",
+      "advice": null
+    },
+    {
+      "node": "keyword.action",
+      "mode": "M1",
+      "conf": 0.7,
+      "provider": "local",
+      "v": {
+        "int": 0.9,
+        "cap": 0.8,
+        "csq": 0.99,
+        "rel": 0.7,
+        "cer": 0.85,
+        "aut": 0.85,
+        "rev": 0.95,
+        "evd": 0.85,
+        "sov": 1.0,
+        "ine": 0.9,
+        "ext": 0.9
+      },
+      "reason": "no_rule_hit_relevance_needs_provider",
+      "decided_by": "judge",
+      "advice": null
+    },
+    {
+      "node": "keyword.action",
+      "mode": "M1",
+      "conf": 0.7,
+      "provider": "local",
+      "v": {
+        "int": 0.9,
+        "cap": 0.8,
+        "csq": 0.98,
+        "rel": 0.7,
+        "cer": 0.85,
+        "aut": 0.85,
+        "rev": 0.95,
+        "evd": 0.85,
+        "sov": 1.0,
+        "ine": 0.7,
+        "ext": 0.9
+      },
+      "reason": "clicks_without_conversion",
+      "decided_by": "judge",
+      "advice": null
+    },
+    {
+      "node": "keyword.action",
+      "mode": "M1",
+      "conf": 0.7,
+      "provider": "local",
+      "v": {
+        "int": 0.9,
+        "cap": 0.8,
+        "csq": 0.96,
+        "rel": 0.7,
+        "cer": 0.85,
+        "aut": 0.85,
+        "rev": 0.95,
+        "evd": 0.85,
+        "sov": 1.0,
+        "ine": 0.7,
+        "ext": 0.9
+      },
+      "reason": "clicks_without_conversion",
+      "decided_by": "judge",
+      "advice": null
+    }
+  ],
+  "evidence": [
+    {
+      "id": "e-traffic",
+      "deliverable": "traffic_report",
+      "kind": "report",
+      "ref": "sample",
+      "result": "pass"
+    },
+    {
+      "id": "e-commissions",
+      "deliverable": "commissions",
+      "kind": "report",
+      "ref": "sample",
+      "result": "pass"
+    },
+    {
+      "id": "e-ledger",
+      "deliverable": "reconcile",
+      "kind": "ledger",
+      "ref": "sample",
+      "result": "pass"
+    }
+  ],
+  "needs_human": {
+    "required": false,
+    "reasons": [],
+    "note": ""
+  },
+  "status": "in_progress",
+  "exit_code": 0,
+  "plugins": [
+    "affiliate/cj@2.0.0",
+    "traffic/google-ads@2.0.0"
+  ],
+  "soul": "default@2.4.0"
+}

@@ -7,6 +7,7 @@ AdsPilot schema 自检（主干，schema 与自检部件）
 不认识的关键字直接报错，不会悄悄跳过。
 
 用法：
+  python3 core/selfcheck/validate.py --interfaces                # 注册表、脚本、schema 与自测
   python3 core/selfcheck/validate.py --manifests                 # 校验所有插件 manifest
   python3 core/selfcheck/validate.py --config                    # 校验 config/adspilot.json
   python3 core/selfcheck/validate.py --file <schema.json> <doc.json>
@@ -28,6 +29,7 @@ import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 SCHEMAS = os.path.join(ROOT, "schemas")
+sys.path.insert(0, ROOT)
 
 ANNOTATIONS = {"$schema", "$id", "$comment", "title", "description", "examples", "default", "$defs", "deprecated"}
 SUPPORTED = ANNOTATIONS | {
@@ -315,6 +317,8 @@ def check_all():
         for prefix, schema in FIXTURE_MAP.items():
             if base.startswith(prefix + "."):
                 rc |= check_file(schema, p)
+    from core.agent.interfaces import check_fixtures
+    rc |= check_fixtures()
     return rc
 
 
@@ -328,6 +332,9 @@ def main(argv):
         return check_config(argv[1] if len(argv) > 1 else None)
     if cmd == "--file":
         return check_file(argv[1], argv[2])
+    if cmd == "--interfaces":
+        from core.agent.interfaces import check_interfaces
+        return check_interfaces()
     if cmd == "--all":
         return check_all()
     key = cmd.lstrip("-")

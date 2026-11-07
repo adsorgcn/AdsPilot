@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ledger.reconcile response",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "adspilot.conversions"
+    },
+    "summary": {
+      "type": "object"
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "chargebacks": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  },
+  "required": [
+    "type",
+    "summary",
+    "rows",
+    "chargebacks"
+  ],
+  "additionalProperties": true
+}

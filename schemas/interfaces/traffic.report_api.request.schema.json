@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "traffic.report_api request",
+  "type": "object",
+  "properties": {
+    "apply": {
+      "type": "boolean"
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "config": {
+      "type": "string",
+      "minLength": 1
+    },
+    "days": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}

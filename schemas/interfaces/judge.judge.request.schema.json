@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "judge.judge request",
+  "type": "object",
+  "properties": {
+    "apply": {
+      "type": "boolean"
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "config": {
+      "type": "string",
+      "minLength": 1
+    },
+    "node": {
+      "description": "决策节点闭集。加节点要改主干与默认 SOUL，不在插件里加。",
+      "enum": [
+        "offer.select",
+        "lp.publish",
+        "campaign.launch",
+        "campaign.adjust",
+        "keyword.action",
+        "conversion.upload",
+        "anomaly.escalate"
+      ]
+    },
+    "state": {
+      "type": "object"
+    },
+    "choices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "label": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object"
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 255
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "provider": {
+      "enum": [
+        "local",
+        "llm",
+        "jev",
+        "soul-api"
+      ]
+    }
+  },
+  "required": [
+    "node",
+    "state",
+    "choices"
+  ],
+  "additionalProperties": false
+}

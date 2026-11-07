@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ledger.subid request",
+  "type": "object",
+  "properties": {
+    "apply": {
+      "type": "boolean"
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "config": {
+      "type": "string",
+      "minLength": 1
+    },
+    "operation": {
+      "enum": [
+        "mint",
+        "lookup",
+        "stats",
+        "record",
+        "import",
+        "pull",
+        "export"
+      ]
+    },
+    "n": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "since": {
+      "type": "string",
+      "minLength": 1
+    },
+    "input_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "output_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "url": {
+      "type": "string",
+      "minLength": 1
+    },
+    "token": {
+      "type": "string",
+      "minLength": 1
+    },
+    "campaign": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "operation"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "anyOf": [
+        {
+          "not": {
+            "properties": {
+              "operation": {
+                "const": "lookup"
+              }
+            }
+          }
+        },
+        {
+          "required": [
+            "token"
+          ]
+        }
+      ]
+    },
+    {
+      "anyOf": [
+        {
+          "not": {
+            "properties": {
+              "operation": {
+                "const": "record"
+              }
+            }
+          }
+        },
+        {
+          "required": [
+            "token"
+          ]
+        }
+      ]
+    },
+    {
+      "anyOf": [
+        {
+          "not": {
+            "properties": {
+              "operation": {
+                "const": "import"
+              }
+            }
+          }
+        },
+        {
+          "required": [
+            "input_file"
+          ]
+        }
+      ]
+    },
+    {
+      "anyOf": [
+        {
+          "not": {
+            "properties": {
+              "operation": {
+                "const": "export"
+              }
+            }
+          }
+        },
+        {
+          "required": [
+            "output_file"
+          ]
+        }
+      ]
+    }
+  ]
+}

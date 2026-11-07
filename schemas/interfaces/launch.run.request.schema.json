@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "launch.run request",
+  "type": "object",
+  "properties": {
+    "apply": {
+      "type": "boolean"
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "config": {
+      "type": "string",
+      "minLength": 1
+    },
+    "step": {
+      "enum": [
+        "status",
+        "deploy",
+        "offers",
+        "page",
+        "campaign",
+        "go",
+        "teardown"
+      ]
+    },
+    "brief": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "offer_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "country": {
+          "type": "string",
+          "minLength": 1
+        },
+        "language": {
+          "type": "string",
+          "minLength": 1
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 1
+        },
+        "final_url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "keywords": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1
+              },
+              "match": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "additionalProperties": true
+          },
+          "minItems": 1
+        },
+        "headlines": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "descriptions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "daily_budget": {
+          "type": "number"
+        },
+        "max_cpc": {
+          "type": "number"
+        },
+        "is_new_account": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "keywords",
+        "headlines",
+        "descriptions"
+      ],
+      "additionalProperties": true
+    },
+    "content": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": true
+    },
+    "offers": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "host": {
+      "type": "string",
+      "minLength": 1
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]*$"
+    },
+    "user": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pick": {
+      "type": "string",
+      "minLength": 1
+    },
+    "country": {
+      "type": "string",
+      "minLength": 1
+    },
+    "language": {
+      "type": "string",
+      "minLength": 1
+    },
+    "top": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "enable": {
+      "type": "boolean"
+    },
+    "all": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "step"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "anyOf": [
+        {
+          "not": {
+            "properties": {
+              "step": {
+                "const": "campaign"
+              }
+            }
+          }
+        },
+        {
+          "required": [
+            "brief"
+          ]
+        }
+      ]
+    },
+    {
+      "anyOf": [
+        {
+          "not": {
+            "properties": {
+              "step": {
+                "const": "page"
+              }
+            }
+          }
+        },
+        {
+          "required": [
+            "content"
+          ]
+        }
+      ]
+    }
+  ]
+}

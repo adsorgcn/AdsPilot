@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "lp.check request",
+  "type": "object",
+  "properties": {
+    "apply": {
+      "type": "boolean"
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "config": {
+      "type": "string",
+      "minLength": 1
+    },
+    "html": {
+      "type": "string",
+      "minLength": 1
+    },
+    "min_words": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "required": [
+    "html"
+  ],
+  "additionalProperties": false
+}

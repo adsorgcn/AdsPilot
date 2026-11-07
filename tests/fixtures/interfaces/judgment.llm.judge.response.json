@@ -1,0 +1,5 @@
+{
+  "interface": "judgment.llm.judge",
+  "dry_run": true,
+  "action": "judge"
+}

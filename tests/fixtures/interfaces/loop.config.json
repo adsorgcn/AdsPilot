@@ -1,0 +1,66 @@
+{
+  "config_version": 1,
+  "apply": false,
+  "timezone": "Asia/Tokyo",
+  "data_dir": "data",
+  "runs_dir": "runs",
+  "line": "L2",
+  "member": "",
+  "currency": "USD",
+  "currency_note": "必须等于 Google Ads 账户币种；开局 offers 步会核对",
+  "fx": {
+    "USD": 1.0,
+    "HKD": 7.8,
+    "note": "广告账户币种每 1 美元；联盟 EPC 是美元，算选品账要换成广告账户币种"
+  },
+  "soul": "soul/default.soul.md",
+  "judgment": {
+    "provider": "local",
+    "timeout_s": 8,
+    "llm": {
+      "base_url_env": "LLM_BASE_URL",
+      "api_key_env": "LLM_API_KEY",
+      "model_env": "LLM_MODEL"
+    },
+    "jev": {
+      "endpoint_env": "JEV_ENDPOINT",
+      "api_key_env": "JEV_API_KEY"
+    },
+    "soul_api": {
+      "endpoint_env": "SOUL_API_ENDPOINT",
+      "api_key_env": "SOUL_API_KEY"
+    }
+  },
+  "traffic": {
+    "plugin": "google-ads",
+    "account": "",
+    "deploy_mode": "api",
+    "report_source": "csv_export",
+    "report_csv": "tests/fixtures/google-ads-report.csv",
+    "conversion_name": "affiliate_commission",
+    "conversion_window_days": 90
+  },
+  "affiliate": {
+    "plugin": "cj",
+    "publisher_id_env": "CJ_PUBLISHER_ID",
+    "token_env": "CJ_ACCESS_TOKEN",
+    "commissions_source": "json",
+    "commissions_json": "tests/fixtures/commissions.cj.json",
+    "window_days": 7
+  },
+  "deploy": {
+    "plugin": "cloudflare",
+    "host": "",
+    "export_url": "",
+    "export_key_env": "ADSPILOT_EXPORT_KEY"
+  },
+  "caps": {
+    "note": "不填=出价与预算照谷歌推荐（stop_loss_spend 不填用 SOUL 默认值，美元按 fx 折算）；填了=广告账户币种的绝对上限，谷歌推荐超过它就用它",
+    "max_cpc": null,
+    "daily_budget": null,
+    "first_day_budget": null,
+    "stop_loss_spend": null,
+    "budget_step_pct": 20,
+    "autonomy": "within_caps"
+  }
+}

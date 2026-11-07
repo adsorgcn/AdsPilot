@@ -1,0 +1,29 @@
+{
+  "type": "adspilot.commissions",
+  "schema_version": 1,
+  "network": "cj",
+  "publisher_id": "1234567",
+  "currency": "USD",
+  "pulled_at": "2026-11-07T01:03:09",
+  "window": {
+    "since": "2026-09-01",
+    "until": "2026-09-21"
+  },
+  "rows": [
+    {
+      "event_id": "cj-evt-0004",
+      "event_time": "2026-09-18T10:00:00Z",
+      "sub_id": "FIXTURETOKEN00000002",
+      "status": "reversed",
+      "amount": -7.5,
+      "currency": "USD",
+      "advertiser": "Brand Y",
+      "advertiser_id": "100002",
+      "offer_ref": "cj:100002:12346",
+      "action": "sale",
+      "is_chargeback": true,
+      "original_event_id": "cj-evt-0002"
+    }
+  ],
+  "unlinked": []
+}

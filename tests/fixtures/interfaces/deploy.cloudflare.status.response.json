@@ -1,0 +1,5 @@
+{
+  "interface": "deploy.cloudflare.status",
+  "dry_run": true,
+  "action": "status"
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "traffic.convert response",
+  "type": "object",
+  "properties": {
+    "rows": {
+      "type": "integer"
+    },
+    "adjustments": {
+      "type": "integer"
+    },
+    "output_file": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "rows",
+    "adjustments"
+  ],
+  "additionalProperties": false
+}

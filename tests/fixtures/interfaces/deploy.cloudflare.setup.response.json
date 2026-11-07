@@ -1,0 +1,5 @@
+{
+  "interface": "deploy.cloudflare.setup",
+  "dry_run": true,
+  "action": "setup"
+}

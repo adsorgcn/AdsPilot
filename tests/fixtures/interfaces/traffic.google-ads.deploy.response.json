@@ -1,0 +1,38 @@
+{
+  "created": {},
+  "plan": [
+    {
+      "service": "campaignBudgets",
+      "ops": 1,
+      "tag": "budget"
+    },
+    {
+      "service": "campaigns",
+      "ops": 1,
+      "tag": "campaign"
+    },
+    {
+      "service": "campaignCriteria",
+      "ops": 5,
+      "tag": "criteria"
+    },
+    {
+      "service": "adGroups",
+      "ops": 1,
+      "tag": "adgroup0"
+    },
+    {
+      "service": "adGroupCriteria",
+      "ops": 2,
+      "tag": "adgroup0.keywords"
+    },
+    {
+      "service": "adGroupAds",
+      "ops": 1,
+      "tag": "adgroup0.ads"
+    }
+  ],
+  "mode": "dry",
+  "applied": false,
+  "customer": "***"
+}

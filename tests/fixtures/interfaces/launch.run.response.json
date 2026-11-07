@@ -1,0 +1,30 @@
+{
+  "state": {},
+  "steps": [
+    {
+      "step": "deploy",
+      "done": false
+    },
+    {
+      "step": "offers",
+      "done": false
+    },
+    {
+      "step": "page",
+      "done": false
+    },
+    {
+      "step": "campaign",
+      "done": false
+    },
+    {
+      "step": "verify",
+      "done": false
+    },
+    {
+      "step": "go",
+      "done": false
+    }
+  ],
+  "next": "deploy"
+}

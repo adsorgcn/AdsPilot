@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ipintel.lookup response",
+  "type": "object",
+  "properties": {
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ip": {
+            "type": "string",
+            "minLength": 1
+          },
+          "country": {
+            "type": "string",
+            "minLength": 1
+          },
+          "is_datacenter": {
+            "type": "boolean"
+          },
+          "is_proxy": {
+            "type": "boolean"
+          },
+          "risk": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "ip",
+          "country",
+          "is_datacenter",
+          "is_proxy"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "rows"
+  ],
+  "additionalProperties": false
+}

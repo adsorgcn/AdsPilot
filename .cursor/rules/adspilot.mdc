@@ -26,11 +26,15 @@ alwaysApply: true
   NON_GOALS: 改协议、改判断决策层、绕平台任何规则
 ```
 
+## 两种接入
+
+读仓库的 Agent 按下面的顺序执行。调工具的 Agent 让宿主启动 `python3 core/agent/mcp_server.py`，用 `tools/list` 找接口；同一个工具也可用 `python3 adspilot.py` 从命令行调用。示例见 `core/agent/使用方法.md`。
+
 ## 顺序
 
 1. `python3 core/agent/selfcheck.py`，有一项 fail 就停，把结果贴给用户，不硬跑。
 2. `core/agent/使用方法.md`（适配与自检）→ `core/loop/使用方法.md`（日常循环）→ 需要哪块再读哪块的使用方法。
-3. 所有脚本默认 dry-run；只有用户在 `config/adspilot.json` 里写了 `"apply": true` 或命令带 `--apply` 才真动。
+3. 直接运行既有脚本时，按该脚本的使用方法；用户在 `config/adspilot.json` 里写了 `"apply": true` 或命令带 `--apply` 可授权执行。统一入口与 MCP 对外写入要求请求与本机配置同时开启 apply。
 
 ## 硬规矩
 

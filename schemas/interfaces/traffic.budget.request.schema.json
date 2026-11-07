@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "traffic.budget request",
+  "type": "object",
+  "properties": {
+    "apply": {
+      "type": "boolean"
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "config": {
+      "type": "string",
+      "minLength": 1
+    },
+    "brief": {
+      "type": "object"
+    },
+    "campaigns": {
+      "type": "boolean"
+    },
+    "new_customer": {
+      "type": "boolean"
+    }
+  },
+  "required": [],
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "required": [
+        "brief"
+      ]
+    },
+    {
+      "required": [
+        "campaigns"
+      ],
+      "properties": {
+        "campaigns": {
+          "const": true
+        }
+      }
+    }
+  ]
+}

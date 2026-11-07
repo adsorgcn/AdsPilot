@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "deploy.publish request",
+  "type": "object",
+  "properties": {
+    "apply": {
+      "type": "boolean"
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "config": {
+      "type": "string",
+      "minLength": 1
+    },
+    "page": {
+      "type": "string",
+      "minLength": 1
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]+$"
+    },
+    "site": {
+      "type": "boolean"
+    },
+    "site_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "contact": {
+      "type": "string",
+      "minLength": 1
+    },
+    "offers": {
+      "type": "object"
+    }
+  },
+  "required": [],
+  "additionalProperties": false,
+  "anyOf": [
+    {
+      "required": [
+        "page"
+      ]
+    },
+    {
+      "required": [
+        "offers"
+      ]
+    },
+    {
+      "required": [
+        "site"
+      ],
+      "properties": {
+        "site": {
+          "const": true
+        }
+      }
+    }
+  ]
+}

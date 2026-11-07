@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "traffic.convert_api request",
+  "type": "object",
+  "properties": {
+    "apply": {
+      "type": "boolean"
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "config": {
+      "type": "string",
+      "minLength": 1
+    },
+    "conversions": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "adspilot.conversions"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "chargebacks": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "rows"
+      ],
+      "additionalProperties": true
+    },
+    "input_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timezone": {
+      "type": "string",
+      "minLength": 1
+    },
+    "remove_action": {
+      "type": "string",
+      "minLength": 1
+    },
+    "conversion_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "transport": {
+      "enum": [
+        "auto",
+        "datamanager",
+        "ads"
+      ]
+    }
+  },
+  "required": [],
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "required": [
+        "conversions"
+      ]
+    },
+    {
+      "required": [
+        "input_file"
+      ]
+    },
+    {
+      "required": [
+        "remove_action"
+      ]
+    }
+  ]
+}

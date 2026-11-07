@@ -1,0 +1,5 @@
+{
+  "interface": "loop.ack",
+  "dry_run": true,
+  "action": "ack"
+}

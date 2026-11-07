@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "keywords.volume response",
+  "anyOf": [
+    {
+      "type": "object",
+      "properties": {
+        "interface": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dry_run": {
+          "const": true
+        }
+      },
+      "required": [
+        "interface",
+        "action",
+        "dry_run"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": [
+            "adspilot.keywords",
+            "adspilot.keywords.batch"
+          ]
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1
+              },
+              "volume": {
+                "type": "integer"
+              },
+              "competition": {
+                "type": "string"
+              },
+              "cpc_low": {
+                "type": "number"
+              },
+              "cpc_high": {
+                "type": "number"
+              },
+              "brand": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "text",
+              "volume"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "results": {
+          "type": "object"
+        },
+        "errors": {
+          "type": "object"
+        },
+        "country": {
+          "type": "string",
+          "minLength": 1
+        },
+        "language": {
+          "type": "string",
+          "minLength": 1
+        },
+        "currency": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "type",
+        "currency",
+        "country",
+        "language"
+      ],
+      "additionalProperties": true
+    }
+  ]
+}

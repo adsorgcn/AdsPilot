@@ -1,0 +1,5 @@
+{
+  "interface": "traffic.google-ads.report_api",
+  "dry_run": true,
+  "action": "report_api"
+}

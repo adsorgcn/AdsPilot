@@ -1,0 +1,5 @@
+{
+  "interface": "judgment.soul-api.judge",
+  "dry_run": true,
+  "action": "judge"
+}

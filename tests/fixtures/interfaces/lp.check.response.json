@@ -1,0 +1,77 @@
+{
+  "verdict": "pass",
+  "fail": 0,
+  "warn": 0,
+  "results": [
+    {
+      "check": "title",
+      "status": "pass",
+      "detail": ""
+    },
+    {
+      "check": "viewport",
+      "status": "pass",
+      "detail": "移动端可用"
+    },
+    {
+      "check": "substantive_content",
+      "status": "pass",
+      "detail": "507 words (min 300)"
+    },
+    {
+      "check": "placeholders_filled",
+      "status": "pass",
+      "detail": ""
+    },
+    {
+      "check": "privacy_link",
+      "status": "pass",
+      "detail": ""
+    },
+    {
+      "check": "contact",
+      "status": "pass",
+      "detail": ""
+    },
+    {
+      "check": "affiliate_disclosure",
+      "status": "pass",
+      "detail": ""
+    },
+    {
+      "check": "no_meta_refresh",
+      "status": "pass",
+      "detail": "禁止自动跳转"
+    },
+    {
+      "check": "no_script_redirect",
+      "status": "pass",
+      "detail": ""
+    },
+    {
+      "check": "no_direct_affiliate_links",
+      "status": "pass",
+      "detail": ""
+    },
+    {
+      "check": "cta_via_own_go",
+      "status": "pass",
+      "detail": "CTA 应走本站 /go 中转"
+    },
+    {
+      "check": "go_links_nofollow_sponsored",
+      "status": "pass",
+      "detail": ""
+    },
+    {
+      "check": "img_alt",
+      "status": "pass",
+      "detail": "0 images without alt"
+    },
+    {
+      "check": "no_hidden_text_blocks",
+      "status": "pass",
+      "detail": "有大段 display:none 文本"
+    }
+  ]
+}

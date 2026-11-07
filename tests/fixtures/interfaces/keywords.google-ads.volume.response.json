@@ -1,0 +1,5 @@
+{
+  "interface": "keywords.google-ads.volume",
+  "dry_run": true,
+  "action": "volume"
+}

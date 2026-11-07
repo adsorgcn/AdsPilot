@@ -1,0 +1,9 @@
+{
+  "type": "adspilot.commissions",
+  "schema_version": 1,
+  "network": "impact",
+  "currency": "USD",
+  "pulled_at": "2026-11-07T01:03:09",
+  "window": {},
+  "rows": []
+}

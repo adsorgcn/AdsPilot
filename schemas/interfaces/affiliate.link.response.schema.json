@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "affiliate.link response",
+  "type": "object",
+  "properties": {
+    "url": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sub_id_param": {
+      "type": "string",
+      "minLength": 1
+    },
+    "token": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "url",
+    "sub_id_param",
+    "token"
+  ],
+  "additionalProperties": false
+}
