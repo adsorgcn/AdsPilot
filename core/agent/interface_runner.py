@@ -22,7 +22,12 @@ PRIVATE = ("data", "runs")
 OUTCOMES = {1: "invalid request or script failure", 2: "user action required",
             3: "external operation failed", 4: "configuration or credentials required"}
 SECRET_FIELD = re.compile(r"(?:gclid|click_?id|password|authorization|cookie|secret|verify_token|(?:api|auth|access|refresh|export|private|global)[_-]?(?:key|token)|(?:^|_)credentials?(?:$|_))", re.I)
-SENSITIVE_TEXT = re.compile(r"(?:\b(?:gclid|[a-z_]*(?:access_token|api_key|password)|(?:[?&](?:token|key|sig|signature|x-amz-signature|x-goog-signature)))\s*[=:]|\bBearer\s+\S|[a-z]+://[^/\s]+:[^/\s]+@|(?:sk[-](?:proj-|ant-)?|gh[pousr][_]|github[_]pat[_]|xox[baprs][-]|AKI[A]|AIZa)[a-z0-9_-]{8,}|BEGIN [A-Z ]*PRIVATE KEY)", re.I)
+SENSITIVE_TEXT = re.compile(
+    r"(?:\b(?:gclid|token|[a-z_]*(?:access_token|api_key|password|credential))\s*[=:]"
+    r"|[?&](?:key|sig|signature|x-amz-signature|x-goog-signature)=|\bBearer\s+\S"
+    r"|[a-z]+://[^/\s]+:[^/\s]+@|(?:sk[-](?:proj-|ant-)?|gh[pousr][_]|github[_]pat[_]"
+    r"|xox[baprs][-]|AKI[A]|AIZa)[a-z0-9_-]{8,}|BEGIN [A-Z ]*PRIVATE KEY)", re.I)
+
 
 
 class InterfaceError(Exception):
@@ -33,7 +38,7 @@ class InterfaceError(Exception):
 
 def credential_values():
     return [v for k, v in os.environ.items() if len(v) >= 4 and (
-        SECRET_FIELD.search(k) or k.endswith(("_TOKEN", "_KEY", "_ACCOUNT_SID", "_CUSTOMER_ID")))]
+        sensitive_field(k) or k.endswith(("_TOKEN", "_KEY", "_ACCOUNT_SID", "_CUSTOMER_ID")))]
 
 
 def sensitive_string(s, values):
@@ -41,15 +46,63 @@ def sensitive_string(s, values):
     return SENSITIVE_TEXT.search(value) or any(secret in value for secret in values)
 
 
-def sanitize(obj, values):
-    if isinstance(obj, dict):
-        return {k: sanitize(v, values) for k, v in obj.items()
-                if not SECRET_FIELD.search(k) and not sensitive_string(k, values) and k not in ("stderr", "key")}
-    if isinstance(obj, list):
-        return [sanitize(v, values) for v in obj]
-    if isinstance(obj, str) and sensitive_string(obj, values):
-        return "[redacted]"
-    return obj
+def sensitive_field(name):
+    folded = re.sub(r"[^a-z0-9]", "", name.lower())
+    return (SECRET_FIELD.search(name) or "credential" in folded or "password" in folded
+            or "passwd" in folded or "passphrase" in folded or "secret" in folded
+            or folded.endswith(("token", "tokens", "apikey", "privatekey", "authorization", "cookie"))
+            or folded in ("key","auth","bearer","stderr"))
+
+
+def attribution_names(key, operation, output):
+    if key == "affiliate.link" or (key == "ledger.subid" and operation in ("record","lookup")):
+        return {"token"}
+    if output and key == "ledger.subid" and operation == "mint":
+        return {"tokens"}
+    return set()
+
+
+def public_attribution(name, value, allowed):
+    if name not in allowed:
+        return False
+    items = value if name == "tokens" and isinstance(value,list) else [value]
+    return bool(items) and all(isinstance(item,str) and re.fullmatch(r"[A-Za-z0-9]{8,32}",item) for item in items)
+
+
+def sanitize(obj, values, allowed=()):
+    # A child response can repeat a secret under an ordinary field. Gather
+    # sensitive values first, then remove those values wherever they reappear.
+    private = set(values)
+
+    def gather(item, top=False, inside=False):
+        if isinstance(item, dict):
+            for name, child in item.items():
+                hidden = sensitive_field(name) and not (top and public_attribution(name,child,allowed))
+                gather(child, inside=inside or hidden)
+        elif isinstance(item, list):
+            for child in item:
+                gather(child, inside=inside)
+        elif inside and isinstance(item,str) and item:
+            private.add(item)
+
+    def clean(item, top=False):
+        if isinstance(item, dict):
+            result = {}
+            for name, child in item.items():
+                if sensitive_string(name, private):
+                    continue
+                if sensitive_field(name) and not (top and public_attribution(name,child,allowed)):
+                    continue
+                result[name] = clean(child)
+            return result
+        if isinstance(item, list):
+            return [clean(child) for child in item]
+        if isinstance(item,str) and sensitive_string(item, private):
+            return "[redacted]"
+        return item
+
+    gather(obj,top=True)
+    return clean(obj,top=True)
 
 
 def within(path, directory):
@@ -123,7 +176,7 @@ def environment(apply):
     env = dict(os.environ, PYTHONUTF8="1")
     if not apply:
         for name in list(env):
-            if SECRET_FIELD.search(name) or name.endswith(("_KEY", "_TOKEN", "_SID", "_CUSTOMER_ID", "_CLIENT_ID")):
+            if sensitive_field(name) or name.endswith(("_KEY", "_TOKEN", "_SID", "_CUSTOMER_ID", "_CLIENT_ID")):
                 env.pop(name)
         env["PYTHONPATH"] = str(ROOT / "core/agent/interface_offline")
     return env
@@ -334,10 +387,11 @@ def run_request(entry, request, tmp):
     if not isinstance(request, dict) or validate(read(ROOT/entry["request_schema"]),request):
         raise InterfaceError("request does not match " + entry["request_schema"])
     secrets = credential_values()
-    if sanitize(request,secrets) != request:
-        raise InterfaceError("sensitive fields must stay in the private local input file")
     ident = entry["id"]
     key = short_id(ident)
+    allowed = attribution_names(key, request.get("operation"), output=False)
+    if sanitize(request,secrets,allowed) != request:
+        raise InterfaceError("sensitive fields must stay in the private local input file")
     cp, cfg, apply = config_for(request)
     req = dict(request,config=cp)
     guard_outputs(key, cfg)
@@ -460,7 +514,8 @@ def run_request(entry, request, tmp):
         if adjustments.exists():
             files.append((adjustments,Path(str(output_path)+".adjustments.csv")))
         publish_private(files)
-    return sanitize(result,secrets)
+    allowed = attribution_names(key,req.get("operation"),output=True)
+    return sanitize(result,secrets,allowed)
 
 
 def dispatch(entry, request):

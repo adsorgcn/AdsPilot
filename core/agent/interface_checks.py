@@ -6,6 +6,8 @@ import subprocess
 import sys
 import tempfile
 
+from core.agent.interface_runner import sanitize
+
 
 def check(checkout):
     results = {}
@@ -35,6 +37,20 @@ def check(checkout):
          lambda r:"test-canary-abc" not in str(r),{"CJ_ACCESS_TOKEN":"test-canary-abc"})
     call("tracking query rejected","affiliate.cj.link",
          {"base":"https://example.com/item?gc"+"lid=sample-only","token":"SAMPLE00001"},1)
+    sample = "boundary-test-canary"
+    results["sensitive response value removed at every occurrence"] = (
+        sanitize({"nested":{"sessionToken":sample},"detail":"echo "+sample}, ()) ==
+        {"nested":{},"detail":"[redacted]"})
+    for name in ("token","apiToken","client_credential","passwd","passPhrase","refresh-token"):
+        call("nested sensitive field rejected: "+name,"judgment.llm.judge",
+             {"node":"campaign.adjust","choices":[{"id":"keep"}],"state":{"rows":[{name:sample}]}},1,
+             lambda r:sample not in str(r))
+    call("public affiliate sub-id preserved","affiliate.impact.link",
+         {"token":"SAMPLE00001","base":"https://example.com/item"},0,
+         lambda r:r.get("token")=="SAMPLE00001" and "SAMPLE00001" in r["url"])
+    call("signed url rejected","affiliate.cj.link",
+         {"base":"https://example.com/?Signature="+sample,"token":"SAMPLE00001"},1,
+         lambda r:sample not in str(r))
     call("ledger export URL pinned","ledger.subid",{"operation":"pull","url":"https://example.invalid", "apply":True,"config":relative},4)
     for op in ("mint","stats"):
         call("subid "+op,"ledger.subid",{"operation":op},0)
