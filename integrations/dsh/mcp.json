@@ -5,10 +5,20 @@
         "id": "mcp-adspilot",
         "name": "@deepseek-ai/dsh-mcp-client",
         "config": {
-          "serverName": "adspilot",
           "transport": "stdio",
-          "command": "python3",
-          "args": ["/absolute/path/to/AdsPilot/core/agent/mcp_server.py"]
+          "serverName": "adspilot",
+          "command": "/usr/bin/python3",
+          "args": [
+            "/home/learner/AdsPilot/core/agent/mcp_server.py",
+            "--config",
+            "/home/learner/AdsPilot/config/adspilot.example.json"
+          ],
+          "env": {},
+          "cwd": "/home/learner/AdsPilot",
+          "toolCallTimeoutMs": 60000,
+          "closeTimeoutMs": 5000,
+          "expandTemplates": false,
+          "failOnStartupError": true
         }
       }
     ]

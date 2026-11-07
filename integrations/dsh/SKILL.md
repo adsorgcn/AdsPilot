@@ -11,7 +11,11 @@ metadata:
 
 # AdsPilot
 
-> 把 https://github.com/adsorgcn/AdsPilot 克隆到我的 DSH 记忆仓库旁边，读 AdsPilot 的 AGENTS.md，先自检，再按使用方法走。
+在 DSH 创造模式粘贴下面一句，把尖括号部分换成克隆后的本机绝对路径。
+
+```text
+把 https://github.com/adsorgcn/AdsPilot 克隆到我的 DSH 记忆仓库旁边，读 AdsPilot 的 AGENTS.md，先自检，再按使用方法走，然后把 <AdsPilot 绝对路径>/core/agent/mcp_server.py 这个 stdio MCP 服务器配置到当前 profile，命名为 adspilot，立即启用它的工具。
+```
 
 ## 三把钥匙从哪里拿
 
