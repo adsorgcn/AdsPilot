@@ -1,0 +1,4 @@
+{
+  "192.0.2.23": {"ip": "192.0.2.23", "location": {"country_code": "US"}, "is_datacenter": false, "is_proxy": false},
+  "2001:db8::23": {"ip": "2001:db8::23", "location": {"country_code": "CA"}, "is_datacenter": false, "is_proxy": true}
+}

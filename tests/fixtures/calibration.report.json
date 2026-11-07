@@ -1,0 +1,43 @@
+{
+  "type": "adspilot.report",
+  "schema_version": 1,
+  "adspilot_version": "2.0.21",
+  "reported_at": "2026-09-01T12:00:00",
+  "run_id": "sample-calibration",
+  "line": "L2",
+  "seg": 0,
+  "summary": {
+    "window_days": 30,
+    "spend": 4.94,
+    "clicks": 17,
+    "impressions": 177,
+    "avg_cpc": 0.2906,
+    "conversions": 0,
+    "commission": 0,
+    "chargebacks": 0,
+    "epc": 0.0,
+    "currency": "USD",
+    "campaigns_active": 2
+  },
+  "actions": [],
+  "judgments": [],
+  "evidence": [
+    {
+      "id": "fixture-simulation",
+      "kind": "test_output",
+      "ref": "tests/fixtures/calibration.report.json",
+      "result": "pass"
+    }
+  ],
+  "needs_human": {
+    "required": false,
+    "reasons": [],
+    "note": ""
+  },
+  "status": "in_progress",
+  "exit_code": 0,
+  "plugins": [
+    "traffic/google-ads@2.0.0"
+  ],
+  "soul": "default@2.4.0"
+}

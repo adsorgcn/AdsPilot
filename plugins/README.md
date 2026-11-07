@@ -17,7 +17,7 @@
 | `judgment/<提供者>/` | 判断引擎的感知层 | `judge` | llm、jev、soul-api |
 | `deploy/<目标>/` | 落地位（交钥匙） | `setup` `publish` `status` | cloudflare |
 | `keywords/<来源>/` | 关键词数据源 | `suggest` `volume` | 待首发 |
-| `ipintel/<来源>/` | IP 情报 | `lookup` | 待首发 |
+| `ipintel/<来源>/` | IP 情报 | `lookup` | ipapi-is（自测） |
 
 每类的动作契约写在该目录的 `契约.md`，动作的输入输出全部是 `schemas/` 里的 JSON 形状。插件之间不互相调用，只跟主干说话。
 

@@ -17,6 +17,7 @@
 """
 import hashlib
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -510,7 +511,21 @@ class Run:
         if errs:
             self.log("report schema errors: %s" % errs[:3])
         json.dump(report, open(self.path("report.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+        self.record_fx(report)
         return report, not errs
+
+    def record_fx(self, report):
+        """Keep only configured currency rates; never copy the config into a run."""
+        currencies = (report["summary"]["currency"], self.soul["money_unit"])
+        configured = self.cfg.get("fx") or {}
+        rates = {}
+        for code in currencies:
+            value = configured.get(code)
+            if type(value) in (int, float) and value > 0 and math.isfinite(value):
+                rates[code] = value
+        with open(self.path("fx.json"), "w", encoding="utf-8") as fp:
+            json.dump({"run_id": self.run_id, "reported_at": report["reported_at"],
+                       "currency": report["summary"]["currency"], "fx": rates}, fp)
 
     def finish(self, exit_code, summary):
         self.con.execute("INSERT OR REPLACE INTO runs(run_id,started_at,finished_at,exit_code,summary) VALUES(?,?,?,?,?)",
@@ -805,6 +820,18 @@ def main(argv):
     J.console_safe()
     if "--selftest" in argv:
         return selftest()
+    if "--simulate-days" in argv:
+        import argparse
+        import simulation
+        parser = argparse.ArgumentParser(description="Generate offline fixture runs in a separate directory")
+        parser.add_argument("--simulate-days", type=int, required=True)
+        parser.add_argument("--runs-dir", default=os.path.join(ROOT, "runs", "simulation"))
+        args = parser.parse_args(argv)
+        try:
+            return simulation.simulate(args.simulate_days, args.runs_dir, sys.modules[__name__])
+        except (OSError, ValueError) as error:
+            print("simulation: %s" % error, file=sys.stderr)
+            return 1
     cfg_path = argv[argv.index("--config") + 1] if "--config" in argv else None
     cfg = load_cfg(cfg_path)
     if cfg is None:

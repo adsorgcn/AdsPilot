@@ -1,0 +1,14 @@
+{
+  "manifest_version": 1,
+  "id": "ipintel/ipapi-is",
+  "kind": "ipintel",
+  "name": "ipapi.is IP intelligence",
+  "version": "0.1.0",
+  "status": "alpha",
+  "actions": {"lookup": "lookup.py"},
+  "credentials": [{"env": "IPAPI_IS_KEY", "required": true, "note": "用户自己的 ipapi.is API key，离线样例不需要"}],
+  "external_apis": ["https://api.ipapi.is"],
+  "limits": {"max_ips": 100},
+  "unattended": {"accepted": false, "days": 0, "note": "自测 / 样例"},
+  "usage": "使用方法.md"
+}
