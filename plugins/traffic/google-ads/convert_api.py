@@ -47,17 +47,31 @@ def action_operation(name, currency):
                        "attributionModelSettings": {"attributionModel": "GOOGLE_ADS_LAST_CLICK"}}}
 
 
+def click_id_field(row):
+    k = str(row.get("gclid_kind") or "").strip().lower()
+    return k if k in ("gclid", "gbraid", "wbraid") else "gclid"
+
+
 def build_uploads(conv, action_rn, tz):
-    conversions = [{"gclid": r["gclid"], "conversionAction": action_rn, "conversionDateTime": fmt_time(r["conversion_time"], tz),
-                    "conversionValue": float(r["value"]), "currencyCode": r["currency"]} for r in conv.get("rows", [])]
+    conversions = []
+    for r in conv.get("rows", []):
+        item = {click_id_field(r): r["gclid"], "conversionAction": action_rn, "conversionDateTime": fmt_time(r["conversion_time"], tz),
+                "conversionValue": float(r["value"]), "currencyCode": r["currency"]}
+        if r.get("event_id"):
+            item["orderId"] = r["event_id"]
+        conversions.append(item)
     orig = {r["event_id"]: r["conversion_time"] for r in conv.get("rows", [])}
     adjustments, unlinked = [], []
     for cb in conv.get("chargebacks", []):
         ot = orig.get(cb.get("original_event_id")) or (ledger_time_lookup(cb["original_event_id"]) if cb.get("original_event_id") else None)
         if not ot:
             unlinked.append(cb["event_id"]); continue
-        adjustments.append({"gclidDateTimePair": {"gclid": cb["gclid"], "conversionDateTime": fmt_time(ot, tz)}, "conversionAction": action_rn,
-                            "adjustmentType": "RETRACTION", "adjustmentDateTime": fmt_time(cb["conversion_time"], tz)})
+        adj = {"conversionAction": action_rn, "adjustmentType": "RETRACTION", "adjustmentDateTime": fmt_time(cb["conversion_time"], tz)}
+        if click_id_field(cb) == "gclid":
+            adj["gclidDateTimePair"] = {"gclid": cb["gclid"], "conversionDateTime": fmt_time(ot, tz)}
+        else:
+            adj["orderId"] = cb.get("original_event_id")
+        adjustments.append(adj)
     return conversions, adjustments, unlinked
 
 
@@ -73,7 +87,8 @@ def datamanager_body(client, conv, action_rn, validate_only, account_field="acco
     """按官方字段映射（Google Ads API -> Data Manager API）：
     customer_id -> operating_account.account_id（account_type GOOGLE_ADS）；login-customer-id -> login_account；
     conversion_action -> product_destination_id（数字 id 不是 resource name）；order_id -> transaction_id；
-    conversion_date_time -> event_timestamp（RFC 3339）；conversion_value 用币值不用 micros；currency_code -> currency；gclid -> ad_identifiers.gclid。
+    conversion_date_time -> event_timestamp（RFC 3339）；conversion_value 用币值不用 micros；currency_code -> currency；
+    gclid/gbraid/wbraid -> ad_identifiers.<kind>。
     ProductAccount 的 product 字段已废弃改 accountType；encoding 在有 UserData 时必填，这里没有 UserData，带 HEX 无害。
     Data Manager 是整包快速失败：校验不过整个请求被拒，没有 partial failure；处理是异步的，响应只给 request_id。"""
     acct = lambda cid: {account_field: "GOOGLE_ADS", "accountId": cid}  # noqa: E731
@@ -83,7 +98,7 @@ def datamanager_body(client, conv, action_rn, validate_only, account_field="acco
     events = []
     for r in conv.get("rows", []):
         ev = {"destinationReferences": ["d1"], "transactionId": r["event_id"], "eventTimestamp": to_rfc3339(r["conversion_time"]),
-              "adIdentifiers": {"gclid": r["gclid"]}, "conversionValue": float(r["value"]), "currency": r["currency"],
+              "adIdentifiers": {click_id_field(r): r["gclid"]}, "conversionValue": float(r["value"]), "currency": r["currency"],
               "eventSource": event_source or "WEB"}  # eventSource 实测必填
         events.append(ev)
     return {"destinations": [dest], "events": events, "validateOnly": bool(validate_only), "encoding": "HEX"}
@@ -129,12 +144,18 @@ def upload(client, conv, conversions, adjustments, action_rn, mode, transport="a
 
 
 def selftest():
-    conv = {"rows": [{"event_id": "e1", "gclid": "CjwKCAjw_example_gclid_0001", "conversion_name": "affiliate_commission", "conversion_time": "2026-09-11T03:12:44+00:00", "value": 18.4, "currency": "USD"}],
-            "chargebacks": [{"event_id": "e2", "original_event_id": "e1", "gclid": "CjwKCAjw_example_gclid_0001", "conversion_name": "affiliate_commission", "conversion_time": "2026-09-18T10:00:00+00:00", "value": -18.4, "currency": "USD"},
+    conv = {"rows": [{"event_id": "e1", "gclid": "CjwKCAjw_example_gclid_0001", "gclid_kind": "gclid", "conversion_name": "affiliate_commission", "conversion_time": "2026-09-11T03:12:44+00:00", "value": 18.4, "currency": "USD"},
+                     {"event_id": "e1b", "gclid": "EAIaIQobChMI_ios_gbraid_0001", "gclid_kind": "gbraid", "conversion_name": "affiliate_commission", "conversion_time": "2026-09-11T04:00:00+00:00", "value": 9.2, "currency": "USD"},
+                     {"event_id": "e1w", "gclid": "EAIaIQobChMI_web_wbraid_0001", "gclid_kind": "wbraid", "conversion_name": "affiliate_commission", "conversion_time": "2026-09-11T05:00:00+00:00", "value": 4.5, "currency": "USD"}],
+            "chargebacks": [{"event_id": "e2", "original_event_id": "e1", "gclid": "CjwKCAjw_example_gclid_0001", "gclid_kind": "gclid", "conversion_name": "affiliate_commission", "conversion_time": "2026-09-18T10:00:00+00:00", "value": -18.4, "currency": "USD"},
+                            {"event_id": "e2b", "original_event_id": "e1b", "gclid": "EAIaIQobChMI_ios_gbraid_0001", "gclid_kind": "gbraid", "conversion_name": "affiliate_commission", "conversion_time": "2026-09-18T11:00:00+00:00", "value": -9.2, "currency": "USD"},
                             {"event_id": "e3", "gclid": "x", "conversion_name": "affiliate_commission", "conversion_time": "2026-09-18T10:00:00+00:00", "value": -1, "currency": "USD"}]}
     tz, tz_note = selftest_tz()
     c, a, u = build_uploads(conv, "customers/1/conversionActions/9", tz)
-    ok = len(c) == 1 and c[0]["conversionDateTime"] == "2026-09-11 12:12:44+09:00" and len(a) == 1 and a[0]["adjustmentType"] == "RETRACTION" and u == ["e3"]
+    ok = (len(c) == 3 and c[0]["conversionDateTime"] == "2026-09-11 12:12:44+09:00"
+          and "gbraid" in c[1] and "gclid" not in c[1] and "wbraid" in c[2]
+          and len(a) == 2 and a[0]["adjustmentType"] == "RETRACTION" and "gclidDateTimePair" in a[0]
+          and a[1].get("orderId") == "e1b" and u == ["e3"])
     op = action_operation("affiliate_commission", "USD")
     ok = ok and op["create"]["type"] == "UPLOAD_CLICKS"
     cl = Client(env={"GOOGLE_ADS_CUSTOMER_ID": "1234567890", "GOOGLE_ADS_LOGIN_CUSTOMER_ID": "9999999999"})
@@ -144,8 +165,9 @@ def selftest():
         and d0["productDestinationId"] == "77" and d0["loginAccount"] == {"accountType": "GOOGLE_ADS", "accountId": "9999999999"} \
         and d0["operatingAccount"]["accountId"] == "1234567890" and dm["encoding"] == "HEX" and dm["validateOnly"] is True \
         and dm["events"][0]["eventTimestamp"] == "2026-09-11T03:12:44Z" and dm["events"][0]["adIdentifiers"]["gclid"].startswith("Cjw") \
+        and "gbraid" in dm["events"][1]["adIdentifiers"] and "wbraid" in dm["events"][2]["adIdentifiers"] \
         and dm["events"][0]["currency"] == "USD" and dm["events"][0]["conversionValue"] == 18.4 and dm["events"][0]["transactionId"] == "e1"
-    print("conversions=%d adjustments=%d unlinked=%s -> %s%s" % (len(c), len(a), u, "OK" if ok else "FAIL", tz_note))
+    print("conversions=%d adjustments=%d unlinked=%s gbraid/wbraid=ok -> %s%s" % (len(c), len(a), u, "OK" if ok else "FAIL", tz_note))
     return 0 if ok else 1
 
 

@@ -48,5 +48,8 @@
     "stop_loss_spend": null,
     "budget_step_pct": 20,
     "autonomy": "within_caps"
+  },
+  "sentinel": {
+    "notify_webhook_env": "ADSPILOT_NOTIFY_WEBHOOK"
   }
 }

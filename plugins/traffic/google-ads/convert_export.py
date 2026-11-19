@@ -24,6 +24,7 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "core", "ledger"))
 
 HEADER = ["Google Click ID", "Conversion Name", "Conversion Time", "Conversion Value", "Conversion Currency"]
+HEADER_MIXED = ["Google Click ID", "Gbraid", "Wbraid", "Conversion Name", "Conversion Time", "Conversion Value", "Conversion Currency"]
 ADJ_HEADER = ["Google Click ID", "Conversion Name", "Conversion Time", "Adjustment Time", "Adjustment Type", "Adjusted Value", "Adjusted Value Currency"]
 
 
@@ -58,11 +59,35 @@ def fmt_time(iso, tz):
     return dt.strftime("%Y-%m-%d %H:%M:%S") + off[:3] + ":" + off[3:]
 
 
+def has_ios_ids(conv):
+    return any((r.get("gclid_kind") or "gclid") in ("gbraid", "wbraid") for r in conv.get("rows", []))
+
+
+def header_for(conv):
+    return HEADER_MIXED if has_ios_ids(conv) else HEADER
+
+
 def build(conv, tz, ledger_lookup=None):
-    rows = [[r["gclid"], r["conversion_name"], fmt_time(r["conversion_time"], tz), "%.2f" % r["value"], r["currency"]] for r in conv.get("rows", [])]
+    mixed = has_ios_ids(conv)
+    rows = []
+    for r in conv.get("rows", []):
+        kind = (r.get("gclid_kind") or "gclid").lower()
+        t_str = fmt_time(r["conversion_time"], tz)
+        v_str = "%.2f" % r["value"]
+        if mixed:
+            rows.append([
+                r["gclid"] if kind == "gclid" else "",
+                r["gclid"] if kind == "gbraid" else "",
+                r["gclid"] if kind == "wbraid" else "",
+                r["conversion_name"], t_str, v_str, r["currency"],
+            ])
+        else:
+            rows.append([r["gclid"], r["conversion_name"], t_str, v_str, r["currency"]])
     adjs = []
     orig_times = {r["event_id"]: r["conversion_time"] for r in conv.get("rows", [])}
     for cb in conv.get("chargebacks", []):
+        if (cb.get("gclid_kind") or "gclid").lower() != "gclid":
+            continue  # 后台 CSV 拒付调整模板只认 Google Click ID；iOS 归因拒付走 API orderId 通道
         oid = cb.get("original_event_id")
         ot = orig_times.get(oid) or (ledger_lookup(oid) if (ledger_lookup and oid) else None)
         if not ot:
@@ -81,11 +106,11 @@ def ledger_time_lookup(event_id):
         return None
 
 
-def write(out, rows, adjs, tzname):
+def write(out, rows, adjs, tzname, header=None):
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     with open(out, "w", newline="", encoding="utf-8") as f:
         f.write("Parameters:TimeZone=%s\n" % tzname)
-        w = csv.writer(f); w.writerow(HEADER); w.writerows(rows)
+        w = csv.writer(f); w.writerow(header or HEADER); w.writerows(rows)
     if adjs:
         with open(out + ".adjustments.csv", "w", newline="", encoding="utf-8") as f:
             f.write("Parameters:TimeZone=%s\n" % tzname)
@@ -97,8 +122,11 @@ def selftest():
             "chargebacks": [{"event_id": "e2", "original_event_id": "e1", "gclid": "CjwKCAjw_example_gclid_0001", "conversion_name": "affiliate_commission", "conversion_time": "2026-09-18T10:00:00+00:00", "value": -18.4, "currency": "USD"}]}
     tz, note = selftest_tz()
     rows, adjs = build(conv, tz)
-    ok = rows[0][2] == "2026-09-11 12:12:44+09:00" and len(adjs) == 1 and adjs[0][4] == "RETRACTION"
-    print("row_time=%s adjustments=%d -> %s%s" % (rows[0][2], len(adjs), "OK" if ok else "FAIL", note))
+    ok = header_for(conv) == HEADER and rows[0][2] == "2026-09-11 12:12:44+09:00" and len(adjs) == 1 and adjs[0][4] == "RETRACTION"
+    mixed = {"rows": conv["rows"] + [{"event_id": "e2", "gclid": "EAI_gbraid_1", "gclid_kind": "gbraid", "conversion_name": "affiliate_commission", "conversion_time": "2026-09-11T04:00:00+00:00", "value": 5.0, "currency": "USD"}], "chargebacks": []}
+    mrows, _ = build(mixed, tz)
+    ok = ok and header_for(mixed) == HEADER_MIXED and mrows[1][0] == "" and mrows[1][1] == "EAI_gbraid_1" and mrows[1][2] == ""
+    print("row_time=%s adjustments=%d mixed_cols=%d -> %s%s" % (rows[0][2], len(adjs), len(header_for(mixed)), "OK" if ok else "FAIL", note))
     return 0 if ok else 1
 
 
@@ -111,7 +139,7 @@ def main(argv):
     conv = json.load(open(kv["conversions"], encoding="utf-8"))
     tzname = kv.get("timezone", "UTC")
     rows, adjs = build(conv, tz_of(tzname), ledger_time_lookup)
-    write(kv["out"], rows, adjs, tzname)
+    write(kv["out"], rows, adjs, tzname, header=header_for(conv))
     print("conversions=%d adjustments=%d -> %s" % (len(rows), len(adjs), kv["out"]))
     return 0
 

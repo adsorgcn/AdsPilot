@@ -126,10 +126,10 @@ class Run:
         self.plugins_used.add("%s@%s" % (m["id"], m["version"]))
         return d, m
 
-    def run_script(self, script, args, timeout=120):
+    def run_script(self, script, args, timeout=120, stdin_text=None):
         cmd = [sys.executable, script] + args
         self.log("run: %s" % " ".join(self.path_ref(c) if os.path.isabs(c) else c for c in cmd[1:]))
-        out = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace", timeout=timeout, cwd=ROOT, env=J.child_env())
+        out = subprocess.run(cmd, input=stdin_text, capture_output=True, encoding="utf-8", errors="replace", timeout=timeout, cwd=ROOT, env=J.child_env())
         if out.stderr.strip():
             for l in out.stderr.strip().splitlines()[-5:]:
                 self.log("  stderr: " + l)
@@ -161,7 +161,11 @@ class Run:
         d, m = self.plugin("traffic", t.get("plugin", "google-ads"))
         out = self.path("traffic-report.json")
         if t.get("report_source", "csv_export") == "api" and m["actions"].get("report_api"):
-            rc, _ = self.run_script(os.path.join(d, m["actions"]["report_api"]), ["--out", out, "--days", "30"] + (["--apply"] if self.apply else []))
+            args = ["--out", out, "--days", "30"]
+            if self.apply:
+                args.extend(["--apply", "--account-out", self.path("account-status.json"),
+                             "--search-terms-out", self.path("search-terms.json")])
+            rc, _ = self.run_script(os.path.join(d, m["actions"]["report_api"]), args)
         else:
             csv = self._abs(t.get("report_csv", "data/inbox/google-ads-report.csv"))
             if not os.path.exists(csv):
@@ -370,11 +374,106 @@ class Run:
         rc, _ = self.run_script(os.path.join(d, m["actions"]["budget"]), ["--campaigns", "--out", self.path("budget-recommendations.json")] + (["--apply"] if self.apply else []))
         self.log("budget recommendations rc=%s" % rc)
 
+    def search_terms_by_campaign(self):
+        """最近搜索词（api 路 sidecar 优先，其次 data/inbox/search-terms.json），只摘零转化高消费词作诊断参考。"""
+        for p in (self.path("search-terms.json"), os.path.join(self.data_dir, "inbox", "search-terms.json")):
+            if os.path.exists(p):
+                try:
+                    data = json.load(open(p, encoding="utf-8"))
+                except ValueError:
+                    continue
+                by_c = defaultdict(list)
+                for r in (data.get("rows") or []):
+                    c = r.get("campaign") or ""
+                    if c and float(r.get("conversions") or 0) == 0 and int(r.get("clicks") or 0) > 0:
+                        by_c[c].append({"term": r.get("search_term", ""), "clicks": int(r.get("clicks") or 0),
+                                        "cost": round(float(r.get("cost") or 0), 2), "status": r.get("status", "")})
+                return {c: sorted(xs, key=lambda x: (-x["cost"], -x["clicks"]))[:5] for c, xs in by_c.items()}
+        return {}
+
+    def step_ipintel(self):
+        ip_path = os.path.join(self.data_dir, "inbox", "click-ips.json")
+        if not os.path.exists(ip_path):
+            return None
+        try:
+            payload = json.load(open(ip_path, encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            self.log("ipintel: click-ips.json 读不了，忽略"); return None
+        ips = [str(x) for x in (payload.get("ips") or []) if isinstance(x, str) and x.strip()][:100]
+        if not ips:
+            return None
+        plug = (self.cfg.get("ipintel") or {}).get("plugin", "ipapi-is")
+        try:
+            d, m = self.plugin("ipintel", plug)
+        except Exception:  # noqa: BLE001
+            return None
+        script = os.path.join(d, m["actions"]["lookup"])
+        args = ["--apply"] if (self.apply and os.environ.get("IPAPI_IS_KEY")) else []
+        rc, out = self.run_script(script, args, stdin_text=json.dumps({"ips": ips}))
+        if rc != 0:
+            self.log("ipintel lookup skipped rc=%d" % rc)
+            return None
+        try:
+            res = json.loads(out)
+        except ValueError:
+            return None
+        rows = res.get("rows") or []
+        dc = sum(1 for r in rows if r.get("is_datacenter"))
+        px = sum(1 for r in rows if r.get("is_proxy"))
+        flagged = sum(1 for r in rows if r.get("is_datacenter") or r.get("is_proxy"))
+        ratio = round(flagged / float(len(ips)), 4) if ips else 0.0
+        self.log("ipintel: checked=%d matched=%d datacenter=%d proxy=%d flagged_ratio=%.2f" % (len(ips), len(rows), dc, px, ratio))
+        self.evidence.append({"id": "e-ipintel", "deliverable": "ip_intel", "kind": "report", "ref": "config.data_dir/inbox/click-ips.json", "result": "pass"})
+        return {"checked": len(ips), "matched": len(rows), "datacenter": dc, "proxy": px, "flagged": flagged, "flagged_ratio": ratio}
+
+    def sync_campaigns_inbox(self, results):
+        cp = os.path.join(self.data_dir, "inbox", "campaigns.json")
+        if not results or not os.path.exists(cp):
+            return False
+        try:
+            camp_cfg = json.load(open(cp, encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            return False
+        if not isinstance(camp_cfg, dict):
+            return False
+        changed = False
+        for r in results:
+            if not r.get("applied") or r.get("node") != "campaign.adjust":
+                continue
+            target = r.get("target")
+            if not target or target not in camp_cfg or not isinstance(camp_cfg[target], dict):
+                continue
+            entry = camp_cfg[target]
+            ch = r.get("choice")
+            if ch in ("budget_up", "budget_down") and isinstance((r.get("budget_micros") or {}).get("to"), (int, float)):
+                entry["daily_budget"] = round(float(r["budget_micros"]["to"]) / 1e6, 2)
+                changed = True
+            elif ch == "bid_down" and isinstance((r.get("ceiling_micros") or {}).get("to"), (int, float)):
+                entry["bid_cap"] = round(float(r["ceiling_micros"]["to"]) / 1e6, 2)
+                changed = True
+            elif ch == "pause":
+                entry["status"] = "PAUSED"
+                changed = True
+        if changed:
+            tmp_p = cp + ".tmp"
+            with open(tmp_p, "w", encoding="utf-8") as fp:
+                json.dump(camp_cfg, fp, ensure_ascii=False, indent=2)
+            os.replace(tmp_p, cp)
+        return changed
+
     def step_judgments(self, rep, rec):
         acct = {}
-        sp = os.path.join(self.data_dir, "inbox", "account-status.json")
-        if os.path.exists(sp):
-            acct = json.load(open(sp, encoding="utf-8"))
+        for sp in (self.path("account-status.json"), os.path.join(self.data_dir, "inbox", "account-status.json")):
+            if os.path.exists(sp):
+                try:
+                    acct = json.load(open(sp, encoding="utf-8"))
+                    break
+                except ValueError:
+                    pass
+        if acct.get("currency") and acct["currency"] != self.cfg.get("currency", "USD"):
+            self.log("account currency %s != config.currency %s" % (acct["currency"], self.cfg.get("currency", "USD")))
+        ip_sum = self.step_ipintel()
+        st_terms = self.search_terms_by_campaign()
         rows = (rep or {}).get("rows", [])
         today = max((r["date"] for r in rows), default=time.strftime("%Y-%m-%d"))
         d0 = datetime.strptime(today, "%Y-%m-%d")
@@ -385,6 +484,9 @@ class Run:
         st = {"account_status": acct.get("account_status", "ok"), "disapprovals": sum(1 for r in rows if r.get("disapproved")),
               "spend_today": round(spend_today, 2), "spend_avg_7d": round(sum(prev) / 6.0, 2) if prev else 0,
               "identity_or_payment_verification_requested": bool(acct.get("verification_requested"))}
+        if ip_sum and ip_sum.get("matched"):
+            st["ip_flagged"] = ip_sum["flagged"]
+            st["ip_risk_ratio"] = ip_sum["flagged_ratio"]
         resp = self.decide("anomaly.escalate", st, ["continue", "pause_all", "escalate"], target="account")
         halt = resp["choice"] in ("pause_all",) or resp["mode_local"] == "M8"
         self.record_action("anomaly.escalate", "account", resp, applied=(resp["choice"] == "continue"), note="" if resp["choice"] == "continue" else "需要本人处理")
@@ -419,7 +521,8 @@ class Run:
             gbid = google_bid_of(w) if google_bid_of(w) is not None else (camp_cfg.get(c) or {}).get("google_bid")
             cid = next((r.get("campaign_id") for r in rs if r.get("campaign_id")), None)
             brec = brecs.get(c) or (brecs.get(str(cid)) if cid else None) or {}
-            cur_budget = (camp_cfg.get(c) or {}).get("daily_budget", brec.get("current"))
+            live_cur = brec.get("current")
+            cur_budget = live_cur if live_cur is not None else (camp_cfg.get(c) or {}).get("daily_budget")
             clicks_w = sum(r["clicks"] for r in w); cost_w = sum(r["cost"] for r in w)
             st = {"days_running": len(dates), "spend_total": round(sum(r["cost"] for r in rs), 2), "spend_window": round(cost_w, 2),
                   "clicks": clicks_w, "avg_cpc": round(cost_w / clicks_w, 4) if clicks_w else 0.0,
@@ -427,6 +530,8 @@ class Run:
                   "daily_budget": float(cur_budget) if cur_budget is not None else None, "google_budget": brec.get("recommended"), "money_at_stake": round(cost_w, 2),
                   "disapproved": any(r.get("disapproved") for r in rs), "bid_cap": (camp_cfg.get(c) or {}).get("bid_cap"), "google_bid": gbid,
                   "bidding": (camp_cfg.get(c) or {}).get("bidding")}
+            if st_terms.get(c):
+                st["search_terms"] = st_terms[c]
             if st["bid_cap"] is None and caps.get("max_cpc") is None and gbid is None:
                 self.log("出价上限未知 %s：没有 offer 的 bid_cap、caps.max_cpc 与谷歌推荐出价，本轮不按出价调" % c)
             resp = self.decide("campaign.adjust", st, ["keep", "bid_down", "budget_up", "budget_down", "pause"], target=c)
@@ -488,14 +593,32 @@ class Run:
             api_mode = m["actions"].get("deploy") != "manual" and (self.cfg.get("traffic") or {}).get("deploy_mode", "api") == "api"
             self.log("actions-todo: %d 项（%s 模式）" % (len(todo), "api" if api_mode else "manual"))
             if api_mode and self.apply:
-                rc, _ = self.run_script(os.path.join(d, m["actions"]["deploy"]), ["--actions", self.path("actions-todo.json"), "--apply"])
+                rc, dep_out = self.run_script(os.path.join(d, m["actions"]["deploy"]), ["--actions", self.path("actions-todo.json"), "--apply"])
                 if rc == 4:
                     self.log("deploy api: 凭据缺失，动作留在 actions-todo 由 Agent 在后台做")
-                if rc == 0:
-                    self.con.execute("UPDATE actions SET applied=1, applied_at=? WHERE run_id=? AND applied=0 AND node IN ('campaign.adjust','keyword.action')", (subid.now_iso(), self.run_id))
-                    for a in self.actions:
-                        if a["node"] in ("campaign.adjust", "keyword.action") and not a["applied"]:
-                            a["applied"] = True; a["note"] = "applied via api"
+                elif rc in (0, 3):
+                    applied_keys = None
+                    try:
+                        parsed = json.loads(dep_out)
+                        if isinstance(parsed, dict) and isinstance(parsed.get("results"), list):
+                            applied_keys = {(r.get("node"), r.get("target")) for r in parsed["results"] if r.get("applied") is True}
+                            self.sync_campaigns_inbox(parsed["results"])
+                    except ValueError:
+                        parsed = None
+                    now = subid.now_iso()
+                    if applied_keys is None and rc == 0:
+                        self.con.execute("UPDATE actions SET applied=1, applied_at=? WHERE run_id=? AND applied=0 AND node IN ('campaign.adjust','keyword.action')", (now, self.run_id))
+                        for a in self.actions:
+                            if a["node"] in ("campaign.adjust", "keyword.action") and not a["applied"]:
+                                a["applied"] = True; a["note"] = "applied via api"
+                    elif applied_keys:
+                        for node, target in applied_keys:
+                            self.con.execute("UPDATE actions SET applied=1, applied_at=? WHERE run_id=? AND applied=0 AND node=? AND target=?", (now, self.run_id, node, target))
+                        for a in self.actions:
+                            if not a["applied"] and (a["node"], a["target"]) in applied_keys:
+                                a["applied"] = True; a["note"] = "applied via api"
+                    if rc == 3:
+                        self.log("deploy api partial or failed rc=3; unapplied items remain in actions-todo")
         if upload and rec:
             out = os.path.join(self.data_dir, "outbox", "conversions-%s.csv" % self.run_id)
             rc, _ = self.run_script(os.path.join(d, m["actions"]["convert"]), ["--conversions", self.path("conversions.json"), "--out", out,
@@ -504,11 +627,28 @@ class Run:
                 self.log("conversions csv: %s（Agent 在后台上传，或 api 模式自动）" % self.path_ref(out))
                 self.evidence.append({"id": "e-convert", "deliverable": "conversion_upload_file", "kind": "file", "ref": self.path_ref(out), "result": "pass"})
                 if m["actions"].get("convert_api") and self.apply and (self.cfg.get("traffic") or {}).get("deploy_mode", "api") == "api":
-                    rc2, _ = self.run_script(os.path.join(d, m["actions"]["convert_api"]), ["--conversions", self.path("conversions.json"), "--conversion-name", t.get("conversion_name", "affiliate_commission"),
-                                                                                            "--timezone", self.cfg.get("timezone", "UTC"), "--apply"])
+                    rc2, conv_out = self.run_script(os.path.join(d, m["actions"]["convert_api"]), ["--conversions", self.path("conversions.json"), "--conversion-name", t.get("conversion_name", "affiliate_commission"),
+                                                                                                    "--timezone", self.cfg.get("timezone", "UTC"), "--apply"])
                     if rc2 == 0:
-                        R.mark_uploaded(self.con, self.run_id, [r["event_id"] for r in rec["rows"]])
-                        self.log("conversions uploaded via api")
+                        uploaded_ids = [r["event_id"] for r in rec.get("rows", [])] + [c["event_id"] for c in rec.get("chargebacks", [])]
+                        R.mark_uploaded(self.con, self.run_id, uploaded_ids)
+                        now = subid.now_iso()
+                        self.con.execute("UPDATE actions SET applied=1, applied_at=? WHERE run_id=? AND node='conversion.upload'", (now, self.run_id))
+                        for a in self.actions:
+                            if a["node"] == "conversion.upload":
+                                a["applied"] = True; a["note"] = "uploaded via api"
+                        self.log("conversions uploaded via api (%d events)" % len(uploaded_ids))
+                    elif rc2 == 2:
+                        msg = "转化上传需要本人处理（重新授权 Data Manager scope 或启用 API）"
+                        try:
+                            detail = json.loads(conv_out)
+                            if detail.get("needs_reauth", {}).get("why"):
+                                msg = detail["needs_reauth"]["why"][:200]
+                            elif detail.get("needs_human", {}).get("what"):
+                                msg = detail["needs_human"]["what"][:200]
+                        except ValueError:
+                            pass
+                        self.needs_human_note("other", msg)
                     elif rc2 == 4:
                         self.log("convert api: 凭据缺失，Agent 在后台上传 outbox 文件")
         self.con.commit()
@@ -835,6 +975,72 @@ def selftest():
     bd7 = {a["target"]: a.get("bid_cap") for a in todo7 if a["node"] == "campaign.adjust" and a["choice"] == "bid_down"}
     check("T7-g", kw7.get("TS/A/k") == ("maximize_clicks", "keep") and kw7.get("MC/A/k") == (None, "bid_down") and bd7 == {"TS": 4.56, "MC": 4.56},
           "词(出价方式,判断)=%s 系列降价带的出价上限=%s" % (kw7, bd7))
+    # T8-a: live brec["current"] beats stale campaigns.json daily_budget, and search-terms pass into campaign.adjust
+    cfg_t8 = _selftest_cfg(tmp, "t8", mappings=False)
+    inbox8 = os.path.join(cfg_t8["data_dir"], "inbox")
+    os.makedirs(inbox8, exist_ok=True)
+    json.dump({"C1": {"daily_budget": 10.0}, "C2": {"daily_budget": 12.0}},
+              open(os.path.join(inbox8, "campaigns.json"), "w", encoding="utf-8"))
+    json.dump({"campaigns": {"C1": {"recommended": 20.0, "current": 15.0}, "C2": {"recommended": 18.0}}},
+              open(os.path.join(inbox8, "budget-recommendations.json"), "w", encoding="utf-8"))
+    json.dump({"rows": [{"campaign": "C1", "search_term": "wasted click term", "clicks": 9, "cost": 14.5, "conversions": 0, "status": "NONE"}]},
+              open(os.path.join(inbox8, "search-terms.json"), "w", encoding="utf-8"))
+    json.dump({"ips": ["192.0.2.23", "2001:db8::23"]},
+              open(os.path.join(inbox8, "click-ips.json"), "w", encoding="utf-8"))
+    r8 = Run(cfg_t8, "selftest-t8", False)
+    seen8 = []
+    orig8 = r8.decide
+
+    def spy8(node, state, choices, target="", evidence=None):
+        seen8.append((node, target, dict(state or {})))
+        return orig8(node, state, choices, target=target, evidence=evidence)
+    r8.decide = spy8
+    r8.evidence.append({"id": "e-traffic", "deliverable": "traffic_report", "kind": "report", "ref": "selftest", "result": "pass"})
+    rows8 = [dict(r_, date=ds(k)) for k in range(4) for r_ in (
+        {"campaign": "C1", "impressions": 100, "clicks": 20, "cost": 4.0},
+        {"campaign": "C2", "impressions": 100, "clicks": 20, "cost": 4.0})]
+    r8.step_judgments({"rows": rows8}, None)
+    rep8, ok8 = r8.build_report({"rows": rows8}, None, 0)
+    r8.finish(0, rep8["summary"])
+    st8 = {(n, t): s_ for n, t, s_ in seen8}
+    check("T8-a", st8[("campaign.adjust", "C1")].get("daily_budget") == 15.0
+          and st8[("campaign.adjust", "C2")].get("daily_budget") == 12.0
+          and st8[("campaign.adjust", "C1")].get("search_terms", [{}])[0].get("term") == "wasted click term",
+          "C1=%s C2=%s terms=%s" % (st8[("campaign.adjust", "C1")].get("daily_budget"), st8[("campaign.adjust", "C2")].get("daily_budget"), st8[("campaign.adjust", "C1")].get("search_terms")))
+    # T8-b: ipintel hook aggregates counts into anomaly.escalate, records evidence, leaks zero raw IPs
+    log8 = open(os.path.join(cfg_t8["runs_dir"], "selftest-t8", "run.log"), encoding="utf-8").read()
+    rep8_txt = json.dumps(rep8, ensure_ascii=False)
+    anom8 = st8[("anomaly.escalate", "account")]
+    check("T8-b", ok8 and not validate(schema, rep8)
+          and anom8.get("ip_flagged") == 1 and anom8.get("ip_risk_ratio") == 0.5
+          and any(e.get("id") == "e-ipintel" for e in rep8["evidence"])
+          and "192.0.2.23" not in log8 and "2001:db8::23" not in log8
+          and "192.0.2.23" not in rep8_txt and "2001:db8::23" not in rep8_txt,
+          "flagged=%s ratio=%s schema=%s" % (anom8.get("ip_flagged"), anom8.get("ip_risk_ratio"), ok8))
+    # T8-c: sync_campaigns_inbox, chargebacks mark_uploaded, and legacy SQLite schema migration
+    r8.sync_campaigns_inbox([
+        {"node": "campaign.adjust", "target": "C1", "choice": "budget_up", "applied": True, "budget_micros": {"from": 10000000, "to": 20000000}},
+        {"node": "campaign.adjust", "target": "C2", "choice": "pause", "applied": False},
+    ])
+    synced8 = json.load(open(os.path.join(inbox8, "campaigns.json"), encoding="utf-8"))
+    leg_db = os.path.join(tmp, "legacy.db")
+    lcon = subid.sqlite3.connect(leg_db)
+    lcon.executescript(
+        "CREATE TABLE mappings (token TEXT PRIMARY KEY, gclid TEXT, campaign TEXT, adgroup TEXT, keyword TEXT, page TEXT, ts TEXT, network TEXT, offer TEXT, source TEXT, created_at TEXT NOT NULL);"
+        "CREATE TABLE conversions (event_id TEXT PRIMARY KEY, token TEXT, gclid TEXT, event_time TEXT, click_time TEXT, amount REAL, currency TEXT, status TEXT, network TEXT, offer TEXT, batch TEXT, uploaded_at TEXT, created_at TEXT NOT NULL);"
+        "CREATE TABLE chargebacks (event_id TEXT PRIMARY KEY, original_event_id TEXT, token TEXT, gclid TEXT, event_time TEXT, amount REAL, currency TEXT, network TEXT, applied_at TEXT, created_at TEXT NOT NULL);"
+        "INSERT INTO mappings(token,gclid,campaign,created_at) VALUES('LEGACYTOK1','CjwLegacyGclid0001','C1','2026-09-01T00:00:00Z');"
+        "INSERT INTO chargebacks(event_id,original_event_id,token,gclid,event_time,amount,currency,network,created_at) VALUES('cb1','ev1','LEGACYTOK1','CjwLegacyGclid0001','2026-09-02T00:00:00Z',-10.0,'USD','cj','2026-09-02T00:00:00Z');"
+    )
+    lcon.commit(); lcon.close()
+    mcon = subid.open_db(leg_db)
+    mlook = subid.lookup(mcon, "LEGACYTOK1")
+    R.mark_uploaded(mcon, "b1", ["cb1"])
+    mstats = subid.stats(mcon)
+    mcon.close()
+    check("T8-c", synced8["C1"]["daily_budget"] == 20.0 and "status" not in synced8["C2"]
+          and mlook is not None and mlook.get("gclid_kind") == "gclid" and mstats.get("chargebacks_uploaded") == 1,
+          "synced=%s mlook_kind=%s cb_up=%s" % (synced8, mlook and mlook.get("gclid_kind"), mstats.get("chargebacks_uploaded")))
     check("T2-f", f_ok_round2 and _selftest_sha1(p) == h0 and _selftest_sha1(pb) == hb and _selftest_sha1(pc) == hc,
           "user-decisions.json 三份跑完字节不变")
     ok = ok and all(results) and not errs4

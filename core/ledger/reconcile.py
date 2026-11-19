@@ -44,7 +44,7 @@ def parse_time(s):
 
 
 def gclid_ok(g):
-    return isinstance(g, str) and 10 <= len(g) <= 200 and all(c.isalnum() or c in "-_" for c in g)
+    return isinstance(g, str) and 10 <= len(g) <= 200 and all(c.isalnum() or c in "-_." for c in g)
 
 
 def reconcile(con, commissions, conversion_name="affiliate_commission", window_days=90, batch=None):
@@ -52,6 +52,7 @@ def reconcile(con, commissions, conversion_name="affiliate_commission", window_d
         raise ValueError("not adspilot.commissions")
     batch = batch or time.strftime("rec-%Y%m%d-%H%M%S")
     rows, unmatched, out_of_window, invalid, cbs = [], [], [], [], []
+    skipped_uploaded = 0
     now = subid.now_iso()
     for r in commissions.get("rows", []):
         tok = (r.get("sub_id") or "").strip()
@@ -69,10 +70,15 @@ def reconcile(con, commissions, conversion_name="affiliate_commission", window_d
         if not ev_t:
             invalid.append({"event_id": r["event_id"], "token": tok, "why": "bad_event_time"})
             continue
+        g_kind = m.get("gclid_kind") or "gclid"
         if is_cb:
-            con.execute("INSERT OR IGNORE INTO chargebacks(event_id,original_event_id,token,gclid,event_time,amount,currency,network,created_at) VALUES(?,?,?,?,?,?,?,?,?)",
-                        (r["event_id"], r.get("original_event_id"), tok, g, ev_t.isoformat(), float(r.get("amount", 0)), r.get("currency"), commissions.get("network"), now))
-            cbs.append({"event_id": r["event_id"], "original_event_id": r.get("original_event_id"), "gclid": g, "token": tok,
+            existing_cb = con.execute("SELECT uploaded_at FROM chargebacks WHERE event_id=?", (r["event_id"],)).fetchone()
+            if existing_cb and existing_cb[0] is not None:
+                skipped_uploaded += 1
+                continue
+            con.execute("INSERT OR IGNORE INTO chargebacks(event_id,original_event_id,token,gclid,gclid_kind,event_time,amount,currency,network,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                        (r["event_id"], r.get("original_event_id"), tok, g, g_kind, ev_t.isoformat(), float(r.get("amount", 0)), r.get("currency"), commissions.get("network"), now))
+            cbs.append({"event_id": r["event_id"], "original_event_id": r.get("original_event_id"), "gclid": g, "gclid_kind": g_kind, "token": tok,
                         "conversion_name": conversion_name, "conversion_time": ev_t.isoformat(), "value": float(r.get("amount", 0)),
                         "currency": r.get("currency") or commissions.get("currency")})
             continue
@@ -82,10 +88,14 @@ def reconcile(con, commissions, conversion_name="affiliate_commission", window_d
         if click_t and ev_t - click_t > timedelta(days=window_days):
             out_of_window.append({"event_id": r["event_id"], "token": tok, "days": (ev_t - click_t).days})
             continue
-        con.execute("INSERT OR IGNORE INTO conversions(event_id,token,gclid,event_time,click_time,amount,currency,status,network,offer,batch,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (r["event_id"], tok, g, ev_t.isoformat(), click_t.isoformat() if click_t else None, float(r.get("amount", 0)),
+        existing = con.execute("SELECT uploaded_at FROM conversions WHERE event_id=?", (r["event_id"],)).fetchone()
+        if existing and existing[0] is not None:
+            skipped_uploaded += 1
+            continue
+        con.execute("INSERT OR IGNORE INTO conversions(event_id,token,gclid,gclid_kind,event_time,click_time,amount,currency,status,network,offer,batch,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (r["event_id"], tok, g, g_kind, ev_t.isoformat(), click_t.isoformat() if click_t else None, float(r.get("amount", 0)),
                      r.get("currency") or commissions.get("currency"), r.get("status", "unknown"), commissions.get("network"), r.get("offer_ref") or m.get("offer"), batch, now))
-        rows.append({"event_id": r["event_id"], "gclid": g, "token": tok, "conversion_name": conversion_name,
+        rows.append({"event_id": r["event_id"], "gclid": g, "gclid_kind": g_kind, "token": tok, "conversion_name": conversion_name,
                      "conversion_time": ev_t.isoformat(), "value": float(r.get("amount", 0)),
                      "currency": r.get("currency") or commissions.get("currency"),
                      "campaign": m.get("campaign"), "adgroup": m.get("adgroup"), "keyword": m.get("keyword"), "offer": r.get("offer_ref") or m.get("offer")})
@@ -93,13 +103,16 @@ def reconcile(con, commissions, conversion_name="affiliate_commission", window_d
     return {"type": "adspilot.conversions", "schema_version": 1, "batch": batch, "network": commissions.get("network"),
             "conversion_name": conversion_name, "window_days": window_days, "generated_at": now,
             "rows": rows, "chargebacks": cbs, "unmatched": unmatched, "out_of_window": out_of_window, "invalid": invalid,
-            "summary": {"matched": len(rows), "chargebacks": len(cbs), "unmatched": len(unmatched), "out_of_window": len(out_of_window), "invalid": len(invalid),
+            "summary": {"matched": len(rows), "chargebacks": len(cbs), "unmatched": len(unmatched), "out_of_window": len(out_of_window),
+                        "invalid": len(invalid), "skipped_uploaded": skipped_uploaded,
                         "value": round(sum(x["value"] for x in rows), 2)}}
 
 
 def mark_uploaded(con, batch, event_ids):
     now = subid.now_iso()
-    con.executemany("UPDATE conversions SET uploaded_at=?, batch=? WHERE event_id=? AND uploaded_at IS NULL", [(now, batch, e) for e in event_ids])
+    ids = list(event_ids)
+    con.executemany("UPDATE conversions SET uploaded_at=?, batch=? WHERE event_id=? AND uploaded_at IS NULL", [(now, batch, e) for e in ids])
+    con.executemany("UPDATE chargebacks SET uploaded_at=? WHERE event_id=? AND uploaded_at IS NULL", [(now, e) for e in ids])
     con.commit()
 
 
@@ -111,12 +124,11 @@ def redacted(out):
 
 
 def selftest():
-    import sqlite3
-    con = sqlite3.connect(":memory:")
-    con.executescript(subid.SCHEMA)
+    con = subid.open_db(":memory:")
     t1 = subid.record(con, {"gclid": "CjwKCAjw_example_gclid_0001", "campaign": "c1", "adgroup": "a1", "keyword": "k1", "ts": "2026-09-01T10:00:00+00:00", "network": "cj", "offer": "cj:1:1"})
     t2 = subid.record(con, {"gclid": "", "campaign": "c1", "ts": "2026-09-01T10:00:00+00:00"})
     t3 = subid.record(con, {"gclid": "CjwKCAjw_example_gclid_0003", "campaign": "c1", "ts": "2026-01-01T10:00:00+00:00"})
+    t4 = subid.record(con, {"gclid": "EAIaIQobChMI_ios_gbraid_0004", "gclid_kind": "gbraid", "campaign": "c1", "adgroup": "a1", "keyword": "k2", "ts": "2026-09-01T10:00:00+00:00", "network": "cj", "offer": "cj:1:1"})
     con.commit()
     com = {"type": "adspilot.commissions", "schema_version": 1, "network": "cj", "currency": "USD", "pulled_at": "x", "rows": [
         {"event_id": "e1", "event_time": "2026-09-03T12:00:00Z", "sub_id": t1, "status": "new", "amount": 12.5, "currency": "USD"},
@@ -130,10 +142,16 @@ def selftest():
     out = reconcile(con, com, window_days=90, batch="t")
     s = out["summary"]
     want = {"matched": 2, "chargebacks": 1, "unmatched": 1, "out_of_window": 1, "invalid": 2}
-    ok = all(s[k] == v for k, v in want.items())
+    ok = all(s[k] == v for k, v in want.items()) and out["rows"][0]["gclid_kind"] == "gclid" and out["chargebacks"][0]["gclid_kind"] == "gclid"
     db_rows = con.execute("SELECT COUNT(*) FROM conversions").fetchone()[0]
     ok = ok and db_rows == 1
-    print(json.dumps(s), "db_conversions=%d" % db_rows, "OK" if ok else "FAIL (want %s, 1 db row)" % want)
+    # Multi-day replay: mark Day 1 events as uploaded, then replay Day 1 + new gbraid Day 2 event.
+    mark_uploaded(con, "t", ["e1", "e5"])
+    com2 = dict(com, rows=com["rows"] + [{"event_id": "e7", "event_time": "2026-09-04T12:00:00Z", "sub_id": t4, "status": "new", "amount": 9.0, "currency": "USD"}])
+    out2 = reconcile(con, com2, window_days=90, batch="t2")
+    s2 = out2["summary"]
+    ok = ok and s2["matched"] == 1 and s2["chargebacks"] == 0 and s2["skipped_uploaded"] == 3 and out2["rows"][0]["event_id"] == "e7" and out2["rows"][0]["gclid_kind"] == "gbraid"
+    print(json.dumps(s), "db_conversions=%d replay_matched=%d skipped=%d gbraid=%s" % (db_rows, s2["matched"], s2["skipped_uploaded"], out2["rows"][0]["gclid_kind"]), "OK" if ok else "FAIL (want %s, 1 db row)" % want)
     try:
         from validate import load_schema, validate as _v
         errs = _v(load_schema("commissions.schema.json"), com)
