@@ -497,16 +497,73 @@ def judge_local(node, state, choices, caps, evidence, cfg, soul):
 
 
 # ------------------------------------------------------------------ 插件提供者
+PROVIDER_SLUG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+SENSITIVE_KEY_RE = re.compile(
+    r"(?:gclid|gbraid|wbraid|click_?id|password|passwd|passphrase|secret|token|"
+    r"api_?key|private_?key|authorization|cookie|credential|raw_ips|ip_list|client_ip|visitor_ip)",
+    re.I,
+)
+SENSITIVE_STR_RE = re.compile(
+    r"(?:\b(?:gclid|gbraid|wbraid)\s*[=:]|\bBearer\s+\S|"
+    r"(?:github_" + r"pat_|gh" + r"p_|AI" + r"za|sk-" + r"ant-|xo" + r"xb-|AK" + r"IA)[A-Za-z0-9_-]{6,})",
+    re.I,
+)
+
+
+def _runtime_secret_values():
+    vals = []
+    for k, v in os.environ.items():
+        if not isinstance(v, str) or len(v) < 6:
+            continue
+        if k.endswith(("_KEY", "_TOKEN", "_SECRET", "_PASSWORD", "_CUSTOMER_ID", "_ACCOUNT_SID")):
+            vals.append(v)
+    return vals
+
+
+def scrub_judgment_payload(obj, extra_secrets=None):
+    """Strip credentials, click IDs, and raw visitor IPs before calling any external judgment provider."""
+    secrets = list(extra_secrets or ()) + _runtime_secret_values()
+
+    def _clean(item, key=None):
+        if isinstance(item, dict):
+            out = {}
+            for k, v in item.items():
+                ks = str(k)
+                if ks == "gclid_all_valid" and isinstance(v, bool):
+                    out[k] = v
+                    continue
+                if ks == "gclid_kind" and v in ("", "gclid", "gbraid", "wbraid"):
+                    out[k] = v
+                    continue
+                if SENSITIVE_KEY_RE.search(ks):
+                    continue
+                if ks == "ips" and isinstance(v, list):
+                    continue
+                out[k] = _clean(v, ks)
+            return out
+        if isinstance(item, list):
+            return [_clean(x, key) for x in item]
+        if isinstance(item, str):
+            if SENSITIVE_STR_RE.search(item) or any(s in item for s in secrets):
+                return "[redacted]"
+        return item
+
+    return _clean(obj)
+
+
 def call_provider(provider, request, cfg, timeout_s, soul_path=None):
-    """调判断插件：stdin 进 request，argv 带 --config <judgment 配置> 和 --soul <这次用的 SOUL 路径>（契约 RULE）。"""
+    """调判断插件：发前先脱敏，stdin 进 request，argv 带 --config <judgment 配置> 和 --soul <这次用的 SOUL 路径>（契约 RULE）。"""
+    if not PROVIDER_SLUG_RE.match(str(provider or "")) or str(provider).startswith("_"):
+        raise ValueError("invalid provider name: %r" % (provider,))
     d = os.path.join(ROOT, "plugins", "judgment", provider)
     m = json.load(open(os.path.join(d, "manifest.json"), encoding="utf-8"))
     script = os.path.join(d, m["actions"]["judge"])
+    clean_request = scrub_judgment_payload(request)
     t0 = time.time()
     argv = [sys.executable, script, "--config", json.dumps(cfg.get("judgment", {}))]
     if soul_path:
         argv += ["--soul", soul_path]
-    out = subprocess.run(argv, input=json.dumps(request, ensure_ascii=False), capture_output=True,
+    out = subprocess.run(argv, input=json.dumps(clean_request, ensure_ascii=False), capture_output=True,
                          encoding="utf-8", errors="replace", timeout=timeout_s, env=child_env())
     if out.returncode != 0:
         raise RuntimeError("provider %s rc=%d: %s" % (provider, out.returncode, (out.stderr or "").strip()[-300:]))
@@ -541,14 +598,23 @@ def judge(node, state, choices, cfg=None, soul=None, caps=None, evidence=None, p
         raise ValueError("choices must have 1..255 items")
     caps = caps if caps is not None else cfg.get("caps")
     evidence = evidence or []
-    provider = provider or (cfg.get("judgment") or {}).get("provider", "local")
-    timeout_s = float((cfg.get("judgment") or {}).get("timeout_s", 8))
+    jcfg = cfg.get("judgment") or {}
+    if provider is not None:
+        primary = provider
+        chain = [provider]
+    else:
+        primary = jcfg.get("provider", "local")
+        chain = [primary] + [p for p in (jcfg.get("provider_chain") or []) if p and p != primary]
+    timeout_s = float(jcfg.get("timeout_s", 8))
     request = {"type": "judgment.request", "schema_version": 1, "id": req_id or "%s-%d" % (node, int(time.time())),
                "node": node, "state": state or {}, "choices": choices, "caps": caps or {}, "evidence": evidence, "soul": soul["id"]}
-    used, fallback, perc, distribution, latency = provider, False, None, None, None
-    if provider != "local":
+    used, fallback, perc, distribution, latency = "local", False, None, None, None
+    for cand in chain:
+        if cand == "local":
+            used, fallback = "local", (primary != "local")
+            break
         try:
-            res = call_provider(provider, request, cfg, timeout_s, soul.get("path"))
+            res = call_provider(cand, request, cfg, timeout_s, soul.get("path"))
             ch = res.get("choice")
             if ch not in [c["id"] for c in choices]:
                 raise ValueError("choice %r not in choices" % ch)
@@ -559,10 +625,12 @@ def judge(node, state, choices, cfg=None, soul=None, caps=None, evidence=None, p
                 v = normalize_vector(res.get("v"))
             perc = {"v": v, "choice": ch, "conf": r2(res.get("conf", 0.5)), "reason": str(res.get("reason", ""))[:120] or "provider_reason_missing"}
             distribution, latency = res.get("distribution"), res.get("latency_ms")
+            used, fallback = cand, (cand != primary)
+            break
         except Exception as e:  # noqa: BLE001
-            sys.stderr.write("[judge] provider %s failed, fallback to local: %s\n" % (provider, e))
-            used, fallback = "local", True
+            sys.stderr.write("[judge] provider %s failed: %s\n" % (cand, e))
     if perc is None:
+        used, fallback = "local", (primary != "local")
         perc = judge_local(node, state, choices, caps, evidence, cfg, soul)
     mode_local = f_v5(perc["v"])
     hit = boundary_hit(node, state, perc["choice"], soul)
@@ -984,6 +1052,61 @@ def selftest(soul_path="soul/default.soul.md"):
         ok_sw, pos_sw = adjust_order_guard(base_txt.replace(sec, swapped_sec, 1))
         return ok_doc and ok_code and swapped_sec != sec and not ok_sw, "文档=%s %s 代码=%s %s | 1与2对调后=%s %s" % (ok_doc, pos, ok_code, cpos, ok_sw, pos_sw)
     t3("T3-g campaign.adjust 文档与代码同序", t3g)
+
+    def t8d():
+        dirty = {"state": {"avg_cpc": 0.2, "gclid": "CjwRawClick0001", "gclid_all_valid": True, "gclid_kind": "gclid",
+                           "ips": ["192.0.2.23"], "ip_flagged": 1, "ip_risk_ratio": 0.5,
+                           "nested": {"api_key": "supersecret999", "note": "gclid=CjwRawClick0002"}}}
+        clean = scrub_judgment_payload(dirty, extra_secrets=["supersecret999"])
+        st_c = clean["state"]
+        ok = ("gclid" not in st_c and "ips" not in st_c and st_c.get("gclid_all_valid") is True
+              and st_c.get("gclid_kind") == "gclid" and st_c.get("ip_flagged") == 1
+              and st_c.get("ip_risk_ratio") == 0.5 and "api_key" not in st_c.get("nested", {})
+              and st_c.get("nested", {}).get("note") == "[redacted]")
+        return ok, "cleaned=%s" % st_c
+    t3("T8-d 出外前集中清理敏感字段，保留有效诊断数", t8d)
+
+    def t8e():
+        import http.server
+        import threading
+        vec = "V:[int=0.90,cap=0.80,csq=0.75,rel=0.70,cer=0.80,aut=0.85,rev=0.90,evd=0.80,sov=1.00,ine=0.70,ext=0.90]"
+
+        class H(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+            def do_POST(self):
+                _ = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+                b = json.dumps({"choices": [{"message": {"content": "::JUDGE{v5.0}\n%s\nM:M1|conf:0.82\nR:chain_ok\nCHOICE:keep\n" % vec}}]}).encode("utf-8")
+                self.send_response(200); self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(b)))
+                self.end_headers(); self.wfile.write(b)
+        srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        url = "http://127.0.0.1:%d" % srv.server_address[1]
+        env = {"LLM_BASE_URL": url, "LLM_API_KEY": "selftest-dummy", "LLM_MODEL": "selftest",
+               "JEV_ENDPOINT": "", "JEV_API_KEY": "", "NO_PROXY": "127.0.0.1,localhost", "no_proxy": "127.0.0.1,localhost"}
+        old = {k: os.environ.get(k) for k in env}
+        os.environ.update(env)
+        try:
+            r_chain = judge("campaign.adjust", st_a, ADJ,
+                            cfg={"soul": sp_abs, "judgment": {"provider": "jev", "provider_chain": ["llm"], "timeout_s": 5}},
+                            soul=soul, evidence=["r"])
+            bad_slug = False
+            try:
+                call_provider("../llm", {"node": "campaign.adjust"}, {}, 5)
+            except ValueError:
+                bad_slug = True
+        finally:
+            srv.shutdown(); srv.server_close()
+            for k, v in old.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        ok = r_chain["provider"] == "llm" and r_chain["fallback"] is True and r_chain["choice"] == "keep" and bad_slug
+        return ok, "provider=%s fallback=%s bad_slug_rejected=%s" % (r_chain["provider"], r_chain["fallback"], bad_slug)
+    t3("T8-e provider_chain 失败回退与合法性拦截", t8e)
+
     shutil.rmtree(tmpd, ignore_errors=True)
     # schema 校验
     try:
@@ -1027,7 +1150,8 @@ def main(argv):
     state = json.load(open(args["state"], encoding="utf-8"))
     choices = json.load(open(args["choices"], encoding="utf-8"))
     evidence = args.get("evidence", "").split(",") if args.get("evidence") else []
-    resp = judge(args["node"], state, choices, cfg=cfg, evidence=evidence, provider=args.get("provider"))
+    soul = load_soul(args["soul"], cfg) if args.get("soul") else None
+    resp = judge(args["node"], state, choices, cfg=cfg, soul=soul, evidence=evidence, provider=args.get("provider"))
     print(json.dumps(resp, ensure_ascii=False, indent=2))
     sys.stderr.write(to_judge_text(resp) + "\n")
     return 0

@@ -69,7 +69,7 @@ def build_prompt(req, soul_path=None):
 
 
 def parse(text, choice_ids):
-    lines = [l.strip() for l in text.strip().splitlines() if l.strip()]
+    lines = [l.strip() for l in text.strip().splitlines() if l.strip() and not l.strip().startswith("```")]
     try:
         i = lines.index("::JUDGE{v5.0}")
     except ValueError:
@@ -108,7 +108,8 @@ def call(cfg, prompt):
 def selftest():
     sample = "::JUDGE{v5.0}\nV:[int=0.90,cap=0.80,csq=0.75,rel=0.70,cer=0.80,aut=0.85,rev=0.90,evd=0.80,sov=1.00,ine=0.70,ext=0.90]\nM:M1|conf:0.80\nR:cpc_over_cap_bid_down\nCHOICE:bid_down\n"
     out = parse(sample, ["keep", "bid_down"])
-    ok = out["choice"] == "bid_down" and out["v"]["sov"] == 1.0
+    fenced = parse("```text\n" + sample + "```\n", ["keep", "bid_down"])
+    ok = out["choice"] == "bid_down" and out["v"]["sov"] == 1.0 and fenced == out
     try:
         parse("garbage", ["keep"]); ok = False
     except ValueError:
@@ -116,8 +117,10 @@ def selftest():
     req = {"node": "campaign.adjust", "state": {"avg_cpc": 0.31}, "choices": [{"id": "keep"}, {"id": "bid_down"}], "caps": {}}
     ok = ok and "::JUDGE{v5.0}" in build_prompt(req)
     # T3-f：带 --soul 指向含唯一标记的临时 SOUL ⇒ 提示词含该标记；不带 ⇒ 默认 SOUL；相对路径按仓库根；指定的读不了 ⇒ 抛错（不联网）
+    import http.server
     import shutil
     import tempfile
+    import threading
     marker = "T3F_PROVIDER_MARKER_41d9"
     tmpd = tempfile.mkdtemp(prefix="adspilot-llm-")
     try:
@@ -133,11 +136,51 @@ def selftest():
         except OSError:
             missing_raises = True
         t3f = marker in with_soul and marker not in without and "test_spend_total" in without and relative == without and missing_raises
+
+        class H(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *a):
+                pass
+
+            def do_POST(self):
+                _ = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+                raw = json.dumps({"choices": [{"message": {"content": "```ilang\n" + sample + "```"}}]}).encode("utf-8")
+                self.send_response(200); self.send_header("Content-Type", "application/json"); self.send_header("Content-Length", str(len(raw)))
+                self.end_headers(); self.wfile.write(raw)
+
+        env_keys = ("LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL", "NO_PROXY", "no_proxy")
+        old = {k: os.environ.get(k) for k in env_keys}
+        orig_urlopen = urllib.request.urlopen
+        srv = None
+        try:
+            srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+            threading.Thread(target=srv.serve_forever, daemon=True).start()
+            url = "http://127.0.0.1:%d/v1" % srv.server_address[1]
+        except PermissionError:
+            url = "http://127.0.0.1:0/v1"
+            class _Resp:
+                def __enter__(self): return self
+                def __exit__(self, *a): pass
+                def read(self): return json.dumps({"choices": [{"message": {"content": "```ilang\n" + sample + "```"}}]}).encode("utf-8")
+            urllib.request.urlopen = lambda *a, **kw: _Resp()
+        os.environ.update({"LLM_BASE_URL": url, "LLM_API_KEY": "dummy", "LLM_MODEL": "dummy", "NO_PROXY": "127.0.0.1,localhost", "no_proxy": "127.0.0.1,localhost"})
+        try:
+            txt, rc = call({}, with_soul)
+            parsed_http = parse(txt, ["keep", "bid_down"]) if rc == 0 else {}
+        finally:
+            urllib.request.urlopen = orig_urlopen
+            if srv is not None:
+                srv.shutdown(); srv.server_close()
+            for k, v in old.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        http_ok = rc == 0 and parsed_http.get("choice") == "bid_down"
     finally:
         shutil.rmtree(tmpd, ignore_errors=True)
-    print("T3-f --soul 标记进提示词=%s 不带回退默认=%s 相对路径=%s 读不了抛错=%s -> %s" % (
-        marker in with_soul, marker not in without, relative == without, missing_raises, "OK" if t3f else "FAIL"))
-    ok = ok and t3f
+    print("T3-f --soul 标记进提示词=%s 不带回退默认=%s 相对路径=%s 读不了抛错=%s http_mock=%s -> %s" % (
+        marker in with_soul, marker not in without, relative == without, missing_raises, http_ok, "OK" if (t3f and http_ok) else "FAIL"))
+    ok = ok and t3f and http_ok
     print("parse ok, prompt ok ->", "OK" if ok else "FAIL")
     return 0 if ok else 1
 
