@@ -25,43 +25,49 @@ AdsPilot 反过来，是「你的 Agent 替你干活」。仓库里没有一个�
 ## 骨架一眼看
 
 ```
-core/       主干：agent 适配与自检 · launch 开局 · lp 落地页 · judge 判断（f_v5 冻结） · ledger 归因对账 · loop 无人值守循环 · selfcheck
-plugins/    插件：traffic/google-ads · affiliate/{cj,impact} · judgment/{llm,jev,soul-api} · deploy/cloudflare · keywords · ipintel
-soul/       默认 SOUL、SOUL 接口、SOUL API 接口说明
-schemas/    manifest · judgment · report · traffic-spec · traffic-report · commissions
-reference/  iLang runtime（钉版本）· affiliate-design · v1 交接
+core/         主干：agent 适配与 MCP · launch 开局 · lp 落地页 · judge 判断（f_v5 冻结）与评测/校准 · ledger 归因对账 · loop 无人值守循环与哨兵 · selfcheck 与 preflight 总检
+plugins/      插件：traffic/google-ads（含 oauth_helper） · affiliate/{cj,impact} · judgment/{llm,jev,soul-api,_template} · deploy/cloudflare · keywords · ipintel
+skills/       DSH 运行时技能定义（sem，触发词 SEM / 付费投流）
+BOOK.md       iLang v5 工程书（M0_SETUP 到 M5_REPORT，由 adspilot_book 分段读取）
+integrations/ 宿主接入：DSH Cordis 插件入口（index.mjs）、MCP 模板、handoff 与测试
+soul/         默认 SOUL、SOUL 接口、SOUL API 接口说明
+schemas/      manifest · judgment · report · traffic-spec · traffic-report · commissions · 39 项接口 schema
+reference/    iLang runtime 与语法校验器（钉版本） · affiliate-design · v1 交接
 ```
 
 架构总图在 `ARCHITECTURE.md`，一页纸，改它要老板点头。
 
 ## 走到哪了
 
-截至 2026-11-06，版本 2.1.4。下面每一块都有代码、有使用方法、有自测，区别只在有没有碰过真实世界。
+截至 2026-11-19，版本 2.2.0。下面每一块都有代码、有使用方法、有自测，区别只在有没有碰过真实世界。
 
 | 部件 | 状态 | 真实世界 |
 |---|---|---|
-| Agent 适配与能力自检 | 完成 | 三份入口文件同内容，十四项自检（循环里的快速模式十二项），iLang runtime 钉版本校验；Windows 11 上 CRLF 检出、GBK 控制台、缺时区库三件事核过，自测全过 |
-| 开局（三把钥匙进，一条系列出） | **真实账号实测通过** | 在 reviews.aixray.dev 从零建落地位、发页、建系列、真点一次进账本，全程无人，然后拆净 |
+| Agent 适配与能力自检 | 完成 | 三份入口正文一致，十四项自检（快速模式十二项），iLang runtime 钉版本校验；Windows 11 与 Linux 自测全过 |
+| OAuth 双作用域助手与上线前总检 | 完成 | `oauth_helper.py`（PKCE 一次性获取 `adwords` + `datamanager`）与 `preflight.py`（币种、scope、落地位鉴权）通过离线及本地回环自测；实盘需用户账号 |
+| 开局（三把钥匙进，一条系列出） | **真实账号实测通过** | 在 reviews.aixray.dev 从零建落地位、发页、建系列、真点一次进账本，全程无人，然后拆净（2.0.9 历史记录） |
 | 落地页 | 完成 | 模板与合规检查通过自测，开局时在真域名上发过一页 |
-| 判断（f_v5 冻结） | 完成 | 判断块用 iLang 正典校验器核过；提供者只做感知层 |
-| 归因与对账 | 完成 | 只跑过样例数据 |
-| 无人值守循环 | 完成 | 只跑过样例数据；七天验收未做；用户决定有到期与钱的边界 |
-| 默认 SOUL | 完成 | 金额按美元定义、按账户币种折算；不写出价与预算常数，出价兜底与预算照谷歌推荐；出价方式默认尽可能多点击，每次点击上限就是出价上限；自定义边界能被代码执行，换 SOUL 判断插件跟着换；阈值从 SOP 抄的，没被真数据校过 |
-| 插件 Google Ads | **真实账号实测通过** | 建系列、改预算改出价暂停词加否定词、删系列、拉报表、Data Manager 转化上传（validate-only），全通；尽可能多点击下拿到谷歌推荐预算，整条系列 validate-only 一批通过，在真系列上改每次点击上限并读回，再跑一次不动 |
+| 判断（f_v5 冻结）与 L2 评测 | 完成 | 判断块用 iLang 正典校验器核过；`provider_chain` 回退、`eval_provider.py` L2 门槛评测与动态边界检查通过离线自测 |
+| 归因与对账 | 完成 | 增加 `schema_version=1`、已上传转化游标、拒付对账与拉取截断保护；跑过样例与游标回归自测 |
+| 无人值守循环与哨兵 | 完成 | 支持 `retry_later` 延续、每轮汇率与去重快照、7 天模拟验收，以及哨兵可选 webhook 脱敏告警（自测与本地回环演练通过）；真实七天待学员环境 |
+| 默认 SOUL | 完成 | 金额按美元定义、按账户币种折算；出价与预算照谷歌推荐；出价方式默认尽可能多点击；自定义边界由代码强制执行；阈值校准仍待真实数据 |
+| 插件 Google Ads | **真实账号实测通过** | 建系列、改预算改出价暂停词加否定词、删系列、拉报表、Data Manager 转化上传（validate-only）在 2.0.x 核通；新增 `oauth_helper.py` 走离线自测 |
 | 插件 CJ | **真实账号实测通过** | offers 187 家分页取齐、link 装 sid、commissions 切段查询、chargebacks，全通（只读） |
-| 插件 Impact | **真凭据只读实测** | 认证通；账号零个已加入项目，offers、commissions、chargebacks 各 0 行；Contracts 在 token 没勾作用域时 403 并按设计降级；API 不给 EPC，epc 留 null；有项目后的真实行还没核 |
-| 插件 判断 llm / jev / soul-api | 代码齐 | 没连过真端点；jev 等接入文档；soul-api 服务端未建 |
+| 插件 Impact | **真凭据只读实测** | 认证通；账号零个已加入项目时 0 行返回并按设计降级；API 不给 EPC，由用户指定后按实跑报表校准 |
+| 插件 判断 llm / jev / soul-api / _template | 完成 | 统一 `--soul` 与 JSON 契约，附 `_template` 与本地回环自测；未连真付费端点 |
 | 插件 Cloudflare 落地位 | **真实账号实测通过** | 一把钥匙建 KV、Worker、域名证书；页面 200、/go 302 带 sid、/export 进账本，全通 |
 | 选品第一条（词的出价 < 每次点击赚的钱） | **真实账号实测通过** | CJ 前 10 家查词算账，3 家过、7 家出局，过线的词直接带给建系列 |
 | 插件 关键词（Google Ads Keyword Planner） | **真实账号实测通过** | 用商家首页当种子出品类词，带月搜索与首页出价 |
-| DSH 技能、MCP 与交接 | alpha | 样例 |
-| 统一 JSON 接口与 MCP | alpha | 自测 |
-| 插件 IP 情报（ipapi.is） | alpha | 样例 |
-| 七天验收与校准提议 | alpha | 自测 |
+| DSH 3.1 插件包、工程书与交接 | 完成 | 同仓提供 npm `adspilot` 组合包、`BOOK.md`、`sem` 技能（触发 `SEM` / `付费投流`）、`adspilot_book` 分页工具与 `dsh.handoff`；16 项 Node 测试与严格 iLang 校验全过 |
+| 统一 JSON 接口与 MCP | 完成 | 39 个接口（15 主干 + 24 插件）、`mcp_server.py` 7800 字符裁剪与 exit 4 诊断全部通过离线自测 |
+| 插件 IP 情报（ipapi.is） | alpha | 离线样例 |
+| 七天验收与校准提议 | 完成 | 结合只读账本 P90 归因窗口与轮次汇率/去重输出提议；7 天模拟验收与校准自测通过，真实七天待学员环境 |
 
-以往的开局记录见上表，覆盖落地位、系列和账本。本系列的新接口以离线样例验收。SOUL 阈值校准和真实七天运行仍需学员环境。
+以往的开局记录见上表，覆盖落地位、系列和账本。2.2.0 补齐了开局前引导、循环幂等、判断评测、哨兵告警与 DSH 3.1 工程书组合包的完整离线验收，未新增真实账号实盘运行；SOUL 阈值校准和真实七天运行仍需学员环境。
 
 ## 进度记录
+
+**2026-11-19，2.2.0**。把单线无人值守闭环、判断感知插件生态、冷启动引导总检和 DSH 3.1 工程书插件包一次收口，主干 `f_v5` 冻结层逐字未动。一，主干与账本围绕真实长跑补齐了断点续跑与防护：日循环支持转化操作传播期 `retry_later` 自动延续、负额拒付对账以及每轮汇率与去重快照；账本加入版本号与已上传游标、拉取截断保护与只读 P90 校准窗口；哨兵脚本在写本地日志之外可选通过 `ADSPILOT_NOTIFY_WEBHOOK` 发送不含凭据和点击标识的安全告警。二，判断生态接上多提供者回退链（`provider_chain`）、对照正典校验器的 L2 对比评测（`eval_provider.py` 与 benchmark 样例）、通用插件模板 `_template` 与三家提供者的契约统一测试。三，冷启动补上 `oauth_helper.py`（PKCE 一次拿齐 `adwords` 与 `datamanager` 双作用域）和上线前总检 `preflight.py`（离线查配置/FX/变量，加 `--apply` 实测账户币种一致、scope 与落地位鉴权）。四，在原仓库内直接按 DSH 3.1 规范包入 npm 插件组合包（包名 `adspilot`、`cordis.patch.yml`、`BOOK.md`、`skills/sem.md` 与 `integrations/dsh/index.mjs`），在 DSH 对话里说「SEM」或「付费投流」即可装载 `sem` 技能并用 `adspilot_book` 按段读完工程书、对接 39 个本地工具/MCP 与 DSH 3.1 凭据账本。全量离线测试、39 项接口校验、16 项 Node 插件测试与严格 iLang 语法检查全部通过，未新增真实账号实测。
 
 **2026-11-06，2.1.4**。补齐 302291f 的测试改动记录。Windows 任务模板自测同时检查 PowerShell 退出码与完成标记，避免仅返回 0 的占位程序被误判为执行成功；失败时显示捕获的错误输出。补充默认同盘 runs 与 data/outbox 路径引用保持原格式的回归断言，并仅在该路径回归用例内忽略旧脚本的 ResourceWarning。该测试提交已通过 Linux、Windows 的 Python 3.9 与 3.12 CI；没有新增真实账号实测。
 
@@ -124,11 +130,12 @@ reference/  iLang runtime（钉版本）· affiliate-design · v1 交接
 ```bash
 git clone https://github.com/adsorgcn/AdsPilot && cd AdsPilot
 python3 core/agent/selfcheck.py                       # 够不够格无人值守
-cp config/adspilot.example.json config/adspilot.json  # 填自己的值，凭据放环境变量
+cp config/adspilot.example.json config/adspilot.json  # 填自己的值，凭据放环境变量或 DSH 3.1 账本
+python3 core/selfcheck/preflight.py                   # 上线前总检（加 --apply 实测账户币种、scope 与落地位）
 python3 core/loop/daily.py --dry-run                  # 跑一轮，什么都不写外部
 ```
 
-Claude Code 读 `CLAUDE.md`，Codex 与其他读 `AGENTS.md`，Cursor 读 `.cursor/rules/`。三份一样。之后按 `core/loop/使用方法.md` 装调度器，每天一轮。
+Claude Code 读 `CLAUDE.md`，Codex 与其他读 `AGENTS.md`，Cursor 读 `.cursor/rules/`（三份正文一致、各自保留抬头）。在 DeepSeek Harness（DSH）里也可直接加载 `adspilot` 插件包并说「SEM」或「付费投流」，按工程书 `BOOK.md` 从装机走到日循环；之后按 `core/loop/使用方法.md` 装调度器，每天一轮。
 
 ## 版本与许可
 
