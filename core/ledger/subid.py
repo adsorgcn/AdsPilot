@@ -30,19 +30,21 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 
 ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # 32 个符号，去掉易混的 0 O 1 I
 TOKEN_LEN = 20
 
+VALID_CLICK_KINDS = ("gclid", "gbraid", "wbraid")
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS mappings (
-  token TEXT PRIMARY KEY, gclid TEXT, campaign TEXT, adgroup TEXT, keyword TEXT, page TEXT,
+  token TEXT PRIMARY KEY, gclid TEXT, gclid_kind TEXT, campaign TEXT, adgroup TEXT, keyword TEXT, page TEXT,
   ts TEXT, network TEXT, offer TEXT, source TEXT, created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_mappings_ts ON mappings(ts);
 CREATE TABLE IF NOT EXISTS conversions (
-  event_id TEXT PRIMARY KEY, token TEXT, gclid TEXT, event_time TEXT, click_time TEXT, amount REAL, currency TEXT,
+  event_id TEXT PRIMARY KEY, token TEXT, gclid TEXT, gclid_kind TEXT, event_time TEXT, click_time TEXT, amount REAL, currency TEXT,
   status TEXT, network TEXT, offer TEXT, batch TEXT, uploaded_at TEXT, created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS chargebacks (
-  event_id TEXT PRIMARY KEY, original_event_id TEXT, token TEXT, gclid TEXT, event_time TEXT, amount REAL, currency TEXT,
-  network TEXT, applied_at TEXT, created_at TEXT NOT NULL
+  event_id TEXT PRIMARY KEY, original_event_id TEXT, token TEXT, gclid TEXT, gclid_kind TEXT, event_time TEXT, amount REAL, currency TEXT,
+  network TEXT, uploaded_at TEXT, applied_at TEXT, created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS runs (
   run_id TEXT PRIMARY KEY, started_at TEXT, finished_at TEXT, exit_code INTEGER, summary TEXT
@@ -57,6 +59,12 @@ CREATE TABLE IF NOT EXISTS user_decision_anchor (
 );
 """
 
+MIGRATIONS = {
+    "mappings": [("gclid_kind", "TEXT")],
+    "conversions": [("gclid_kind", "TEXT")],
+    "chargebacks": [("gclid_kind", "TEXT"), ("uploaded_at", "TEXT")],
+}
+
 
 def now_iso():
     return time.strftime("%Y-%m-%dT%H:%M:%S%z")
@@ -68,6 +76,15 @@ def mint():
 
 def valid_token(t):
     return isinstance(t, str) and 8 <= len(t) <= 32 and t.isalnum() and t.isascii()
+
+
+def infer_click_kind(row):
+    k = str(row.get("gclid_kind") or "").strip().lower()
+    if k in VALID_CLICK_KINDS:
+        return k
+    if k:
+        raise ValueError("bad gclid_kind")
+    return "gclid" if row.get("gclid") else ""
 
 
 def mask(g):
@@ -89,12 +106,21 @@ def default_db():
     return os.path.join(p, "ledger.db")
 
 
+def migrate_db(con):
+    for table, cols in MIGRATIONS.items():
+        existing = {r[1] for r in con.execute("PRAGMA table_info(%s)" % table).fetchall()}
+        for col, col_type in cols:
+            if col not in existing:
+                con.execute("ALTER TABLE %s ADD COLUMN %s %s" % (table, col, col_type))
+
+
 def open_db(path=None):
     path = path or default_db()
     if path != ":memory:":
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     con = sqlite3.connect(path)
     con.executescript(SCHEMA)
+    migrate_db(con)
     return con
 
 
@@ -102,8 +128,9 @@ def record(con, row, source="local"):
     tok = row.get("token") or mint()
     if not valid_token(tok):
         raise ValueError("bad token")
-    con.execute("INSERT OR IGNORE INTO mappings(token,gclid,campaign,adgroup,keyword,page,ts,network,offer,source,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                (tok, row.get("gclid"), row.get("campaign"), row.get("adgroup"), row.get("keyword"), row.get("page"),
+    kind = infer_click_kind(row)
+    con.execute("INSERT OR IGNORE INTO mappings(token,gclid,gclid_kind,campaign,adgroup,keyword,page,ts,network,offer,source,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (tok, row.get("gclid"), kind, row.get("campaign"), row.get("adgroup"), row.get("keyword"), row.get("page"),
                  row.get("ts") or now_iso(), row.get("network"), row.get("offer"), source, now_iso()))
     return tok
 
@@ -160,12 +187,15 @@ def pull(con, url, key_env, since=None):
 
 
 def lookup(con, token):
-    cur = con.execute("SELECT token,gclid,campaign,adgroup,keyword,page,ts,network,offer,source FROM mappings WHERE token=?", (token,))
+    cur = con.execute("SELECT token,gclid,gclid_kind,campaign,adgroup,keyword,page,ts,network,offer,source FROM mappings WHERE token=?", (token,))
     r = cur.fetchone()
     if not r:
         return None
-    keys = ["token", "gclid", "campaign", "adgroup", "keyword", "page", "ts", "network", "offer", "source"]
-    return dict(zip(keys, r))
+    keys = ["token", "gclid", "gclid_kind", "campaign", "adgroup", "keyword", "page", "ts", "network", "offer", "source"]
+    d = dict(zip(keys, r))
+    if not d.get("gclid_kind"):
+        d["gclid_kind"] = "gclid" if d.get("gclid") else ""
+    return d
 
 
 def stats(con):
@@ -174,17 +204,21 @@ def stats(con):
         out[t] = con.execute("SELECT COUNT(*) FROM %s" % t).fetchone()[0]
     out["mappings_with_gclid"] = con.execute("SELECT COUNT(*) FROM mappings WHERE gclid IS NOT NULL AND gclid<>''").fetchone()[0]
     out["conversions_uploaded"] = con.execute("SELECT COUNT(*) FROM conversions WHERE uploaded_at IS NOT NULL").fetchone()[0]
+    out["chargebacks_uploaded"] = con.execute("SELECT COUNT(*) FROM chargebacks WHERE uploaded_at IS NOT NULL").fetchone()[0]
     out["last_mapping_ts"] = con.execute("SELECT MAX(ts) FROM mappings").fetchone()[0]
     return out
 
 
 def export(con, since, out=None):
-    cur = con.execute("SELECT token,gclid,campaign,adgroup,keyword,page,ts,network,offer FROM mappings WHERE ts>=? ORDER BY ts", (since,))
-    keys = ["token", "gclid", "campaign", "adgroup", "keyword", "page", "ts", "network", "offer"]
+    cur = con.execute("SELECT token,gclid,gclid_kind,campaign,adgroup,keyword,page,ts,network,offer FROM mappings WHERE ts>=? ORDER BY ts", (since,))
+    keys = ["token", "gclid", "gclid_kind", "campaign", "adgroup", "keyword", "page", "ts", "network", "offer"]
     fp = open(out, "w", encoding="utf-8") if out else sys.stdout
     n = 0
     for r in cur:
-        fp.write(json.dumps(dict(zip(keys, r)), ensure_ascii=False) + "\n"); n += 1
+        d = dict(zip(keys, r))
+        if not d.get("gclid_kind"):
+            d["gclid_kind"] = "gclid" if d.get("gclid") else ""
+        fp.write(json.dumps(d, ensure_ascii=False) + "\n"); n += 1
     if out:
         fp.close()
     return n
@@ -214,8 +248,13 @@ def main(argv):
     con = open_db(kv.get("db"))
     if cmd == "record":
         row = {k: kv.get(k) for k in ("token", "gclid", "campaign", "adgroup", "keyword", "page", "ts", "network", "offer")}
-        tok = record(con, row, source="local"); con.commit()
-        print(json.dumps({"token": tok, "gclid": mask(row.get("gclid"))}))
+        if kv.get("gclid-kind"):
+            row["gclid_kind"] = kv.get("gclid-kind")
+        try:
+            tok = record(con, row, source="local"); con.commit()
+            print(json.dumps({"token": tok, "gclid": mask(row.get("gclid")), "gclid_kind": infer_click_kind(row)}))
+        except ValueError as e:
+            print(json.dumps({"error": str(e)})); return 1
         return 0
     if cmd == "import":
         if not rest:

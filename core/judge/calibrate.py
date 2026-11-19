@@ -39,7 +39,7 @@ def observed_lag(event, click):
     return math.ceil(seconds / 86400) if seconds >= 0 else None
 
 
-def observed_spend(traffic):
+def _campaign_snapshots(traffic):
     # Overlapping report windows describe the same account/day. The newest version wins.
     snapshots = {}
     for rep in traffic:
@@ -50,6 +50,11 @@ def observed_spend(traffic):
             values[1] += row.get("conversions", 0)
         for day, campaigns in daily.items():
             snapshots[(rep.get("account", ""), day)] = campaigns
+    return snapshots
+
+
+def observed_spend(traffic):
+    snapshots = _campaign_snapshots(traffic)
     cumulative, reached, samples = defaultdict(float), set(), []
     for (account, _day), campaigns in sorted(snapshots.items()):
         for campaign, (cost, conversions) in campaigns.items():
@@ -59,6 +64,58 @@ def observed_spend(traffic):
             cumulative[key] += cost
             if conversions > 0:
                 samples.append(round(cumulative[key], 2))
+                reached.add(key)
+    return samples
+
+
+def observed_campaign_days(traffic):
+    snapshots = _campaign_snapshots(traffic)
+    first_spend, reached, samples = {}, set(), []
+    for (account, day), campaigns in sorted(snapshots.items()):
+        for campaign, (cost, conversions) in campaigns.items():
+            key = (account, campaign)
+            if key in reached:
+                continue
+            if cost > 0 and key not in first_spend:
+                first_spend[key] = day
+            if conversions > 0:
+                start_day = first_spend.get(key, day)
+                lag = (date.fromisoformat(day) - date.fromisoformat(start_day)).days + 1
+                samples.append(max(1, min(90, lag)))
+                reached.add(key)
+    return samples
+
+
+def observed_keyword_clicks(traffic):
+    snapshots = {}
+    for rep in traffic:
+        acc = rep.get("account", "")
+        by_day = defaultdict(lambda: defaultdict(lambda: [0, 0.0]))
+        for row in rep["rows"]:
+            day = row["date"]
+            _ = by_day[day]
+            kw = row.get("keyword")
+            if not kw:
+                continue
+            key = (
+                row.get("campaign_id") or row["campaign"],
+                row.get("adgroup_id") or row.get("adgroup") or "",
+                row.get("keyword_id") or kw,
+            )
+            by_day[day][key][0] += int(row.get("clicks") or 0)
+            by_day[day][key][1] += float(row.get("conversions") or 0)
+        for day, kw_map in by_day.items():
+            snapshots[(acc, day)] = kw_map
+    cumulative, reached, samples = defaultdict(int), set(), []
+    for (acc, _day), kw_map in sorted(snapshots.items()):
+        for kw_key, (clicks, conversions) in kw_map.items():
+            key = (acc,) + kw_key
+            if key in reached:
+                continue
+            cumulative[key] += clicks
+            if conversions > 0:
+                if cumulative[key] > 0:
+                    samples.append(cumulative[key])
                 reached.add(key)
     return samples
 
@@ -139,8 +196,12 @@ def proposals(folder, ledger, soul_file, reference=None):
         used_fx[basis] += 1
         traffic.append(item)
     spend = observed_spend(traffic)
+    camp_days = observed_campaign_days(traffic)
+    kw_clicks = observed_keyword_clicks(traffic)
     methods = {
         "stop_loss.spend_no_conversion": (spend, "系列从观测窗口首日到首个有转化日的累计花费 P90（SOUL 币种），仅含观察到转化的系列"),
+        "stop_loss.days_before_budget_down": (camp_days, "系列从首次有花费日到首个有转化日之间的观测天数 P90（含首末日，最小 1 天），仅含观察到转化的系列"),
+        "keyword.pause_after_clicks_no_conv": (kw_clicks, "有转化的关键词从观测窗口首日到首个有转化日的累计点击数 P90，仅含观察到转化的词"),
         "conversion.window_days": (lags, "匹配本轮账本的转化延迟天数 P90，向上取整并限制在 1..90，历史窗口可能截断长尾"),
     }
     result = []
@@ -149,8 +210,10 @@ def proposals(folder, ledger, soul_file, reference=None):
         proposed = current
         if values:
             proposed = percentile90(values)
-            if key == "conversion.window_days":
-                proposed = min(90, max(1, proposed))
+            if key in ("conversion.window_days", "stop_loss.days_before_budget_down"):
+                proposed = min(90, max(1, int(proposed)))
+            elif key == "keyword.pause_after_clicks_no_conv":
+                proposed = max(1, int(proposed))
         elif key in methods:
             basis += "；无匹配样本，保留现值"
         result.append({"parameter": key, "current": current, "suggested": proposed, "samples": len(values), "basis": basis})
@@ -196,9 +259,28 @@ def selftest():
         expected = dict(numeric_parameters(judge.load_soul(str(soul))["params_usd"]))
         report = json.loads((fixtures / "calibration.report.json").read_text(encoding="utf-8"))
         (run_dir / "report.json").write_text(json.dumps(report), encoding="utf-8")
+        # Add multi-day overlapping traffic-report snapshots to calibrate spend, campaign days, and keyword clicks.
+        tr_base = {"type": "adspilot.traffic_report", "schema_version": 1, "platform": "google-ads", "account": "acct-1",
+                   "currency": "USD", "pulled_at": "2026-09-04T12:00:00Z", "source": "api"}
+        tr1 = dict(tr_base, rows=[
+            {"date": "2026-09-01", "campaign": "C1", "adgroup": "G1", "keyword": "kw1", "impressions": 100, "clicks": 10, "cost": 15.0, "conversions": 0},
+            {"date": "2026-09-02", "campaign": "C1", "adgroup": "G1", "keyword": "kw1", "impressions": 120, "clicks": 12, "cost": 20.0, "conversions": 0},
+        ])
+        tr2_dir = folder / "sample-calibration-day4"
+        tr2_dir.mkdir()
+        rep2 = dict(report, run_id="sample-calibration-day4", reported_at="2026-09-04T12:00:00")
+        (tr2_dir / "report.json").write_text(json.dumps(rep2), encoding="utf-8")
+        tr2 = dict(tr_base, rows=[
+            {"date": "2026-09-02", "campaign": "C1", "adgroup": "G1", "keyword": "kw1", "impressions": 120, "clicks": 12, "cost": 20.0, "conversions": 0},
+            {"date": "2026-09-03", "campaign": "C1", "adgroup": "G1", "keyword": "kw1", "impressions": 130, "clicks": 15, "cost": 25.0, "conversions": 0},
+            {"date": "2026-09-04", "campaign": "C1", "adgroup": "G1", "keyword": "kw1", "impressions": 140, "clicks": 8, "cost": 12.0, "conversions": 1},
+        ])
+        (run_dir / "traffic-report.json").write_text(json.dumps(tr1), encoding="utf-8")
+        (tr2_dir / "traffic-report.json").write_text(json.dumps(tr2), encoding="utf-8")
         db = folder / "ledger.db"
         with closing(subid.open_db(str(db))) as con:
             con.execute("INSERT INTO runs(run_id,exit_code) VALUES (?,0)", (run_id,))
+            con.execute("INSERT INTO runs(run_id,exit_code) VALUES (?,0)", ("sample-calibration-day4",))
             samples = json.loads((fixtures / "commissions.cj.json").read_text(encoding="utf-8"))["rows"][:2]
             for i, row in enumerate(samples):
                 con.execute("INSERT INTO conversions(event_id,batch,event_time,click_time,created_at) VALUES (?,?,?,?,?)",
@@ -210,10 +292,13 @@ def selftest():
         rows = {row["parameter"]: row for row in json.loads(output.read_text(encoding="utf-8"))["thresholds"]}
         assert set(rows) == set(expected)
         assert rows["conversion.window_days"]["samples"] == 2 and rows["conversion.window_days"]["suggested"] == 2
+        assert rows["stop_loss.spend_no_conversion"]["samples"] == 1 and rows["stop_loss.spend_no_conversion"]["suggested"] == 72.0
+        assert rows["stop_loss.days_before_budget_down"]["samples"] == 1 and rows["stop_loss.days_before_budget_down"]["suggested"] == 4
+        assert rows["keyword.pause_after_clicks_no_conv"]["samples"] == 1 and rows["keyword.pause_after_clicks_no_conv"]["suggested"] == 45
         assert db.read_bytes() == before and soul.read_bytes() == original
         assert rows["authority.within_caps"]["samples"] == 0
         assert rows["authority.within_caps"]["suggested"] == expected["authority.within_caps"]
-        print("calibration selftest: thresholds=%d matched_lags=2 proposal_only=true" % len(rows))
+        print("calibration selftest: thresholds=%d matched_lags=2 spend=72.0 days=4 kw_clicks=45 proposal_only=true" % len(rows))
     return 0
 
 

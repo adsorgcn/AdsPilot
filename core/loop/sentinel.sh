@@ -13,7 +13,14 @@ msg=""
 [ "$age_h" -gt 26 ] && msg="last run ${age_h}h ago"
 case "${code:-x}" in 1|3) msg="${msg:+$msg; }last exit code $code";; esac
 if [ -n "$msg" ]; then
-  echo "$(date -Is) sentinel ALERT: $msg ($latest)"
+  alert="$(date -Is) sentinel ALERT: $msg ($(basename "$latest"))"
+  mkdir -p "$runs_dir" 2>/dev/null || true
+  echo "$alert" >> "$runs_dir/sentinel.log" 2>/dev/null || true
+  echo "$alert"
+  if [ -n "${ADSPILOT_NOTIFY_WEBHOOK:-}" ]; then
+    payload="$(python3 -c 'import json,sys; print(json.dumps({"text": sys.argv[1], "run": sys.argv[2], "exit_code": sys.argv[3], "age_h": sys.argv[4]}))' "$alert" "$(basename "$latest")" "${code:-}" "$age_h" 2>/dev/null)"
+    [ -n "$payload" ] && curl -fsS -m 10 -H "Content-Type: application/json" -d "$payload" "$ADSPILOT_NOTIFY_WEBHOOK" >/dev/null 2>&1 || true
+  fi
   exit 2
 fi
-echo "$(date -Is) sentinel ok: $latest exit ${code:-?} age ${age_h}h"
+echo "$(date -Is) sentinel ok: $(basename "$latest") exit ${code:-?} age ${age_h}h"

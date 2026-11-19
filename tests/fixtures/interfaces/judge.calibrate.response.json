@@ -24,7 +24,7 @@
       "current": 7,
       "suggested": 7,
       "samples": 0,
-      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+      "basis": "系列从首次有花费日到首个有转化日之间的观测天数 P90（含首末日，最小 1 天），仅含观察到转化的系列；无匹配样本，保留现值"
     },
     {
       "parameter": "stop_loss.roi_floor",
@@ -73,7 +73,7 @@
       "current": 30,
       "suggested": 30,
       "samples": 0,
-      "basis": "报告和账本缺少可独立评估此阈值的结果标签，保留现值"
+      "basis": "有转化的关键词从观测窗口首日到首个有转化日的累计点击数 P90，仅含观察到转化的词；无匹配样本，保留现值"
     },
     {
       "parameter": "keyword.bid_down_pct",
