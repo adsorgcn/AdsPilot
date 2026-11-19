@@ -1,0 +1,83 @@
+{
+  "type": "adspilot.preflight",
+  "verdict": "warn",
+  "mode": "offline",
+  "live_checked": false,
+  "ready_for_apply": false,
+  "currency": "USD",
+  "config_file": "config/adspilot.example.json",
+  "checks": [
+    {
+      "check": "config_schema",
+      "status": "pass",
+      "detail": "config/adspilot.example.json valid",
+      "fix": ""
+    },
+    {
+      "check": "config_file",
+      "status": "warn",
+      "detail": "dry-run mode (config apply disabled)",
+      "fix": "首轮 dry-run 核对无误后再将 apply 设为 true"
+    },
+    {
+      "check": "paths_writable",
+      "status": "pass",
+      "detail": "data, runs",
+      "fix": ""
+    },
+    {
+      "check": "soul_and_fx",
+      "status": "pass",
+      "detail": "default@2.4.0 (USD -> USD)",
+      "fix": ""
+    },
+    {
+      "check": "judgment_provider",
+      "status": "pass",
+      "detail": "local rules engine active",
+      "fix": ""
+    },
+    {
+      "check": "traffic_credentials",
+      "status": "warn",
+      "detail": "missing GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET, GOOGLE_ADS_REFRESH_TOKEN, GOOGLE_ADS_CUSTOMER_ID (manual/csv fallback available)",
+      "fix": "补齐 OAuth 凭据或改 manual/csv_export"
+    },
+    {
+      "check": "affiliate_credentials",
+      "status": "warn",
+      "detail": "cj missing: CJ_PUBLISHER_ID, CJ_ACCESS_TOKEN",
+      "fix": "接入真账号前通过 vault 注入或改用本地 json"
+    },
+    {
+      "check": "deploy_credentials",
+      "status": "warn",
+      "detail": "deploy.host / ADSPILOT_EXPORT_KEY / CF_API_TOKEN incomplete",
+      "fix": "建落地位前配置 CF_API_TOKEN 与 deploy.host"
+    },
+    {
+      "check": "sentinel_webhook",
+      "status": "warn",
+      "detail": "ADSPILOT_NOTIFY_WEBHOOK not set (sentinel logs only)",
+      "fix": "如需异常即时推送，可在调度器环境配置 ADSPILOT_NOTIFY_WEBHOOK"
+    },
+    {
+      "check": "google_ads_live",
+      "status": "skip",
+      "detail": "offline preview (pass --apply to probe Google Ads currency & OAuth scopes)",
+      "fix": ""
+    },
+    {
+      "check": "deploy_live",
+      "status": "skip",
+      "detail": "offline preview (pass --apply to probe Cloudflare /health & /export)",
+      "fix": ""
+    }
+  ],
+  "summary": {
+    "pass": 4,
+    "warn": 5,
+    "fail": 0,
+    "skip": 2
+  }
+}

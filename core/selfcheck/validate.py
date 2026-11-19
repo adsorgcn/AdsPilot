@@ -241,7 +241,8 @@ CONFIG_SCHEMA = {
         "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
         "soul": {"type": "string", "minLength": 1},
         "judgment": {"type": "object", "required": ["provider"],
-                     "properties": {"provider": {"enum": ["local", "llm", "jev", "soul-api"]},
+                     "properties": {"provider": {"type": "string", "minLength": 1},
+                                    "provider_chain": {"type": "array", "items": {"type": "string", "minLength": 1}},
                                     "timeout_s": {"type": "number", "exclusiveMinimum": 0, "maximum": 60}}},
         "traffic": {"type": "object", "required": ["plugin"], "properties": {"plugin": {"type": "string"},
                     "report_source": {"enum": ["csv_export", "api"]}, "deploy_mode": {"enum": ["api", "manual"]}, "conversion_window_days": {"type": "integer", "minimum": 1, "maximum": 90}}},
@@ -280,6 +281,14 @@ def check_config(path=None):
         for kk, vv in sub.items():
             if kk.endswith("_env") and isinstance(vv, str) and not re.match(r"^[A-Z][A-Z0-9_]*$", vv):
                 errs.append("%s.%s 必须是环境变量名，不是值" % (k, kk))
+    jcfg = cfg.get("judgment") or {}
+    j_cands = [jcfg.get("provider")] + list(jcfg.get("provider_chain") or [])
+    for plug in j_cands:
+        if not plug or plug == "local":
+            continue
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", str(plug)) or str(plug).startswith("_") \
+                or not os.path.exists(os.path.join(ROOT, "plugins", "judgment", str(plug), "manifest.json")):
+            errs.append("judgment.provider %r 没有对应目录或 manifest.json" % plug)
     plug = cfg.get("traffic", {}).get("plugin")
     if plug and not os.path.exists(os.path.join(ROOT, "plugins", "traffic", plug, "manifest.json")):
         errs.append("traffic.plugin %r 没有对应目录" % plug)

@@ -368,6 +368,33 @@
     "fixture": "tests/fixtures/interfaces/deploy.cloudflare.status.request.json"
   },
   {
+    "id": "dsh.handoff",
+    "script": "integrations/dsh/handoff.py",
+    "argv_template": [
+      "--report={report}",
+      "--memory={memory}",
+      "--config={config}"
+    ],
+    "request_schema": "schemas/interfaces/dsh.handoff.request.schema.json",
+    "response_schema": "schemas/interfaces/dsh.handoff.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "dsh.handoff",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/dsh.handoff.request.json"
+  },
+  {
     "id": "ipintel.ipapi-is.lookup",
     "script": "plugins/ipintel/ipapi-is/lookup.py",
     "argv_template": [],
@@ -421,6 +448,34 @@
     "fixture": "tests/fixtures/interfaces/judge.calibrate.request.json"
   },
   {
+    "id": "judge.eval",
+    "script": "core/judge/eval_provider.py",
+    "argv_template": [
+      "--provider={provider}",
+      "--soul={soul}",
+      "--benchmark={benchmark}",
+      "--config={config}"
+    ],
+    "request_schema": "schemas/interfaces/judge.eval.request.schema.json",
+    "response_schema": "schemas/interfaces/judge.eval.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "judge.eval",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/judge.eval.request.json"
+  },
+  {
     "id": "judge.judge",
     "script": "core/judge/judge.py",
     "argv_template": [
@@ -429,6 +484,7 @@
       "--choices={choices:json}",
       "--evidence={evidence:csv}",
       "--provider={provider}",
+      "--soul={soul}",
       "--config={config}"
     ],
     "request_schema": "schemas/interfaces/judge.judge.request.schema.json",
@@ -454,7 +510,8 @@
     "id": "judgment.jev.judge",
     "script": "plugins/judgment/jev/provider.py",
     "argv_template": [
-      "--config={judgment_config:literal}"
+      "--config={judgment_config:literal}",
+      "--soul={soul}"
     ],
     "request_schema": "schemas/interfaces/judgment.judge.request.schema.json",
     "response_schema": "schemas/interfaces/judgment.judge.response.schema.json",
@@ -467,7 +524,7 @@
     },
     "dry_run_default": true,
     "external_apis": [
-      "Jev decide 接口（早期接入，形状待锁死）"
+      "TypeSafe AI /v1/systemone 或 /decide（jev-latest）"
     ],
     "status": "alpha",
     "selftest": [
@@ -481,7 +538,8 @@
     "id": "judgment.llm.judge",
     "script": "plugins/judgment/llm/provider.py",
     "argv_template": [
-      "--config={judgment_config:literal}"
+      "--config={judgment_config:literal}",
+      "--soul={soul}"
     ],
     "request_schema": "schemas/interfaces/judgment.judge.request.schema.json",
     "response_schema": "schemas/interfaces/judgment.judge.response.schema.json",
@@ -508,7 +566,8 @@
     "id": "judgment.soul-api.judge",
     "script": "plugins/judgment/soul-api/provider.py",
     "argv_template": [
-      "--config={judgment_config:literal}"
+      "--config={judgment_config:literal}",
+      "--soul={soul}"
     ],
     "request_schema": "schemas/interfaces/judgment.judge.request.schema.json",
     "response_schema": "schemas/interfaces/judgment.judge.response.schema.json",
@@ -521,7 +580,7 @@
     },
     "dry_run_default": true,
     "external_apis": [
-      "iLang Inc. SOUL API /v1/judge（服务端不在本仓库）"
+      "iLang SOUL API /v1/judge（支持 canonical v1 与 ilang-judge 方言）"
     ],
     "status": "alpha",
     "selftest": [
@@ -672,7 +731,8 @@
       "--out={out}",
       "--url={url}",
       "--token={token}",
-      "--campaign={campaign}"
+      "--campaign={campaign}",
+      "--gclid-kind={gclid_kind}"
     ],
     "request_schema": "schemas/interfaces/ledger.subid.request.schema.json",
     "response_schema": "schemas/interfaces/ledger.subid.response.schema.json",
@@ -824,6 +884,31 @@
       "--selftest"
     ],
     "fixture": "tests/fixtures/interfaces/selfcheck.acceptance.request.json"
+  },
+  {
+    "id": "selfcheck.preflight",
+    "script": "core/selfcheck/preflight.py",
+    "argv_template": [
+      "--config={config}"
+    ],
+    "request_schema": "schemas/interfaces/selfcheck.preflight.request.schema.json",
+    "response_schema": "schemas/interfaces/selfcheck.preflight.response.schema.json",
+    "exit_codes": {
+      "0": "success",
+      "2": "needs_human",
+      "3": "retry",
+      "4": "configuration",
+      "1": "error"
+    },
+    "dry_run_default": true,
+    "external_apis": [],
+    "status": "alpha",
+    "selftest": [
+      "adspilot.py",
+      "selfcheck.preflight",
+      "--selftest"
+    ],
+    "fixture": "tests/fixtures/interfaces/selfcheck.preflight.request.json"
   },
   {
     "id": "selfcheck.validate",

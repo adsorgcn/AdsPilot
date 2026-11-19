@@ -11,11 +11,13 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
+from core.agent.interfaces import CODES, CORE, PLUGIN, short_id
 from core.agent.selfcheck import SECRET_MARKERS
 VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26")
 SECRET_FIELD = re.compile(r"gclid|(?:^|_)(?:password|passwd|secret|token|api_key|private_key|authorization|cookie|credential)(?:s?$|_value$)", re.I)
 SENSITIVE_TEXT = re.compile(r"\bgclid\b\s*[=:]|\bBearer\s+\S+|\bsk-[A-Za-z0-9_-]{20,}|\bya29\.\S+", re.I)
 MAX_MESSAGE = 4 * 1024 * 1024
+MAX_RESULT_CHARS = 7800
 
 
 def json_file(path):
@@ -28,12 +30,45 @@ class ProtocolError(Exception):
         self.code = code
 
 
+def tool_description(name):
+    if name in CORE:
+        return "AdsPilot %s: %s" % (name, CORE[name][2])
+    sid = short_id(name)
+    if sid in PLUGIN:
+        return "AdsPilot %s: %s" % (name, PLUGIN[sid][1])
+    return "%s (AdsPilot)" % name
+
+
+def compact_payload(obj, max_chars=MAX_RESULT_CHARS):
+    encoded = json.dumps(obj, ensure_ascii=False, allow_nan=False)
+    if len(encoded) <= max_chars or not isinstance(obj, dict):
+        return obj
+    shrunk = dict(obj)
+    list_keys = [k for k in ("rows", "cases", "offers", "judgments", "actions", "results", "checks")
+                 if isinstance(shrunk.get(k), list)]
+    if not list_keys:
+        list_keys = [k for k, v in shrunk.items() if isinstance(v, list)]
+    for k in list_keys:
+        shrunk["total_" + k] = len(shrunk[k])
+    while len(json.dumps(shrunk, ensure_ascii=False, allow_nan=False)) > max_chars:
+        longest = max((k for k in list_keys if shrunk[k]), key=lambda k: len(shrunk[k]), default=None)
+        if longest is None:
+            break
+        items = shrunk[longest]
+        keep = max(0, len(items) // 2) if len(items) > 2 else len(items) - 1
+        shrunk[longest] = items[:keep]
+        shrunk["truncated"] = True
+    return shrunk
+
+
 def private_values(obj, public_subid=False):
     """Collect values supplied under sensitive fields; never echo them in errors."""
     values = set()
     if isinstance(obj, dict):
         for key, item in obj.items():
             if public_subid and key == "token" and isinstance(item, str) and re.fullmatch(r"[A-Za-z0-9]{8,32}", item):
+                continue
+            if key == "gclid_kind" and item in ("", "gclid", "gbraid", "wbraid"):
                 continue
             if SECRET_FIELD.search(key) and isinstance(item, str) and item:
                 values.add(item)
@@ -44,14 +79,15 @@ def private_values(obj, public_subid=False):
     return values
 
 
-def protected_output(result, arguments, tool=None):
+def protected_output(result, arguments, tool=None, max_chars=MAX_RESULT_CHARS):
     # A recognizable secret without a sensitive JSON field is still private.
-    encoded = json.dumps(result, ensure_ascii=False, allow_nan=False)
+    compacted = compact_payload(result, max_chars=max_chars)
+    encoded = json.dumps(compacted, ensure_ascii=False, allow_nan=False)
     public_subid = tool in ("affiliate.cj.link", "affiliate.impact.link", "ledger.subid")
     secrets = private_values(arguments, public_subid)
-    secrets.update(value for key, value in os.environ.items() if value and
+    secrets.update(value for key, value in os.environ.items() if value and len(value) >= 4 and
                    re.search(r"(?:KEY|PASSWORD|TOKEN|SECRET|AUTHORIZATION)(?:$|_VALUE$)", key, re.I))
-    if (private_values(result, public_subid) or SENSITIVE_TEXT.search(encoded)
+    if (private_values(compacted, public_subid) or SENSITIVE_TEXT.search(encoded)
             or any(marker in encoded for marker in SECRET_MARKERS)
             or any(secret in encoded for secret in secrets)):
         raise ValueError("sensitive result")
@@ -106,7 +142,16 @@ class Server:
                         failure["verdict"]=="fail" and isinstance(failure["reason"],str)):
                     return tool_result(protected_output(failure,arguments,name),True)
             if result.returncode:
-                return tool_result(json.dumps({"error": "tool failed", "exit_code": result.returncode}), True)
+                kind = CODES.get(str(result.returncode), "error")
+                safe_err = {"error": "tool failed (%s)" % kind, "exit_code": result.returncode, "kind": kind}
+                try:
+                    raw_err = json.loads(result.stdout) if result.stdout.strip() else None
+                    if isinstance(raw_err, dict) and isinstance(raw_err.get("error"), str):
+                        candidate = dict(safe_err, detail=raw_err["error"][:200])
+                        return tool_result(protected_output(candidate, arguments, name), True)
+                except ValueError:
+                    pass
+                return tool_result(json.dumps(safe_err), True)
             return tool_result(protected_output(json.loads(result.stdout), arguments, name))
         except (OSError, subprocess.TimeoutExpired, ValueError, RecursionError):
             return tool_result("Tool timed out or returned an unreadable or private result.", True)
@@ -135,7 +180,7 @@ class Server:
         if method == "tools/list":
             if params.get("cursor") is not None:
                 raise ProtocolError(-32602, "Invalid cursor")
-            return {"tools": [{"name": name, "description": name + " (AdsPilot)",
+            return {"tools": [{"name": name, "description": tool_description(name),
                                "inputSchema": json_file(ROOT / entry["request_schema"])}
                               for name, entry in self.entries.items()]}
         return self.call(params)
@@ -189,6 +234,7 @@ def selftest():
     name = "runs/missing-mcp-fixture-"+uuid.uuid4().hex
     calls.append((8,"tools/call",{"name":"selfcheck.acceptance","arguments":{"runs_dir":name,
                   "ledger":"data/missing-"+uuid.uuid4().hex+".db"}}))
+    calls.append((9,"tools/call",{"name":"loop.simulate","arguments":{"runs_dir":"../outside","days":1}}))
     messages = []
     for identifier, method, params in calls:
         message = {"jsonrpc": "2.0", "method": method, "params": params}
@@ -201,8 +247,10 @@ def selftest():
         raise ValueError("stdio server failed")
     replies = {r["id"]: r for r in map(json.loads, child.stdout.splitlines())}
     assert replies[1]["error"]["code"] == -32601 and replies[2]["result"]["protocolVersion"] == VERSIONS[0]
-    names = {t["name"] for t in replies[3]["result"]["tools"]}
+    tools = replies[3]["result"]["tools"]
+    names = {t["name"] for t in tools}
     assert names == {entry["id"] for entry in json_file(ROOT / "schemas/interfaces.json")}
+    assert all(t["description"] != t["name"] + " (AdsPilot)" and t["description"].startswith("AdsPilot ") for t in tools)
     result = replies[4]["result"]
     assert not result["isError"] and json.loads(result["content"][0]["text"])["type"] == "judgment.response"
     assert replies[5]["result"]["isError"]
@@ -214,6 +262,14 @@ def selftest():
 
     failed = replies[8]["result"]
     assert failed["isError"] and json.loads(failed["content"][0]["text"]) == {"verdict":"fail","reason":"ledger.db missing"}
+    cfg_err = json.loads(replies[9]["result"]["content"][0]["text"])
+    assert replies[9]["result"]["isError"] and cfg_err["exit_code"] == 4 and cfg_err["kind"] == "configuration"
+
+    big_payload = {"type": "test", "rows": [{"i": i, "pad": "x" * 100} for i in range(200)]}
+    encoded_big = protected_output(big_payload, {})
+    assert len(encoded_big) <= MAX_RESULT_CHARS
+    parsed_big = json.loads(encoded_big)
+    assert parsed_big["truncated"] is True and parsed_big["total_rows"] == 200
 
     for result in ({"secret": "synthetic"}, {"message": "gclid=example"}, {"extra": "synthetic"}):
         try:
@@ -221,7 +277,7 @@ def selftest():
         except ValueError:
             continue
         raise ValueError("Privacy check failed")
-    print("MCP stdio: initialize ok; tools/list %d; judge.judge ok; affiliate links ok; acceptance fail reason retained; config override rejected; privacy checks ok" % len(names))
+    print("MCP stdio: initialize ok; tools/list %d; judge.judge ok; affiliate links ok; acceptance fail reason retained; size guard <=%d ok; config override & exit-4 diagnostics ok; privacy checks ok" % (len(names), MAX_RESULT_CHARS))
     return 0
 
 

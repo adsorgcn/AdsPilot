@@ -1,0 +1,5 @@
+{
+  "interface": "dsh.handoff",
+  "dry_run": true,
+  "action": "handoff"
+}

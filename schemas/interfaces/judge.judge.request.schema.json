@@ -60,12 +60,12 @@
       }
     },
     "provider": {
-      "enum": [
-        "local",
-        "llm",
-        "jev",
-        "soul-api"
-      ]
+      "type": "string",
+      "minLength": 1
+    },
+    "soul": {
+      "type": "string",
+      "minLength": 1
     }
   },
   "required": [

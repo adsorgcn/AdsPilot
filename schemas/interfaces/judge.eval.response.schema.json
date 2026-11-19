@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "judge.eval response",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "adspilot.judge.eval"
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1
+    },
+    "soul": {
+      "type": "string",
+      "minLength": 1
+    },
+    "benchmark": {
+      "type": "string",
+      "minLength": 1
+    },
+    "n": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "schema_rate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "mode_acc": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "choice_acc": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "mae": {
+      "type": "number",
+      "minimum": 0
+    },
+    "vector_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "boundary_acc": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "jcs": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "l2_pass": {
+      "type": "boolean"
+    },
+    "fallback_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "disagree_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "node": { "type": "string", "minLength": 1 },
+          "pred_choice": { "type": "string", "minLength": 1 },
+          "gold_choice": { "type": ["string", "null"] },
+          "pred_mode": { "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"] },
+          "gold_mode": { "enum": ["M1", "M2", "M3", "M4", "M5", "M6", "M7", "M8"] },
+          "mae": { "type": "number", "minimum": 0 },
+          "schema_valid": { "type": "boolean" },
+          "boundary": { "type": "boolean" },
+          "fallback": { "type": "boolean" }
+        },
+        "required": ["id", "node", "pred_choice", "pred_mode", "gold_mode", "mae", "schema_valid", "boundary", "fallback"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "type",
+    "provider",
+    "soul",
+    "benchmark",
+    "n",
+    "schema_rate",
+    "mode_acc",
+    "choice_acc",
+    "mae",
+    "vector_score",
+    "boundary_acc",
+    "jcs",
+    "l2_pass",
+    "fallback_count",
+    "disagree_count",
+    "cases"
+  ],
+  "additionalProperties": false
+}

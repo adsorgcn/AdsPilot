@@ -70,6 +70,10 @@ def public_attribution(name, value, allowed):
     return bool(items) and all(isinstance(item,str) and re.fullmatch(r"[A-Za-z0-9]{8,32}",item) for item in items)
 
 
+def public_click_kind(name, value):
+    return name == "gclid_kind" and value in ("", "gclid", "gbraid", "wbraid")
+
+
 def sanitize(obj, values, allowed=()):
     # A child response can repeat a secret under an ordinary field. Gather
     # sensitive values first, then remove those values wherever they reappear.
@@ -78,7 +82,8 @@ def sanitize(obj, values, allowed=()):
     def gather(item, top=False, inside=False):
         if isinstance(item, dict):
             for name, child in item.items():
-                hidden = sensitive_field(name) and not (top and public_attribution(name,child,allowed))
+                hidden = (sensitive_field(name) and not (top and public_attribution(name,child,allowed))
+                          and not public_click_kind(name, child))
                 gather(child, inside=inside or hidden)
         elif isinstance(item, list):
             for child in item:
@@ -92,7 +97,8 @@ def sanitize(obj, values, allowed=()):
             for name, child in item.items():
                 if sensitive_string(name, private):
                     continue
-                if sensitive_field(name) and not (top and public_attribution(name,child,allowed)):
+                if (sensitive_field(name) and not (top and public_attribution(name,child,allowed))
+                        and not public_click_kind(name, child)):
                     continue
                 result[name] = clean(child)
             return result
@@ -266,7 +272,7 @@ def database(cfg, tmp, apply):
 
 def preview_needed(key, req):
     if key in ("deploy.publish", "deploy.setup", "deploy.status", "judgment.judge",
-               "keywords.suggest", "keywords.volume", "traffic.report_api","loop.ack"):
+               "keywords.suggest", "keywords.volume", "traffic.report_api", "loop.ack", "dsh.handoff"):
         return True
     if key == "launch.run":
         return req["step"] in ("deploy","verify","go","teardown") or (req["step"] == "offers" and not req.get("offers"))
@@ -504,14 +510,40 @@ def run_request(entry, request, tmp):
         safe_path(req["output_file"], PRIVATE, suffix, output=True)
     if key == "ledger.subid" and req.get("operation") == "pull" and req.get("url") and req["url"] != cfg["deploy"].get("export_url"):
         raise InterfaceError("pull URL must match configured deploy.export_url",4)
+    if key in ("judge.judge", "judgment.judge", "judge.eval") and "soul" in req:
+        soul = safe_path(req["soul"], ["soul"], ".md")
+        if not soul.name.endswith(".soul.md"):
+            raise InterfaceError("expected a SOUL file", 4)
+        req["soul"] = soul
+    if key == "judge.eval" and "benchmark" in req:
+        req["benchmark"] = safe_path(req["benchmark"], ["tests/fixtures", "data"], ".json")
     if not apply and preview_needed(key,req):
         action = req.get("step") or req.get("operation") or ident.split(".")[-1]
         return {"interface":ident,"dry_run":True,"action":action}
+    if key == "dsh.handoff":
+        runs_base = checked_location(cfg["runs_dir"], None)
+        rep_p = Path(req["report"])
+        if ".." in rep_p.parts or ("\\" in req["report"] and os.name != "nt"):
+            raise InterfaceError("invalid report path", 4)
+        rep_full = rep_p if rep_p.is_absolute() else ROOT / rep_p
+        if rep_full.name != "report.json" or rep_full.parent.parent != runs_base:
+            raise InterfaceError("report must sit inside configured runs_dir", 4)
+        check_node(rep_full.parent)
+        check_node(rep_full)
+        mem_p = Path(req["memory"])
+        if "\\" in req["memory"] and os.name != "nt":
+            raise InterfaceError("invalid memory path", 4)
+        mem_full = (mem_p if mem_p.is_absolute() else ROOT / mem_p).resolve()
+        if mem_full.parent != ROOT.parent or mem_full == ROOT:
+            raise InterfaceError("memory must be a sibling DSH checkout", 4)
+        check_node(mem_full)
+        req["report"] = rep_full
+        req["memory"] = mem_full
     stdin = None
     output_path = None
     if key == "launch.run" and not apply and req["step"] == "offers" and any(not row.get("keywords") for row in req.get("offers", [])):
         return {"interface":ident,"dry_run":True,"action":"offers"}
-    if key == "judge.judge" and not apply:
+    if key in ("judge.judge", "judge.eval") and not apply:
         req["provider"] = "local"
     if key == "selfcheck.validate":
         req["schema"] = safe_path("schemas/"+req["schema"],["schemas"],".json")
@@ -544,6 +576,11 @@ def run_request(entry, request, tmp):
             if output_path and Path(str(output_path)+".adjustments.csv").exists():
                 raise InterfaceError("choose a new output file",4)
     if key == "judgment.judge":
+        if "soul" not in req:
+            soul = safe_path(cfg.get("soul", "soul/default.soul.md"), ["soul"], ".md")
+            if not soul.name.endswith(".soul.md"):
+                raise InterfaceError("expected a SOUL file", 4)
+            req["soul"] = soul
         req["judgment_config"] = cfg.get("judgment",{})
         stdin = {k: req[k] for k in ("node","state","choices","caps","evidence") if k in req}
         stdin["type"] = "judgment.request"
@@ -563,7 +600,7 @@ def run_request(entry, request, tmp):
             req["config"] = tmp/"config.json"
             req["config"].write_text(json.dumps(cfg),encoding="utf-8")
     args = arguments(entry["argv_template"],req,tmp)
-    if apply and key in ("launch.run","loop.run","traffic.deploy","traffic.budget","traffic.convert_api","traffic.report_api","deploy.setup","ipintel.lookup"):
+    if apply and key in ("launch.run","loop.run","traffic.deploy","traffic.budget","traffic.convert_api","traffic.report_api","deploy.setup","ipintel.lookup","judge.eval","selfcheck.preflight"):
         args.append("--apply")
     if key == "loop.run" and not apply:
         args.append("--dry-run")
@@ -590,6 +627,8 @@ def run_request(entry, request, tmp):
         raise InterfaceError(OUTCOMES.get(rc,OUTCOMES[1]),rc if rc in OUTCOMES else 1)
     if key == "selfcheck.validate":
         result = {"valid":True}
+    elif key == "dsh.handoff":
+        result = {"status": output.strip()}
     elif key == "loop.ack":
         result = {"acknowledged":int(re.fullmatch(r"acked (\d+) actions for [\w-]+",output.strip()).group(1))}
     elif key == "ledger.subid" and req["operation"] == "mint":

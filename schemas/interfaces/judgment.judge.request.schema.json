@@ -61,6 +61,10 @@
     },
     "caps": {
       "type": "object"
+    },
+    "soul": {
+      "type": "string",
+      "minLength": 1
     }
   },
   "required": [
