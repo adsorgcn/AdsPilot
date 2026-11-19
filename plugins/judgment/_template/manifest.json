@@ -1,0 +1,17 @@
+{
+  "manifest_version": 1,
+  "id": "judgment/<name>",
+  "kind": "judgment",
+  "name": "<自定义感知层提供者名称>",
+  "version": "0.1.0",
+  "status": "alpha",
+  "usage": "使用方法.md",
+  "actions": { "judge": "provider.py" },
+  "credentials": [
+    { "env": "MY_JUDGE_ENDPOINT", "required": true, "note": "<服务端点 URL>" },
+    { "env": "MY_JUDGE_API_KEY", "required": true, "note": "<用户环境变量中的 API 密钥>" }
+  ],
+  "external_apis": [ "<自定义感知 API 端点；仅做 11 维向量/选项感知，不直接执行动作>" ],
+  "limits": { "timeout_s": 8 },
+  "unattended": { "accepted": false, "days": 0, "note": "失败退出码 3，主干自动继续回退链或退回本地规则" }
+}
