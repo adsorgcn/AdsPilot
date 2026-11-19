@@ -124,4 +124,58 @@ def check(checkout):
             linked_dir.rmdir()
         else:
             linked_dir.unlink()
+    # Verify dropping a custom judgment plugin manifest works dynamically without modifying core code.
+    import shutil
+    custom_dir = checkout / "plugins/judgment/custom-eval"
+    shutil.copytree(checkout / "plugins/judgment/_template", custom_dir)
+    mf_path = custom_dir / "manifest.json"
+    mf = json.loads(mf_path.read_text(encoding="utf-8"))
+    mf["id"] = "judgment/custom-eval"
+    mf_path.write_text(json.dumps(mf, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    custom_cfg = dict(config, judgment={"provider": "custom-eval", "provider_chain": ["custom-eval", "local"], "timeout_s": 5})
+    custom_cfg_p = checkout / "config/custom-judgment.json"
+    custom_cfg_p.write_text(json.dumps(custom_cfg), encoding="utf-8")
+    disc = subprocess.run([sys.executable, "-c", "import json; from core.agent.interfaces import discover; print(json.dumps([e['id'] for e in discover()]))"],
+                          capture_output=True, encoding="utf-8", cwd=checkout, timeout=40)
+    val = subprocess.run([sys.executable, "core/selfcheck/validate.py", "--manifests"],
+                         capture_output=True, encoding="utf-8", cwd=checkout, timeout=40)
+    cfg_val = subprocess.run([sys.executable, "core/selfcheck/validate.py", "--config", "config/custom-judgment.json"],
+                             capture_output=True, encoding="utf-8", cwd=checkout, timeout=40)
+    catalog_ids = set(json.loads(disc.stdout)) if disc.returncode == 0 else set()
+    custom_out = call(
+        "dynamic custom judgment plugin falls back cleanly when unconfigured",
+        "judge.judge",
+        {"node": "campaign.adjust", "provider": "custom-eval", "choices": [{"id": "keep"}], "state": {"clicks": 5}, "apply": True, "config": "config/custom-judgment.json"},
+        0,
+        lambda r: r.get("provider") == "local" and r.get("fallback") is True,
+    )
+    results["dynamic custom judgment plugin discovered and validated"] = (
+        disc.returncode == 0
+        and val.returncode == 0
+        and cfg_val.returncode == 0
+        and "judgment.custom-eval.judge" in catalog_ids
+        and bool(custom_out)
+    )
+
+    # dsh.handoff boundary checks: preview works without sibling repo; apply rejects escaping memory & succeeds on sibling git repo
+    call("dsh.handoff previews cleanly in dry-run", "dsh.handoff",
+         {"report": "runs/run-20261106-120000/report.json", "memory": "../dsh-memory"}, 0,
+         lambda r: r.get("dry_run") is True and r.get("action") == "handoff")
+    call("dsh.handoff rejects escaping memory path", "dsh.handoff",
+         {"report": "runs/run-20261106-120000/report.json", "memory": "../../outside", "apply": True, "config": relative}, 4)
+    sib_mem = checkout.parent / "dsh-memory"
+    sib_handoff = sib_mem / "handoff/CURRENT.md"
+    sib_handoff.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-q", str(sib_mem)], check=True, capture_output=True)
+    sib_handoff.write_text("# Handoff\n", encoding="utf-8")
+    sim_run = checkout / "runs/run-20261106-120000"
+    sim_run.mkdir(parents=True, exist_ok=True)
+    (sim_run / "report.json").write_text(json.dumps({
+        "type": "adspilot.report", "run_id": "run-20261106-120000", "status": "claimed_complete",
+        "exit_code": 0, "needs_human": {"required": False}
+    }), encoding="utf-8")
+    call("dsh.handoff appends safe summary line with apply=True", "dsh.handoff",
+         {"report": "runs/run-20261106-120000/report.json", "memory": "../dsh-memory", "apply": True, "config": relative}, 0,
+         lambda r: r == {"status": "appended"})
+    results["dsh.handoff CURRENT.md recorded"] = "AdsPilot [run-20261106-120000] status=claimed_complete exit=0 needs_human=no" in sib_handoff.read_text(encoding="utf-8")
     return results

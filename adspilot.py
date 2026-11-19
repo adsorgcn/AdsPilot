@@ -37,7 +37,7 @@ def selftest(rows):
     with tempfile.TemporaryDirectory(prefix="adspilot-check-") as d:
         checkout = Path(d)/"repo"
         checkout.mkdir()
-        for folder in ("core","plugins","schemas","soul","reference","tests","config"):
+        for folder in ("core","plugins","schemas","soul","reference","tests","config","integrations"):
             source = ROOT/folder
             if folder == "config":
                 (checkout/folder).mkdir()

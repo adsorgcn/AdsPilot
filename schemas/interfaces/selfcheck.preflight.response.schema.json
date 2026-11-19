@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "selfcheck.preflight response",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "adspilot.preflight"
+    },
+    "verdict": {
+      "enum": ["pass", "warn", "fail"]
+    },
+    "mode": {
+      "enum": ["offline", "live"]
+    },
+    "live_checked": {
+      "type": "boolean"
+    },
+    "ready_for_apply": {
+      "type": "boolean"
+    },
+    "currency": {
+      "type": "string"
+    },
+    "config_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "check": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["pass", "warn", "fail", "skip"] },
+          "detail": { "type": "string" },
+          "fix": { "type": "string" }
+        },
+        "required": ["check", "status", "detail"],
+        "additionalProperties": false
+      }
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "pass": { "type": "integer", "minimum": 0 },
+        "warn": { "type": "integer", "minimum": 0 },
+        "fail": { "type": "integer", "minimum": 0 },
+        "skip": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["pass", "warn", "fail", "skip"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "type",
+    "verdict",
+    "mode",
+    "live_checked",
+    "ready_for_apply",
+    "config_file",
+    "checks",
+    "summary"
+  ],
+  "additionalProperties": false
+}

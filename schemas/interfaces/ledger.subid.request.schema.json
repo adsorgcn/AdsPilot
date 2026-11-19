@@ -52,6 +52,14 @@
     "campaign": {
       "type": "string",
       "minLength": 1
+    },
+    "gclid_kind": {
+      "enum": [
+        "",
+        "gclid",
+        "gbraid",
+        "wbraid"
+      ]
     }
   },
   "required": [

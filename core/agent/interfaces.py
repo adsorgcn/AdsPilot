@@ -13,15 +13,18 @@ CORE = {
     "agent.selfcheck": ("core/agent/selfcheck.py", "--quick --json", "自检 JSON"),
     "launch.run": ("core/launch/launch.py", "{step} --brief={brief:json} --content={content:json} --offers-json={offers:json} --host={host} --slug={slug} --user={user} --pick={pick} --country={country} --language={language} --top={top} --enable={enable:flag} --all={all:flag} --config={config}", "开局步骤结果"),
     "lp.check": ("core/lp/lp_check.py", "{html:text} --min-words={min_words} --json", "检查项及 verdict"),
-    "judge.judge": ("core/judge/judge.py", "--node={node} --state={state:json} --choices={choices:json} --evidence={evidence:csv} --provider={provider} --config={config}", "judgment.response"),
+    "judge.judge": ("core/judge/judge.py", "--node={node} --state={state:json} --choices={choices:json} --evidence={evidence:csv} --provider={provider} --soul={soul} --config={config}", "judgment.response"),
     "ledger.reconcile": ("core/ledger/reconcile.py", "--commissions={commissions:json} --db={db} --conversion-name={conversion_name} --window-days={window_days}", "转化、撤销、摘要"),
-    "ledger.subid": ("core/ledger/subid.py", "{operation} {argument} --db={db} --n={n} --since={since} --out={out} --url={url} --token={token} --campaign={campaign}", "mint/lookup/stats/record/import/pull/export 的结果"),
+    "ledger.subid": ("core/ledger/subid.py", "{operation} {argument} --db={db} --n={n} --since={since} --out={out} --url={url} --token={token} --campaign={campaign} --gclid-kind={gclid_kind}", "mint/lookup/stats/record/import/pull/export 的结果"),
     "loop.run": ("core/loop/daily.py", "--config={config} --run-id={run_id}", "日志；结果取 runs/<id>/report.json"),
     "loop.simulate": ("core/loop/daily.py", "--simulate-days={days} --runs-dir={runs_dir}", "生成的离线样例天数、目录"),
     "selfcheck.acceptance": ("core/selfcheck/validate.py", "--acceptance {runs_dir} --ledger={ledger}", "验收判定、证据类型或失败原因"),
     "judge.calibrate": ("core/judge/calibrate.py", "--runs-dir={runs_dir} --ledger={ledger} --soul={soul} --config={reference_config}", "阈值提议、样本数、依据和本地文件名"),
+    "judge.eval": ("core/judge/eval_provider.py", "--provider={provider} --soul={soul} --benchmark={benchmark} --config={config}", "感知层评测得分、L2 过线与样本详情"),
     "loop.ack": ("core/loop/daily.py", "--ack={run_id} --config={config}", "确认的动作数"),
+    "selfcheck.preflight": ("core/selfcheck/preflight.py", "--config={config}", "上线前配置、币种、OAuth scope 与落地位只读自检"),
     "selfcheck.validate": ("core/selfcheck/validate.py", "--file {schema} {document:json}", "文本判定转 JSON"),
+    "dsh.handoff": ("integrations/dsh/handoff.py", "--report={report} --memory={memory} --config={config}", "向同级 dsh-memory 追加单行摘要（仅编号/状态/退出码/needs_human）"),
 }
 # Bindings describe the actual script argv. Unset optional fields are omitted.
 # :json and :text materialize request data in a private temporary directory.
@@ -33,7 +36,7 @@ PLUGIN = {
     "deploy.setup": ("--host={host} --teardown={teardown:flag}", "部署步骤、资源状态"),
     "deploy.publish": ("--page={page:text} --slug={slug} --site={site:flag} --site-name={site_name} --contact={contact} --offers={offers:json}", "host、已推页面或 offer 数"),
     "deploy.status": ("", "host 与 health"),
-    "judgment.judge": ("--config={judgment_config:literal}", "stdin judgment.request → 提供者选择或感知向量"),
+    "judgment.judge": ("--config={judgment_config:literal} --soul={soul}", "stdin judgment.request → 提供者选择或感知向量"),
     "keywords.suggest": ("suggest --seed={seed:csv} --url={url} --country={country} --language={language} --limit={limit} --batch={batch:json}", "候选词 rows 或分组 results"),
     "keywords.volume": ("volume --keywords={keywords:csv} --country={country} --language={language}", "已有词的历史指标 rows"),
     "traffic.spec": ("--brief={brief:json} --config={config}", "traffic-spec"),
@@ -81,6 +84,8 @@ def entry(identifier, script, template, apis, status):
 def discover():
     entries = [entry(i, script, template, [], "alpha") for i, (script, template, _) in CORE.items()]
     for path in sorted((ROOT / "plugins").glob("*/*/manifest.json")):
+        if "_template" in path.parts:
+            continue
         manifest = read(path)
         for action, target in manifest["actions"].items():
             key = manifest["kind"] + "." + action
@@ -143,8 +148,11 @@ BASELINE = {
     "loop.simulate": ("--simulate-days N --runs-dir DIR", "内置离线 fixtures", "2.1.1 新增"),
     "selfcheck.acceptance": ("--acceptance RUNS [--ledger DB]", "七天报告和匹配账本", "2.1.1 新增"),
     "judge.calibrate": ("--runs-dir DIR [--ledger DB --soul FILE]", "报告、账本、SOUL 阈值", "2.1.1 新增"),
+    "judge.eval": ("--provider P [--soul FILE] [--benchmark FILE] [--config FILE] [--apply]", "benchmark JSON、SOUL、提供者", "感知层对比评测"),
     "loop.ack": ("--ack RUN_ID [--config]", "run ID、账本", "无"),
+    "selfcheck.preflight": ("[--config FILE] [--apply]", "本地配置、环境变量、只读账户/落地位端点", "上线前总检"),
     "selfcheck.validate": ("--all/--manifests/--config/--file/--report/--judgment/--spec/--traffic-report/--commissions", "schema 与待验 JSON", "各被校验对象已有 schema"),
+    "dsh.handoff": ("--report FILE --memory DIR [--config FILE]", "report.json 与同级 dsh-memory 仓", "仅安全摘要行"),
     "affiliate.offers": ("[--json FILE] [--out] [供应商筛选项]", "本地 offers 数组或服务商账户", "无"),
     "affiliate.link": ("--base URL --token SUB_ID", "联盟链接与归因标记", "无"),
     "affiliate.commissions": ("[--csv FILE/--days N] [--out]", "CSV 或服务商账户", "输出 commissions"),
@@ -152,7 +160,7 @@ BASELINE = {
     "deploy.setup": ("[--host] [--teardown] [--apply]", "主机名、本地部署记录和账户", "无"),
     "deploy.publish": ("[--page FILE --slug] [--site --site-name --contact] [--offers FILE]", "HTML、站点元资料或 offers JSON", "无"),
     "deploy.status": ("[--roundtrip --offer --slug]", "本地部署记录、健康端点", "无"),
-    "judgment.judge": ("[--config JSON]；stdin JSON", "judgment.request", "输入 judgment；感知响应无"),
+    "judgment.judge": ("[--config JSON] [--soul FILE]；stdin JSON", "judgment.request", "输入 judgment；感知响应无"),
     "keywords.suggest": ("suggest [--seed CSV --url/--batch FILE] [--country --language --limit --out]", "种子词、URL 或批量 JSON", "无"),
     "keywords.volume": ("volume --keywords CSV [--country --language --out]", "词列表与账户区域", "无"),
     "traffic.spec": ("--brief FILE [--config --soul --out]", "brief JSON 与 SOUL", "输出 traffic-spec"),
