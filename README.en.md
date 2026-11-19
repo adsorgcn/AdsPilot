@@ -25,43 +25,49 @@ At half past six the scheduler starts `core/loop/daily.py`. It self-checks, pull
 ## The skeleton at a glance
 
 ```
-core/       agent adaptation & self-check · launch · lp · judge (f_v5 frozen) · ledger (sub-id attribution & reconciliation) · loop · selfcheck
-plugins/    traffic/google-ads · affiliate/{cj,impact} · judgment/{llm,jev,soul-api} · deploy/cloudflare · keywords · ipintel
-soul/       default SOUL, SOUL interface, SOUL API interface
-schemas/    manifest · judgment · report · traffic-spec · traffic-report · commissions
-reference/  pinned iLang runtime · affiliate-design · v1 handoff
+core/         agent adaptation & MCP · launch · lp · judge (f_v5 frozen), eval & calibration · ledger · loop & sentinel · selfcheck & preflight
+plugins/      traffic/google-ads (with oauth_helper) · affiliate/{cj,impact} · judgment/{llm,jev,soul-api,_template} · deploy/cloudflare · keywords · ipintel
+skills/       DSH runtime skill (sem, triggered by SEM or 付费投流)
+BOOK.md       iLang v5 engineering book (M0_SETUP..M5_REPORT, served via adspilot_book)
+integrations/ host wiring: DSH Cordis bundle entry (index.mjs), MCP template, handoff & tests
+soul/         default SOUL, SOUL interface, SOUL API interface
+schemas/      manifest · judgment · report · traffic-spec · traffic-report · commissions · 39 interface schemas
+reference/    pinned iLang runtime & grammar validator · affiliate-design · v1 handoff
 ```
 
 The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's sign-off.
 
 ## Where things stand
 
-As of 2026-11-06, version 2.1.4. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-11-19, version 2.2.0. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
-| Agent adaptation & self-check | done | three identical entry files, fourteen checks (twelve in the loop's quick mode), pinned iLang runtime verification; CRLF checkout, GBK console and missing time-zone data verified on Windows 11, all self-tests pass |
-| Launch (three keys in, one campaign out) | **live-tested on a real account** | on reviews.aixray.dev: landing site built from nothing, page published, campaign created, one real click into the ledger, no human in between, then torn down |
+| Agent adaptation & self-check | done | three entry files share identical body text, fourteen checks (twelve in quick mode), pinned iLang runtime verification; verified on Linux and Windows 11 |
+| Dual-scope OAuth helper & preflight | done | `oauth_helper.py` (PKCE for `adwords` + `datamanager`) and `preflight.py` (currency match, scopes, landing health/export probe) pass offline and loopback self-tests; live probe requires real accounts |
+| Launch (three keys in, one campaign out) | **live-tested on a real account** | on reviews.aixray.dev: landing site built from nothing, page published, campaign created, one real click into the ledger, no human in between, then torn down (2.0.9) |
 | Landing page | done | template and compliance check pass self-test; one page published on a real domain during launch |
-| Judgment (f_v5 frozen) | done | judgment blocks verified by the canonical iLang validator; providers are perception only |
-| Attribution & reconciliation | done | sample data only |
-| Unattended loop | done | sample data only; seven-day acceptance not run; user decisions expire and have a money limit |
-| Default SOUL | done | money defined in USD and converted to the account currency; no bid or budget constants, the bid fallback and budgets follow Google's recommendation; bidding defaults to maximize clicks with the per-click limit set to the bid cap; custom boundaries are enforced by code and judgment plugins follow the configured SOUL; thresholds copied from the SOP, not yet calibrated on real data |
-| Plugin Google Ads | **live-tested on a real account** | create campaign, adjust budget and bids, pause keyword, add negative, remove campaign, pull report, Data Manager conversion upload (validate-only): all pass; under maximize clicks Google's budget recommendation comes through, the whole campaign passes validate-only in one batch, and the per-click limit of a real campaign was changed, read back and left alone on a second run |
+| Judgment (f_v5 frozen) & L2 eval | done | judgment blocks verified by canonical iLang validator; `provider_chain` fallback, `eval_provider.py` L2 evaluation and dynamic boundary checks pass offline self-tests |
+| Attribution & reconciliation | done | adds `schema_version=1`, uploaded conversion cursor, chargeback reconciliation and pull truncation guard; sample and cursor regression self-tests pass |
+| Unattended loop & sentinel | done | adds `retry_later` deferral, per-run FX/dedupe snapshots, 7-day fixture simulation and optional `ADSPILOT_NOTIFY_WEBHOOK` sanitized alerts (selftests and local loopback probe pass); real 7-day run still needs a student environment |
+| Default SOUL | done | money in USD converted to account currency; bids and budgets follow Google recommendations; bidding defaults to maximize clicks; custom boundaries enforced in code; thresholds await real-data calibration |
+| Plugin Google Ads | **live-tested on a real account** | campaign CRUD, bids, pause/negative, report pull and Data Manager upload (validate-only) verified in 2.0.x; new `oauth_helper.py` verified via offline selftest |
 | Plugin CJ | **live-tested on a real account** | offers (187 advertisers, paged), link with sid, commissions in windows, chargebacks: all pass (read-only) |
-| Plugin Impact | **read-only test with real credentials** | auth passes; the account has joined no program yet, so offers, commissions and chargebacks return 0 rows; Contracts returns 403 until the token gets that scope and the plugin degrades as designed; the API exposes no EPC, so epc stays null; real rows with a joined program not yet checked |
-| Plugin judgment llm / jev / soul-api | code complete | never connected to real endpoints; jev waits for docs; soul-api server not built |
+| Plugin Impact | **read-only test with real credentials** | auth passes; with zero joined programs offers/commissions/chargebacks return 0 rows and Contracts degrades gracefully on 403; `epc` stays null until post-launch report data |
+| Plugin judgment llm / jev / soul-api / _template | done | aligned `--soul` and JSON contracts, plus `_template` and local loopback selftests; real paid endpoints not called |
 | Plugin Cloudflare landing site | **live-tested on a real account** | one key builds KV, Worker, domain and certificate; page 200, /go 302 with sid, /export into the ledger: all pass |
 | Offer rule 1 (keyword bid < earnings per click) | **live-tested on a real account** | top 10 CJ offers checked against real bids: 3 pass, 7 out; passing keywords go straight to campaign creation |
 | Plugin keywords (Google Ads Keyword Planner) | **live-tested on a real account** | homepage URL as seed yields category keywords with monthly searches and top-of-page bids |
-| DSH skill, MCP and handoff | alpha | local samples |
-| JSON CLI and MCP | alpha | offline self-tests |
+| DSH 3.1 bundle, Engineering Book & handoff | done | ships in-repo npm bundle `adspilot`, `BOOK.md`, `sem` skill (`SEM` / `付费投流`), `adspilot_book` paginated tool and `dsh.handoff`; 16 Node tests and strict iLang lint pass |
+| JSON CLI and MCP | done | 39 interfaces (15 core + 24 plugin), `mcp_server.py` 7800-char compaction and exit-4 diagnostics pass offline self-tests |
 | Plugin ipintel (ipapi.is) | alpha | offline sample |
-| Seven-day acceptance and calibration proposals | alpha | fixture self-tests |
+| Seven-day acceptance and calibration proposals | done | read-only ledger P90 attribution lag plus per-run FX/dedupe snapshots; 7-day simulation acceptance and calibration self-tests pass; live 7-day run requires student environment |
 
-The previous launch record covers the landing site, campaign and ledger in the historical table above. This series adds interfaces with offline evidence. SOUL calibration and seven unattended days still require a real student environment.
+The previous live-account records remain in the table above. Release 2.2.0 completes the single-line automation hardening, judgment evaluation ecosystem, preflight onboarding, and DSH 3.1 engineering-book bundle using offline self-tests, Node tests, and local loopback drills, without new live-account runs; SOUL threshold calibration and a real seven-day run still belong to a student's environment.
 
 ## Progress log
+
+**2026-11-19, 2.2.0.** Completed the single-line unattended loop hardening, pluggable judgment evaluation ecosystem, cold-start onboarding checks, and in-repo DSH 3.1 Engineering Book bundle while keeping `f_v5` untouched byte for byte. First, the core loop and SQLite ledger were hardened for long unattended runs: `daily.py` handles Data Manager `retry_later` propagation delays, reconciles chargebacks, and records per-run `fx.json` and dedupe snapshots; `reconcile.py` and `subid.py` add `schema_version=1`, uploaded-conversion cursors, transactional updates, and truncated pull detection; `sentinel.sh` optionally posts credential-free alerts to `ADSPILOT_NOTIFY_WEBHOOK`. Second, judgment gained ordered multi-provider fallback via `judgment.provider_chain`, an L2 benchmark evaluator (`core/judge/eval_provider.py` and `judge.eval`) wired to `ilang_judge_validator.py`, a custom-plugin starter (`plugins/judgment/_template/`), unified `--soul`/JSON handling across `llm`, `jev`, and `soul-api`, and ledger-driven P90 calibration in `calibrate.py`. Third, cold-start onboarding added PKCE dual-scope `oauth_helper.py` (`adwords` + `datamanager`) and `preflight.py` (`selfcheck.preflight`) to verify currency alignment, OAuth scopes, and Cloudflare `/health` + `/export` before spending real budget. Fourth, AdsPilot itself ships as an in-repo DSH 3.1 bundle (`package.json` named `"adspilot"`, `cordis.patch.yml`, `skills/sem.md` triggered by `SEM` or `付费投流`, `BOOK.md` from `M0_SETUP` to `M5_REPORT`, `integrations/dsh/index.mjs` with `adspilot_book` pagination and mirror digest checks, and 16 Node tests) with entry files updated for DSH 3.1 credential ledgers. All offline self-tests, 39 interface checks, 16 Node tests, and strict iLang lints pass; no new live-account testing was run.
 
 **2026-11-06, 2.1.4.** Records the test changes from 302291f. The Windows task-template test checks both the PowerShell exit code and its completion marker, preventing a placeholder process that merely returns zero from passing, and includes captured error output on failure. Regression assertions preserve the original runs and data/outbox references for default same-drive paths; ResourceWarning from legacy scripts is ignored only inside that path regression test. The test commit passed CI on Linux and Windows with Python 3.9 and 3.12; no new live-account testing was performed.
 
@@ -124,11 +130,12 @@ The previous launch record covers the landing site, campaign and ledger in the h
 ```bash
 git clone https://github.com/adsorgcn/AdsPilot && cd AdsPilot
 python3 core/agent/selfcheck.py                       # does this machine qualify for unattended operation
-cp config/adspilot.example.json config/adspilot.json  # your values; credentials go in environment variables
+cp config/adspilot.example.json config/adspilot.json  # your values; credentials stay in env vars or DSH 3.1 ledger
+python3 core/selfcheck/preflight.py                   # preflight check (add --apply to probe currency, scopes & site)
 python3 core/loop/daily.py --dry-run                  # one round, writes nothing external
 ```
 
-Entry files: `CLAUDE.md` (Claude Code), `AGENTS.md` (Codex and others), `.cursor/rules/` (Cursor). Same content. Then install the scheduler per `core/loop/使用方法.md`, one round a day.
+Entry files: `CLAUDE.md` (Claude Code), `AGENTS.md` (Codex and others), `.cursor/rules/` (Cursor) — same body with agent-specific headers. Inside DeepSeek Harness (DSH), you can also load the `adspilot` bundle and say `SEM` or `付费投流` to follow `BOOK.md` step by step. Then install the scheduler per `core/loop/使用方法.md`, one round a day.
 
 ## Versioning and license
 

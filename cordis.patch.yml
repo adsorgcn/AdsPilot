@@ -1,0 +1,7 @@
+# AdsPilot（SEM / 付费投流）：注册技能「sem」与工程书工具「adspilot_book」。
+# 触发口令：SEM、付费投流。本地执行工具通过 integrations/dsh/mcp.json 接入。
+- insert:
+    - id: adspilot
+      name: 'adspilot'
+      config:
+        liveBook: true

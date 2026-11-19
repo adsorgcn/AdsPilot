@@ -2,6 +2,20 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。本文件记细节，README 的「进度记录」记叙事，每版两处都写。
 
+## 2.2.0（2026-11-19）单线无人值守闭环、判断生态、开局总检与 DSH 3.1 工程书插件包
+
+将 AdsPilot 从可调用的模块集推至可无人值守跑通单线投放与 DSH 3.1 原生接入的状态；冻结内核 `core/judge/judge.py` 的 `WEIGHTS`、`TH`、`f_v5`、`ADJUST_ORDER_*` 与 `local_choice` 逐字不变。
+
+一，单线循环、账本与统一接口加固：`core/loop/daily.py` 加入 Data Manager 新建转化操作传播期 `retry_later` 自动延续、负额拒付（chargebacks）对账、每轮 `fx.json` 与去重状态落盘；`core/ledger/reconcile.py` 与 `core/ledger/subid.py` 增加 `schema_version=1`、已上传转化游标、事务一致性与 `/export` 拉取截断保护；`plugins/traffic/google-ads/{report_api,convert_api,convert_export}.py` 补全诊断、幂等与游标回传；`core/loop/sentinel.sh` 在已有本地日志告警之外新增可选 `ADSPILOT_NOTIFY_WEBHOOK` POST（只含轮次、状态、退出码与耗时，不含任何凭据或原始点击标识）；`core/judge/calibrate.py` 支持结合只读 SQLite 账本统计点击到转化的 P90 归因窗口并按当轮 `fx.json` 与去重快照输出阈值校准建议；`schemas/interfaces.json` 与 `core/agent/{interfaces,interface_runner,mcp_server}.py` 扩充至 39 个接口（15 项主干、24 项插件），MCP 服务支持单次调用参数绑定配置、7800 字符有效 JSON 裁剪及 exit 4 凭据诊断。
+
+二，判断感知插件生态与 L2 评测：`core/judge/judge.py` 新增 `judgment.provider_chain` 顺序回退链（任一外部感知提供者缺环境变量、超时或响应无效时干净回退至 `local` 并在输出标 `fallback: true`）；新增 `core/judge/eval_provider.py`（注册接口 `judge.eval`）与 `tests/fixtures/judge-benchmark.json`，对齐正典 `reference/ilang/ilang_judge_validator.py` 自动化核验感知层 L2 五项门槛（`schema_rate >= 0.99`、`mode_acc >= 0.90`、`mae <= 0.12`、`boundary_acc >= 0.80`、`jcs >= 0.90`，外部提供者有回退不通过）；新增 `plugins/judgment/_template/` 供外部开发感知插件；`plugins/judgment/{llm,jev,soul-api}/provider.py` 对齐 `--soul` 与统一契约并补充本地测试；`core/agent/interface_checks.py` 新增自定义判断插件动态 `::BOUNDARY` 执行检查。
+
+三，冷启动 OAuth 与上线前总检：新增 `plugins/traffic/google-ads/oauth_helper.py`，以桌面回环 + PKCE 一次性申请 `adwords` 与 `datamanager` 双作用域 refresh token（支持 `--no-browser` 与 `--manual`、仓库外 `0600` 文件输出及 `--check` 范围校验）；新增 `core/selfcheck/preflight.py`（注册接口 `selfcheck.preflight`），默认离线核查配置、`SOUL` 与 `fx`、判断提供者与环境变量，显式传 `--apply` 时只读探测 Google Ads 账户币种是否等于 `config.currency`、OAuth 双 scope 及 Cloudflare 落地位 `/health` 与 `/export` 鉴权。
+
+四，DSH 3.1 同仓工程书插件包：在当前仓库内提供完整 DSH 插件形态（不另建仓库），根目录增加 `package.json`（npm 包名 `adspilot`，`dsh.bundle.patch` 指向 `./cordis.patch.yml`）、`cordis.patch.yml`（声明式挂入 `id: adspilot`）、`skills/sem.md` 与 `.dsh/skills/sem/SKILL.md`（触发词为 `SEM` 与 `付费投流`）、完整 `::ILANG::v5.0::ENGINEERING_BOOK` 工程书 `BOOK.md`（`M0_SETUP` 至 `M5_REPORT`、8 条 `::RUBRIC`、7 条 `::FALLBACK`）、`integrations/dsh/index.mjs`（导出 `adspilot` Cordis 插件、`sem` 技能与 `adspilot_book` 分页工具，内置 8000 字符分片、GitHub/Gitee 双源清单 `sha256_lf` 验签、1 小时缓存与离线包内副本回退）及 `integrations/dsh/plugin.test.mjs`（16 项 Node 测试）；同步更新 `integrations/dsh/SKILL.md`、`AGENTS.md`、`CLAUDE.md` 与 `.cursor/rules/adspilot.mdc` 的共享正文，对齐 DSH 3.1 凭据账本（`env/ledger.env` + `env/keys.env` / `grant`）流程。
+
+自测与真实世界：全部离线自测（`tests/run.sh`、39/39 接口自测、`mcp_server.py --selftest`、`eval_provider.py --selftest`、`calibrate.py --selftest`、`oauth_helper.py --selftest`、`preflight.py --selftest`、`sentinel.sh` 临时本地回环告警演练、`node --test integrations/dsh/plugin.test.mjs` 16/16 项，以及钉版 iLang 校验器对 `CONTRIBUTING.md`、三份入口文件、`BOOK.md` 与 `.dsh/skills/sem/SKILL.md` 的严格检查）全过；没有新增真实广告或联盟账号实测。
+
 ## 2.1.4（2026-11-06）补齐 Windows 模板与路径回归测试版本记录
 
 补齐 302291f 的测试改动记录。Windows 任务模板自测同时检查 PowerShell 退出码与完成标记，避免仅返回 0 的占位程序被误判为执行成功；失败时显示捕获的错误输出。补充默认同盘 runs 与 data/outbox 路径引用保持原格式的回归断言，并仅在该路径回归用例内忽略旧脚本的 ResourceWarning。该测试提交已通过 Linux、Windows 的 Python 3.9 与 3.12 CI；没有新增真实账号实测。

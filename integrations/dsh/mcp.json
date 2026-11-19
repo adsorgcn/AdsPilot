@@ -15,7 +15,7 @@
           ],
           "env": {},
           "cwd": "/home/learner/AdsPilot",
-          "toolCallTimeoutMs": 60000,
+          "toolCallTimeoutMs": 300000,
           "closeTimeoutMs": 5000,
           "expandTemplates": false,
           "failOnStartupError": true

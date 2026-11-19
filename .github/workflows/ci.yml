@@ -33,6 +33,6 @@ jobs:
       - name: Verify pinned grammar checker and lint entry files
         run: |
           python -c "import hashlib,json,pathlib,sys; p=pathlib.Path('reference/ilang'); s=json.loads((p/'ilang_grammar_validator.source.json').read_text()); sys.exit(hashlib.sha256((p/s['file']).read_bytes()).hexdigest() != s['sha256'])"
-          python reference/ilang/ilang_grammar_validator.py --lint CONTRIBUTING.md AGENTS.md CLAUDE.md .cursor/rules/adspilot.mdc --strict
+          python reference/ilang/ilang_grammar_validator.py --lint CONTRIBUTING.md AGENTS.md CLAUDE.md .cursor/rules/adspilot.mdc BOOK.md .dsh/skills/sem/SKILL.md --strict
       - name: Run offline selftests
         run: bash tests/run.sh

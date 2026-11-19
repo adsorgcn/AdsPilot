@@ -27,8 +27,8 @@
 
 ## 顺序
 
-1. `python3 core/agent/selfcheck.py`，有一项 fail 就停，把结果贴给用户，不硬跑。
-2. `core/agent/使用方法.md`（适配与自检）→ `core/loop/使用方法.md`（日常循环）→ 需要哪块再读哪块的使用方法。
+1. `python3 core/agent/selfcheck.py`，有一项 fail 就停，把结果贴给用户，不硬跑；实盘前再跑 `python3 core/selfcheck/preflight.py`（加 `--apply` 核对 Google Ads 币种、OAuth 双 scope 与落地位 `/health`、`/export`）。
+2. `core/agent/使用方法.md`（适配与自检）→ `core/loop/使用方法.md`（日常循环）→ 需要哪块再读哪块的使用方法；DSH 宿主下也可通过工程书工具 `adspilot_book` 按段读取 `BOOK.md`。
 3. 直接运行既有脚本时，按该脚本的使用方法；用户在 `config/adspilot.json` 里写了 `"apply": true` 或命令带 `--apply` 可授权执行。统一入口与 MCP 对外写入要求请求与本机配置同时开启 apply。
 
 ## 硬规矩
@@ -45,11 +45,11 @@
 
 ## 宿主是 DSH 时
 
-1. 在 DSH 记忆仓库（通常叫 `dsh-memory`）的同级目录克隆 AdsPilot。记忆仓库会推到用户的私有仓库，`tools/brain.py check` 会扫描其中的密钥形态。AdsPilot 的 `config/`、`runs/`、`data/` 全部留在 AdsPilot。
-2. 每轮生成 `runs/<id>/report.json` 后，DSH 从 AdsPilot 根目录执行 `python3 integrations/dsh/handoff.py --report runs/<id>/report.json --memory ../dsh-memory`。它只向记忆仓库的 `handoff/CURRENT.md` 追加一行摘要；只取本轮编号、状态、退出码与是否需本人处理。
-3. 三组平台凭据由学员放入 DSH 的 age 加密 vault。设置任务计划时，从已解锁的本机凭据源向任务进程注入所需环境变量，凭据值只留在该进程；保存任务、记忆或日志时只写变量名。宿主缺少这一步时先做 dry-run，暂缓启用定时投放。
-4. 判断提供者选 `llm` 时，设置 `LLM_BASE_URL=https://api.deepseek.com/v1`，`LLM_MODEL` 填学员账户支持的 DeepSeek 模型，`LLM_API_KEY` 从自己的 vault 注入，费用由学员自己的账户承担。
-5. 调 MCP 时，把 `integrations/dsh/mcp.json` 中的路径和 Python 命令改成学员本机的绝对路径与解释器，作为 DSH Cordis 用户覆盖配置中的一条 `insert` 接入。以启动后发现的工具名为准。这个样例供无凭据自测；DSH 会过滤凭据形态的父进程环境变量。确需调用平台时，由宿主在获准的 Cordis YAML 插件行中显式映射本次需要的环境变量，例如在 `config.env` 下设置 `CJ_ACCESS_TOKEN: !!js process.env.CJ_ACCESS_TOKEN`，值由本机的 vault 注入父进程。官方 [MCP 客户端使用方法](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/mcp-client/README.md) 和 [Cordis 配置样例](https://github.com/deepseek-ai/deepseek-harness/blob/master/apps/cli/config/examples/mcp-memory/mcp-reference-memory.cordis.yml) 说明了配置格式。
+1. 在 DSH 记忆仓库（通常叫 `dsh-memory`）的同级目录克隆 AdsPilot；也可以通过根目录插件组合包 `package.json`（npm 包名 `adspilot`、`cordis.patch.yml`、`skills/sem.md`、`BOOK.md`、`integrations/dsh/index.mjs`）接入 DSH，说出「SEM」或「付费投流」即可唤醒 `sem` 技能与 `adspilot_book` 工程书工具。记忆仓库会推到用户的私有仓库，扫描工具会检查其中的密钥形态。AdsPilot 的 `config/`、`runs/`、`data/` 全部留在 AdsPilot。
+2. 每轮生成 `runs/<id>/report.json` 后，DSH 从 AdsPilot 根目录执行 `python3 integrations/dsh/handoff.py --report runs/<id>/report.json --memory ../dsh-memory`（或调 MCP 工具 `dsh.handoff`）。它只向记忆仓库的 `handoff/CURRENT.md` 追加一行摘要；只取本轮编号、状态、退出码与是否需本人处理。
+3. 三组平台凭据（Google Ads 缺双 scope token 时用 `plugins/traffic/google-ads/oauth_helper.py` 走 PKCE 一次取得）由学员存入 DSH 3.1 凭据账本（`env/ledger.env` + `env/keys.env`，经 `tools/brain.py grant` 在启动任务或子进程时注入所需环境变量）或仓库外 `0600` 环境文件，凭据值只留在该进程；保存任务、记忆或日志时只写变量名。宿主缺少这一步时先做 dry-run，暂缓启用定时投放。
+4. 判断提供者选 `llm` 时，设置 `LLM_BASE_URL=https://api.deepseek.com/v1`，`LLM_MODEL` 填学员账户支持的 DeepSeek 模型，`LLM_API_KEY` 从自己的账本或环境变量注入，费用由学员自己的账户承担；多提供者回退用 `judgment.provider_chain`，对比评测用 `core/judge/eval_provider.py`（MCP `judge.eval`），自定义感知插件模板在 `plugins/judgment/_template/`。
+5. 调 MCP 时，把 `integrations/dsh/mcp.json` 中的路径和 Python 命令改成学员本机的绝对路径与解释器，作为 DSH Cordis 用户覆盖配置中的一条 `insert`（`id: mcp-adspilot`）接入。以启动后发现的工具名为准。这个样例供无凭据自测；DSH 会过滤凭据形态的父进程环境变量。确需调用平台时，由宿主在获准的 Cordis YAML 插件行中显式映射本次需要的环境变量，例如在 `config.env` 下设置 `CJ_ACCESS_TOKEN: !!js process.env.CJ_ACCESS_TOKEN`，值由本机的账本或环境变量注入父进程。官方 [MCP 客户端使用方法](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/mcp/mcp-client/README.md) 和 [Cordis 配置样例](https://github.com/deepseek-ai/deepseek-harness/blob/master/apps/cli/config/examples/mcp-memory/mcp-reference-memory.cordis.yml) 说明了配置格式。
 
 ## 术语
 
