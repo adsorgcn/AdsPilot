@@ -4,7 +4,8 @@
 无人值守日常循环（主干，循环部件）
 
 一轮做八件事：自检 → 拉映射 → 拉投放报表 → 拉佣金明细 → 对账 → 逐节点判断 → 生成动作与上传文件 → 写本轮报告与记账。
-每一步都幂等，都有日志；默认 dry-run，只有 config.apply 为 true 或 --apply 才对外部产生写操作。
+每一步都幂等，都有日志；默认 dry-run 预览，单独设置 config.apply 绝不授权写入，
+只有命令显式带 --apply（且无 --dry-run）同时 config.apply 为布尔值 true 时才允许外部写操作与交付文件。
 执行 Agent 按 core/loop/使用方法.md 装到调度器里，每天跑一次。
 
 用法：
@@ -12,7 +13,7 @@
   python3 core/loop/daily.py --ack <run_id>          # Agent 手动做完 actions-todo 后回填 applied
   python3 core/loop/daily.py --selftest              # 用 tests/fixtures 跑一轮 dry-run
 
-退出码：0 正常；2 需要本人出手（有 M6/M8 或 needs_human）；3 自检或外部步骤失败；4 配置缺失；1 其他。
+退出码：0 正常；2 需要本人出手（有 M6/M8 或 needs_human）；3 自检或外部步骤失败；4 配置缺失或写门拒绝；1 其他。
 只用标准库。
 """
 import hashlib
@@ -34,6 +35,7 @@ for p in ("core/judge", "core/ledger", "core/selfcheck"):
 import judge as J  # noqa: E402
 import subid  # noqa: E402
 import reconcile as R  # noqa: E402
+import write_gate as WG  # noqa: E402
 from validate import load_schema, validate  # noqa: E402
 
 VERSION = open(os.path.join(ROOT, "VERSION"), encoding="utf-8").read().strip()
@@ -66,7 +68,8 @@ def _date(s):
 
 class Run:
     def __init__(self, cfg, run_id, apply):
-        self.cfg, self.run_id, self.apply = cfg, run_id, apply
+        resolved_apply = WG.resolve_write_mode(cfg, request_apply=apply, request_dry_run=False)
+        self.cfg, self.run_id, self.apply = cfg, run_id, resolved_apply
         self.runs_dir = self._abs(cfg.get("runs_dir", "runs"))
         self.data_dir = self._abs(cfg.get("data_dir", "data"))
         self.dir = os.path.join(self.runs_dir, run_id)
@@ -546,7 +549,8 @@ class Run:
                 if resp["choice"] == "bid_down":   # 尽可能多点击的系列：执行端把每次点击上限设成这个数
                     item["bid_cap"] = J.bid_cap_for(st, caps)
                 todo.append(item)
-                self.record_action("campaign.adjust", c, resp, applied=False, note="todo: 由流量插件 deploy 动作或 Agent 在后台执行")
+                note = "todo: 由流量插件 deploy 动作或 Agent 在后台执行" if self.apply else "preview: write requires --apply and config.apply=true"
+                self.record_action("campaign.adjust", c, resp, applied=False, note=note)
             else:
                 self.record_action("campaign.adjust", c, resp, applied=False, note="proposal only (%s)" % resp["mode_local"])
         # keyword.action（只对有点击的词）
@@ -570,7 +574,8 @@ class Run:
             resp = self.decide("keyword.action", st, ["keep", "pause", "bid_down", "negative"], target=tgt)
             if resp["choice"] != "keep" and J.executes(resp):
                 todo.append({"node": "keyword.action", "target": tgt, "choice": resp["choice"], "state": st, "reason": resp["judge"]["reason"]})
-                self.record_action("keyword.action", tgt, resp, applied=False, note="todo")
+                self.record_action("keyword.action", tgt, resp, applied=False,
+                                   note="todo" if self.apply else "preview: write requires --apply and config.apply=true")
             elif resp["choice"] != "keep":
                 self.record_action("keyword.action", tgt, resp, applied=False, note="proposal only (%s)" % resp["mode_local"])
         # conversion.upload
@@ -581,10 +586,18 @@ class Run:
             resp = self.decide("conversion.upload", st, ["upload", "hold"], target="conversions")
             if resp["choice"] == "upload" and J.executes(resp):
                 upload = resp
-            self.record_action("conversion.upload", "conversions", resp, applied=False, note="见 outbox 上传文件" if upload else "hold")
+            conv_note = ("见 outbox 上传文件" if self.apply else "preview: conversion export/upload skipped") if upload else "hold"
+            self.record_action("conversion.upload", "conversions", resp, applied=False, note=conv_note)
         return todo, upload
 
     def step_execute(self, todo, upload, rec):
+        if not self.apply:
+            if todo:
+                self.log("preview: %d planned actions omitted actions-todo.json (apply=false)" % len(todo))
+            if upload and rec:
+                self.log("preview: conversion upload/export omitted outbox csv (apply=false)")
+            self.con.commit()
+            return
         t = self.cfg.get("traffic") or {}
         d, m = self.plugin("traffic", t.get("plugin", "google-ads"))
         if todo:
@@ -696,8 +709,10 @@ class Run:
                        "currency": report["summary"]["currency"], "fx": rates}, fp)
 
     def finish(self, exit_code, summary):
+        db_summary = dict(summary or {})
+        db_summary["mode"] = "apply" if self.apply else "preview"
         self.con.execute("INSERT OR REPLACE INTO runs(run_id,started_at,finished_at,exit_code,summary) VALUES(?,?,?,?,?)",
-                         (self.run_id, self.started, subid.now_iso(), exit_code, json.dumps(summary, ensure_ascii=False)))
+                         (self.run_id, self.started, subid.now_iso(), exit_code, json.dumps(db_summary, ensure_ascii=False)))
         self.con.commit()
         self.log("::STATUS{@RUN|state:%s|exit:%d|by:@SELF|authority:proposal}" % ({0: "claimed_complete", 2: "blocked", 3: "stopped"}.get(exit_code, "needs_revision"), exit_code))
         self.log_fp.close()
@@ -707,13 +722,24 @@ def load_cfg(path):
     p = path or os.path.join(ROOT, "config", "adspilot.json")
     if not os.path.exists(p):
         return None
-    return json.load(open(p, encoding="utf-8"))
+    try:
+        cfg = json.load(open(p, encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise WG.WriteGateError("invalid config JSON: %s" % exc, code=4)
+    if not isinstance(cfg, dict):
+        raise WG.WriteGateError("config must be a JSON object", code=4)
+    return cfg
 
 
-def run_once(cfg, run_id=None, apply=False):
+def run_once(cfg, run_id=None, apply=False, dry_run=False):
+    try:
+        resolved_apply = WG.resolve_write_mode(cfg, request_apply=apply, request_dry_run=dry_run)
+    except WG.WriteGateError as exc:
+        print("write gate rejected: %s" % exc, file=sys.stderr)
+        return exc.code
     run_id = run_id or time.strftime("run-%Y%m%d-%H%M%S")
-    run = Run(cfg, run_id, apply)
-    run.log("adspilot %s run %s mode=%s soul=%s provider=%s" % (VERSION, run_id, "APPLY" if apply else "dry-run", run.soul["id"], (cfg.get("judgment") or {}).get("provider")))
+    run = Run(cfg, run_id, resolved_apply)
+    run.log("adspilot %s run %s mode=%s soul=%s provider=%s" % (VERSION, run_id, "APPLY" if resolved_apply else "dry-run", run.soul["id"], (cfg.get("judgment") or {}).get("provider")))
     try:
         if not run.step_selfcheck():
             run.finish(3, {"error": "selfcheck"}); return 3
@@ -738,9 +764,26 @@ def run_once(cfg, run_id=None, apply=False):
 
 def ack(cfg, run_id):
     data_dir = cfg.get("data_dir", "data")
-    con = subid.open_db(os.path.join(data_dir if os.path.isabs(data_dir) else os.path.join(ROOT, data_dir), "ledger.db"))
-    n = con.execute("UPDATE actions SET applied=1, applied_at=? WHERE run_id=? AND applied=0 AND note LIKE 'todo%'", (subid.now_iso(), run_id)).rowcount
-    con.commit()
+    runs_dir = cfg.get("runs_dir", "runs")
+    db_path = os.path.join(data_dir if os.path.isabs(data_dir) else os.path.join(ROOT, data_dir), "ledger.db")
+    todo_path = os.path.join(runs_dir if os.path.isabs(runs_dir) else os.path.join(ROOT, runs_dir), run_id, "actions-todo.json")
+    con = subid.open_db(db_path)
+    try:
+        row = con.execute("SELECT summary FROM runs WHERE run_id=?", (run_id,)).fetchone()
+        if row and row[0]:
+            try:
+                if json.loads(row[0]).get("mode") == "preview":
+                    print("acked 0 actions for %s" % run_id)
+                    return 0
+            except ValueError:
+                pass
+        if not os.path.exists(todo_path):
+            print("acked 0 actions for %s" % run_id)
+            return 0
+        n = con.execute("UPDATE actions SET applied=1, applied_at=? WHERE run_id=? AND applied=0 AND note LIKE 'todo%'", (subid.now_iso(), run_id)).rowcount
+        con.commit()
+    finally:
+        con.close()
     print("acked %d actions for %s" % (n, run_id))
     return 0
 
@@ -1052,6 +1095,9 @@ def selftest():
 
 def main(argv):
     J.console_safe()
+    if "--help" in argv or "-h" in argv:
+        print((__doc__ or "").strip())
+        return 0
     if "--selftest" in argv:
         return selftest()
     if "--simulate-days" in argv:
@@ -1066,15 +1112,35 @@ def main(argv):
         except (OSError, ValueError) as error:
             print("simulation: %s" % error, file=sys.stderr)
             return 1
-    cfg_path = argv[argv.index("--config") + 1] if "--config" in argv else None
-    cfg = load_cfg(cfg_path)
-    if cfg is None:
-        print("config/adspilot.json 不存在：cp config/adspilot.example.json config/adspilot.json"); return 4
-    if "--ack" in argv:
-        return ack(cfg, argv[argv.index("--ack") + 1])
-    apply = "--apply" in argv or (bool(cfg.get("apply")) and "--dry-run" not in argv)
-    run_id = argv[argv.index("--run-id") + 1] if "--run-id" in argv else None
-    return run_once(cfg, run_id, apply)
+
+    def _opt(flag):
+        if flag not in argv:
+            return None
+        idx = argv.index(flag)
+        if idx + 1 >= len(argv) or argv[idx + 1].startswith("--"):
+            raise WG.WriteGateError("missing value for %s" % flag, code=1)
+        return argv[idx + 1]
+
+    try:
+        cfg_path = _opt("--config")
+        run_id = _opt("--run-id")
+        ack_id = _opt("--ack")
+        req_apply = "--apply" in argv
+        req_dry_run = "--dry-run" in argv
+        cfg = load_cfg(cfg_path)
+        if cfg is None:
+            print("config/adspilot.json 不存在：cp config/adspilot.example.json config/adspilot.json"); return 4
+        mode_apply = WG.resolve_write_mode(cfg, request_apply=req_apply, request_dry_run=req_dry_run)
+    except WG.WriteGateError as exc:
+        print("write gate rejected: %s" % exc, file=sys.stderr)
+        return exc.code
+
+    if ack_id is not None:
+        if req_dry_run:
+            print("acked 0 actions for %s" % ack_id)
+            return 0
+        return ack(cfg, ack_id)
+    return run_once(cfg, run_id, apply=mode_apply, dry_run=req_dry_run)
 
 
 if __name__ == "__main__":

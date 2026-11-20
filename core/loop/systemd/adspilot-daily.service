@@ -7,6 +7,8 @@ Wants=network-online.target
 Type=oneshot
 WorkingDirectory=__ROOT__
 EnvironmentFile=-/etc/adspilot.env
-ExecStart=/usr/bin/env python3 core/loop/daily.py
+# Default unit stays explicitly in read-only preview mode (--dry-run).
+# Owner-authorized live writes require changing ExecStart to pass --apply AND setting "apply": true in config/adspilot.json.
+ExecStart=/usr/bin/env python3 core/loop/daily.py --dry-run
 TimeoutStartSec=1800
 Nice=10

@@ -19,7 +19,9 @@ foreach ($kind in @("Daily", "Sentinel")) {
         throw "incorrect task principal or directory"
     }
     if (!$exec.Arguments.Contains("-Kind $kind") -or !$exec.Arguments.Contains("run-task.ps1")) { throw "incorrect command" }
+    if ($exec.Arguments.Contains("-Apply") -or $exec.Arguments.Contains("--apply")) { throw "default scheduler task must not request apply" }
     if ($kind -eq "Daily") {
+        if (!$exec.Arguments.Contains("-DryRun")) { throw "default daily task must explicitly include -DryRun" }
         $trigger = $task.Triggers.CalendarTrigger
         if ($trigger.ScheduleByDay.DaysInterval -ne "1" -or !$trigger.StartBoundary.EndsWith("T09:30:00")) { throw "bad daily trigger" }
     } elseif ($task.Triggers.TimeTrigger.Repetition.Interval -ne "PT1H") { throw "bad hourly trigger" }

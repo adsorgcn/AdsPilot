@@ -4,9 +4,14 @@ param(
     [ValidatePattern('^([01][0-9]|2[0-3]):[0-5][0-9]$')][string]$DailyAt = "09:00",
     [ValidatePattern('^[A-Za-z0-9_-]+$')][string]$NamePrefix = "AdsPilot",
     [string]$EnvFile,
-    [switch]$Preview
+    [switch]$Preview,
+    [switch]$DryRun,
+    [switch]$Apply
 )
 $ErrorActionPreference = "Stop"
+if ($Apply -and $DryRun) {
+    throw "Conflicting flags: -Apply and -DryRun cannot both be set."
+}
 $root = (Resolve-Path (Join-Path $PSScriptRoot "../../..")).Path
 $pythonPath = (Get-Command $Python -CommandType Application | Select-Object -First 1).Source
 if ($EnvFile) {
@@ -31,6 +36,10 @@ function New-TaskDefinition([string]$kind) {
     $runner = Join-Path $PSScriptRoot "run-task.ps1"
     $arguments = "-NoLogo -NoProfile -NonInteractive -File " + (Quote-Argument $runner) + " -Kind $kind -Python " + (Quote-Argument $pythonPath)
     if ($EnvFile -and $kind -eq "Daily") { $arguments += " -EnvFile " + (Quote-Argument $EnvFile) }
+    if ($kind -eq "Daily") {
+        if ($Apply) { $arguments += " -Apply" }
+        else { $arguments += " -DryRun" }
+    }
     $start = (Get-Date).ToString("yyyy-MM-dd") + "T" + $DailyAt + ":00"
     if ($kind -eq "Daily") {
         $trigger = "<CalendarTrigger><Enabled>true</Enabled><StartBoundary>$start</StartBoundary><ScheduleByDay><DaysInterval>1</DaysInterval></ScheduleByDay></CalendarTrigger>"

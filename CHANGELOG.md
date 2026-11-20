@@ -2,6 +2,18 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。本文件记细节，README 的「进度记录」记叙事，每版两处都写。
 
+## 2.2.1（2026-11-20）统一外部写双开关门控与调度器默认预览
+
+收口日循环、统一 JSON 接口、MCP 与随附调度模板的外部写门控，彻底取消「仅设置 `config.apply: true` 或仅传 `--apply` 即可写外部」的单边放行；冻结内核 `core/judge/judge.py` 的 `WEIGHTS`、`TH`、`f_v5`、`ADJUST_ORDER_*` 与 `local_choice` 逐字不变。
+
+一，集中式 fail-closed 写门控：新增 `core/selfcheck/write_gate.py`（`resolve_write_mode`、`WriteGateError`），供 `core/loop/daily.py`（`Run`、`run_once`、`main`）与 `core/agent/interface_runner.py`（`config_for`）共用。未请求 `apply` 或显式传 `--dry-run` / `"dry_run": true` 时一律解析为只读预览（即使本机 `config/adspilot.json` 中 `"apply": true`）；请求 `--apply` / `"apply": true` 时必须同时满足本机配置 `"apply"` 为字面布尔 `true` 且无 `dry_run`，否则在调用外部脚本前拒绝返回（缺配置、`config.apply` 缺失或为 `false`、非布尔字符串/数字类型、以及 `--apply` 与 `--dry-run` 冲突均不作类型强转，直接拦截）。`adspilot.py` 新增 `--dry-run` 选项并禁止覆盖请求体内非布尔或冲突的 `apply` / `dry_run` 字段。
+
+二，下游预览隔离与 `--ack` 加固：预览模式下 `daily.py` 照常产出本地报告与运行日志、执行已配置的只读拉取，但绝不调用外部写插件、绝不生成可执行的 `runs/<id>/actions-todo.json` 或 `data/outbox/conversions-*.csv`、绝不把可变动作标成 `applied: true`，也不写入可被回填的 `todo` 动作备注；`runs.summary` 记录运行模式（`preview` / `apply`），`daily.py --ack` 与接口 `loop.ack` 对预览轮次或缺失 `actions-todo.json` 的轮次一律确认 `0` 项。既有判断模式（`M3..M8`、`propose_only`）、用户决定、预算上限与异常暂停闸门在双开关开启时照常生效。独立工具脚本（如 `core/launch/launch.py`、`plugins/*/*.py`、`core/selfcheck/preflight.py`）维持原有命令行 `--apply` 单参数约定不变。
+
+三，随附调度器默认显式预览与文档对齐：`core/loop/crontab.example`、`core/loop/systemd/adspilot-daily.service` 以及 `core/loop/windows/{register-task,run-task}.ps1` 默认一律显式传 `--dry-run`（Windows 注入 `-DryRun` 并拒绝 `-Apply` 与 `-DryRun` 同用），不改动本机已安装任务；旧版仅靠 `config.apply: true` 跑实盘的无人值守调度升级后会停留在只读预览，须由所有者显式改为带 `--apply`（Windows 带 `-Apply`）的独立命令后才继续写入。同步对齐 `AGENTS.md`、`CLAUDE.md`、`.cursor/rules/adspilot.mdc`、`BOOK.md`、`skills/sem.md`、`.dsh/skills/sem/SKILL.md`、`core/loop/使用方法.md` 与 `core/agent/使用方法.md`。
+
+自测与真实世界：新增 `tests/write_gate_selftest.py`（19 项真值表单元测试 + 118 项覆盖 `daily.py`、`adspilot.py` 与 `mcp_server.py` stdio 的隔离桩测试与调度模板检查）并接入 `tests/run.sh`，更新 `tests/k2_windows_preview.ps1`；无网络、无凭据环境下 `tests/run.sh`、7 天离线模拟与验收、严格 iLang 语法检查及 16 项 Node 测试全部通过（Linux 环境未装 `pwsh`，Windows 脚本完成静态检查）；没有新增真实账号实测。
+
 ## 2.2.0（2026-11-19）单线无人值守闭环、判断生态、开局总检与 DSH 3.1 工程书插件包
 
 将 AdsPilot 从可调用的模块集推至可无人值守跑通单线投放与 DSH 3.1 原生接入的状态；冻结内核 `core/judge/judge.py` 的 `WEIGHTS`、`TH`、`f_v5`、`ADJUST_ORDER_*` 与 `local_choice` 逐字不变。

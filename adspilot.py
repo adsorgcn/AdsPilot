@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AdsPilot JSON interface. Use --list, [ID] --selftest, or ID [--input file]."""
+"""AdsPilot JSON interface (preview/dry-run by default; writes need --apply plus literal config.apply=true without --dry-run). Use --list, [ID] --selftest, or ID [--input file]."""
 import argparse
 import json
 import math
@@ -26,6 +26,7 @@ def build_parser():
     p.add_argument("--input")
     p.add_argument("--config")
     p.add_argument("--apply", action="store_true")
+    p.add_argument("--dry-run", action="store_true")
     p.add_argument("--list", action="store_true")
     p.add_argument("--selftest", action="store_true")
     return p
@@ -89,14 +90,14 @@ def main(argv):
     args = build_parser().parse_args(argv)
     rows = read(CATALOG)
     if args.list:
-        if args.interface or args.input or args.apply or args.selftest:
+        if args.interface or args.input or args.apply or args.dry_run or args.selftest:
             raise InterfaceError("--list takes no action")
         return rows,0
     selected = [row for row in rows if row["id"]==args.interface]
     if args.interface and not selected:
         raise InterfaceError("unknown interface")
     if args.selftest:
-        if args.apply or args.config or args.input:
+        if args.apply or args.dry_run or args.config or args.input:
             raise InterfaceError("--selftest uses its own offline fixture")
         result = selftest(selected or rows)
         return result, int(result["passed"] != result["total"] or not all(result["boundary_checks"].values()))
@@ -122,8 +123,22 @@ def main(argv):
         raise InterfaceError("expected a JSON object")
     if args.config:
         req["config"]=args.config
+    if args.apply and args.dry_run:
+        raise InterfaceError("conflicting flags: --apply and --dry-run cannot both be true", 4)
     if args.apply:
-        req["apply"]=True
+        if "apply" in req and type(req["apply"]) is not bool:
+            pass
+        elif req.get("apply") is False:
+            raise InterfaceError("--apply conflicts with apply=false in input")
+        else:
+            req["apply"] = True
+    if args.dry_run:
+        if "dry_run" in req and type(req["dry_run"]) is not bool:
+            pass
+        elif req.get("dry_run") is False:
+            raise InterfaceError("--dry-run conflicts with dry_run=false in input")
+        else:
+            req["dry_run"] = True
     return dispatch(selected[0],req),0
 
 

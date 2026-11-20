@@ -17,6 +17,7 @@ from urllib.parse import unquote
 
 from core.agent.interfaces import ROOT, read, short_id
 from core.selfcheck.validate import CONFIG_SCHEMA, validate
+from core.selfcheck.write_gate import WriteGateError, resolve_write_mode
 
 PRIVATE = ("data", "runs")
 OUTCOMES = {1: "invalid request or script failure", 2: "user action required",
@@ -173,9 +174,19 @@ def config_for(req):
     cfg = read(path)
     if validate(CONFIG_SCHEMA, cfg):
         raise InterfaceError("invalid AdsPilot config", 4)
-    apply = req.get("apply", False)
-    if apply and (cfg.get("apply") is not True or req.get("dry_run") is True):
-        raise InterfaceError("apply needs config.apply=true and dry_run=false", 4)
+    req_apply = req.get("apply", False)
+    req_dry_run = req.get("dry_run", False)
+    try:
+        apply = resolve_write_mode(cfg, request_apply=req_apply, request_dry_run=req_dry_run)
+    except WriteGateError as exc:
+        conflict = req_apply is True and req_dry_run is True
+        code = 4 if (exc.code == 4 or conflict) else exc.code
+        msg = (
+            "apply needs config.apply=true and dry_run=false"
+            if (code == 4 and (conflict or cfg.get("apply") is not True))
+            else str(exc)
+        )
+        raise InterfaceError(msg, code)
     return path, cfg, apply
 
 

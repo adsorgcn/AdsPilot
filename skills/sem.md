@@ -1,6 +1,6 @@
 ---
 name: sem
-version: 2.2.0
+version: 2.2.1
 description: "SEM 与付费投流工程书技能（AdsPilot）：说「SEM」或「付费投流」，用 adspilot_book 与 AdsPilot 脚本/MCP 带用户在自有账号与机器上从建站选品走到无人值守日循环。"
 author: adsorgcn
 license: MIT
@@ -31,4 +31,4 @@ say:
 - **人只在三处出现**：身份 KYC 验证、付款与绑卡、平台要求本人提交的申诉（输出标为 `needs_human`，退出码 2）。能由 Agent 与脚本完成的步骤，不让用户手抄配置或查表。
 - **永久合规姿态**：本人真实身份、单账号，不做假流量、不模拟点击、不做 cloaking、不绕平台资格与封禁、不冒充身份、不开多账号；禁止直接拿联盟跳转链接当广告 Final URL。
 - **凭据隔离**：Google Ads、Cloudflare、CJ / Impact、判断模型 API Key 与通知 Webhook 只存于 DSH 3.1 凭据账本（`env/ledger.env` + `env/keys.env`，经本机 `grant` 在启动子进程时按需注入）或仓库外 `0600` 环境变量文件；绝不写进仓库、记忆、`config/adspilot.json`、日志或对话正文。
-- **用户决定权与冻结内核**：默认全部 `dry-run`（需请求显式 `apply` 且本机配置 `"apply": true` 才执行外部写入）；用户明确指定要投的 offer 或调整动作时照做并记入判断建议，但永久合规红线不因口头要求放行；绝不修改 `core/judge/judge.py` 中的 `WEIGHTS`、`TH` 与 `f_v5` 结构。
+- **用户决定权与冻结内核**：默认全部 `dry-run`（仅在请求显式开启 `apply` 且无 `dry_run`，同时本机配置 `"apply": true` 时才执行外部写入；`config.apply` 单独为 `true` 不授权写入）；用户明确指定要投的 offer 或调整动作时照做并记入判断建议，但永久合规红线不因口头要求放行；绝不修改 `core/judge/judge.py` 中的 `WEIGHTS`、`TH` 与 `f_v5` 结构。

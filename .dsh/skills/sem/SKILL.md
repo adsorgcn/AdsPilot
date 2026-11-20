@@ -1,6 +1,6 @@
 ---
 name: sem
-version: 2.2.0
+version: 2.2.1
 description: "SEM 与付费投流（AdsPilot）：说「SEM」或「付费投流」，加载 AdsPilot 工程书与本地工具/MCP，带用户从环境自检、建站选品、上线投放到无人值守日循环。"
 author: adsorgcn
 license: MIT
@@ -11,7 +11,7 @@ say:
 
 ```ilang
 ::ILANG::v5.0
-::GENE{sem|v:2.2.0|spec:ilang-v5.0}
+::GENE{sem|v:2.2.1|spec:ilang-v5.0}
   T:user_says_SEM_or_fufeitouliu⇒load_this_skill
   T:read_book_adspilot_sem_via_adspilot_book_one_part_at_a_time_starting_from_toc_then_head
   T:locate_or_clone_AdsPilot_beside_dsh_memory_and_run_selfcheck_before_any_write
@@ -30,4 +30,4 @@ say:
 
 1. 通过 `adspilot_book` 按段读取工程书（`toc` → `head` → `M0_SETUP`..`M5_REPORT` → `tail`），每次不超过 8000 字符上限。
 2. 本地执行优先走 `mcp-adspilot`（对应仓库 `core/agent/mcp_server.py`）或 `python3 adspilot.py`；每轮循环结束用 `dsh.handoff` / `integrations/dsh/handoff.py` 向记忆仓库 `handoff/CURRENT.md` 追加一行安全摘要。
-3. 本人只负责 KYC、付款与申诉三件事；所有外部写入默认 `dry-run`，确认无误后才开启本机配置 `"apply": true`。
+3. 本人只负责 KYC、付款与申诉三件事；所有外部写入默认 `dry-run`，`config.apply` 单独为 `true` 从不授权写入，必须请求显式带 `--apply`（或 `"apply": true`）且无 `--dry-run`，同时本机配置 `"apply": true` 才对外写入。

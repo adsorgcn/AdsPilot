@@ -1,13 +1,13 @@
 ::ILANG::v5.0::ENGINEERING_BOOK
 [TYPE:engineering_book]
 [ID:ADSPILOT-SEM]
-[VERSION:2.2.0]
-[DATE:2026-11-19]
+[VERSION:2.2.1]
+[DATE:2026-11-20]
 [LANG:zh]
 
 ::STATE{@USER, role:decision_maker, does:点头确认_KYC身份验证_付款绑卡_平台申诉}
 ::STATE{@AGENT, role:user_own_executor_in_dsh_or_cli, does:环境适配_建站选品_广告上线_每日对账判断_汇报交接, never:替本人过KYC_绑卡付款_提交申诉_伪造数据}
-::STATE{@ADSPILOT, role:local_repo_and_scripts, repo:"https://github.com/adsorgcn/AdsPilot", dir_convention:"../AdsPilot（与 dsh-memory 同级）", private_dirs:"config/ data/ runs/ site/", version:"2.2.0"}
+::STATE{@ADSPILOT, role:local_repo_and_scripts, repo:"https://github.com/adsorgcn/AdsPilot", dir_convention:"../AdsPilot（与 dsh-memory 同级）", private_dirs:"config/ data/ runs/ site/", version:"2.2.1"}
 ::STATE{@LEDGER, role:local_attribution_and_secrets_boundary, db:"data/ledger.db（仅存本地）", secrets_storage:"DSH 3.1 env/ledger.env + env/keys.env（经 grant 按需注入进程），或仓库外 0600 env 文件"}
 ::STATE{@JUDGMENT_CORE, perception:"SOUL（soul/default.soul.md 或自定义 SOUL）与 plugins/judgment/*", decision:"core/judge/judge.py 冻结 f_v5，只输出 M1..M8", rule:"M1/M2 可执行，M3..M8 只提议或交本人"}
 
@@ -23,7 +23,7 @@
 ::BOUNDARY{never:在M3及以上模式下擅自对外执行花钱或上传动作|scope:permanent}
 ::BOUNDARY{never:替用户完成KYC_绑卡付款或申诉|scope:permanent}
 
-::RULE{dry_run_first then 所有脚本、adspilot.py 与 MCP 默认 dry-run；只有请求显式开启 apply 且本机 config/adspilot.json 中 apply 为 true 才对外部写|source:AGENTS.md}
+::RULE{dry_run_first then 所有入口默认只读预览且配置单独为 true 不授权写入；日循环与统一入口及 MCP 只有请求显式开启 apply 且无 dry_run 且本机 config.apply 为布尔 true 才对外写|source:AGENTS.md}
 ::RULE{user_override then 用户明确说了要投什么 offer 或怎么调某条系列/词，就照做并把判断算出的结果记入 advice；但永久合规姿态不因口头要求放行|source:SOUL_2.4}
 ::RULE{one_question then 向用户索要账号授权、KYC、付款或选品拍板时，一次只问一件事并写清选项与后果|source:kit_onboarding}
 ::RULE{resume then 每次启动先看 runs/launch/launch.json、runs/run-* 与 ../dsh-memory/handoff/CURRENT.md；用户再次说 SEM 或 付费投流 时从断掉的那一环续接|source:kit_handoff}
@@ -59,7 +59,7 @@
   [STEP] 5 启用投放：仅当确认预算上限、政策、落地页与闭环均通过且判定为 `M1`/`M2`（或用户明确指令 `--user go`）时，运行 `python3 core/launch/launch.py go --apply` 将系列置为 ENABLED，并转入第三环日循环。
 
 ::MODULE{M3_DAILY_LOOP|title:第三环 无人值守日循环、对账与双轨哨兵}
-  [STEP] 1 跑通首轮 dry-run：在开启 `"apply": true` 与定时任务前，先执行 `python3 core/loop/daily.py --dry-run`。检查退出码（0 正常，2 需要本人处理，3 暂时失败，4 配置/凭据错，1 输入或内部错）与生成的 `runs/<id>/report.json`、`runs/<id>/run.log`。
+  [STEP] 1 跑通首轮 dry-run：先执行 `python3 core/loop/daily.py --dry-run`（哪怕配置里写了 `"apply": true`，未显式加 `--apply` 仍只做只读预览；绝不产出可执行 `actions-todo.json` 或发送外部写动作）。检查退出码（0 正常，2 需要本人处理，3 暂时失败，4 配置/凭据或写门控错，1 输入/参数错）与生成的 `runs/<id>/report.json`、`runs/<id>/run.log`。
   [STEP] 2 跑完一轮的标准流水线：每轮 `daily.py` 按固定顺序幂等执行：
     1) `selfcheck.py --quick`；
     2) `subid.py pull` 增量游标拉取 Worker 点击映射；
@@ -73,8 +73,8 @@
     10) 生成 `runs/<id>/report.json`。
   [STEP] 3 记忆交接：每轮结束执行 `python3 integrations/dsh/handoff.py --report runs/<id>/report.json --memory ../dsh-memory`（或调用 MCP `dsh.handoff`），仅向 `../dsh-memory/handoff/CURRENT.md` 追加一行含轮次编号、状态、退出码与是否需本人处理的摘要；禁止把 `data/`、`runs/`、配置或密钥拷入记忆库。
   [STEP] 4 配置定时调度与双轨哨兵：
-    - 用户确认后在 `config/adspilot.json` 开启 `"apply": true`；
-    - Linux 用 `core/loop/systemd/`（`adspilot-daily.service` + `.timer`）或 `core/loop/crontab.example`，macOS 用 launchd，Windows 用 `core/loop/windows/register-task.ps1`；
+    - 仓库随附调度模板（Linux `core/loop/systemd/adspilot-daily.service` + `.timer`、`core/loop/crontab.example`、Windows `core/loop/windows/register-task.ps1`）默认一律显式传 `--dry-run`（Windows 注入 `-DryRun`）只做只读预览；`config.apply: true` 单独存在从不触发实盘写入，也不会自动迁移或改写本机已安装的旧任务；
+    - 仅在所有者明确授权后，方可单独改为实盘调度：须同时在 `config/adspilot.json` 设置布尔 `"apply": true`，并显式配置带 `--apply` 的独立调用（Windows 须显式用 `-Apply` 重新注册，且旧版只靠配置开启的实盘调度需显式补齐 `--apply` 才会继续写外部）；
     - 每小时跑 `core/loop/sentinel.sh`（Windows 为 `sentinel.ps1`）：当最新 `run.log` 超过 26 小时未更新或最近退出码为 1/3 时写 `runs/sentinel.log` 并返回退出码 2；若环境配置了 `ADSPILOT_NOTIFY_WEBHOOK` 则 POST 一条仅含轮次与退出码的安全告警。
   [STEP] 5 Manual 模式兜底：若广告或联盟处于手工导表模式（`report_source: csv_export` / `deploy_mode: manual`），每日按 `runs/<id>/actions-todo.json` 与 `data/inbox/` 完成后台操作后执行 `python3 core/loop/daily.py --ack <run_id>`。
 

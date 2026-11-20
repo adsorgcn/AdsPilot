@@ -1,6 +1,6 @@
 {
   "name": "adspilot",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "AdsPilot for DeepSeek Harness: 说一句「SEM」或「付费投流」，DSH 通过工程书与本地工具/MCP 带你在自有账号和机器上完成建站选品、Google Ads 上线与无人值守日常循环。",
   "type": "module",
   "main": "integrations/dsh/index.mjs",

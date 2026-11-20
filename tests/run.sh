@@ -37,6 +37,7 @@ run "$PY" core/selfcheck/preflight.py --selftest
 run "$PY" core/judge/calibrate.py --selftest
 run "$PY" tests/k2_selftest.py
 run "$PY" tests/dsh_handoff.py
+run "$PY" tests/write_gate_selftest.py
 run "$PY" plugins/affiliate/cj/commissions.py --selftest
 run "$PY" plugins/affiliate/cj/chargebacks.py --selftest
 run "$PY" plugins/affiliate/cj/offers.py --selftest

@@ -2,9 +2,14 @@
 param(
     [Parameter(Mandatory)][ValidateSet("Daily","Sentinel")][string]$Kind,
     [Parameter(Mandatory)][string]$Python,
-    [string]$EnvFile
+    [string]$EnvFile,
+    [switch]$DryRun,
+    [switch]$Apply
 )
 $ErrorActionPreference = "Stop"
+if ($Apply -and $DryRun) {
+    throw "Conflicting flags: -Apply and -DryRun cannot both be set."
+}
 Set-Location -LiteralPath (Join-Path $PSScriptRoot "../../..")
 $env:PYTHONUTF8 = "1"
 if ($Kind -eq "Sentinel") {
@@ -31,5 +36,9 @@ if ($EnvFile) {
         [Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], "Process")
     }
 }
-& $Python -X utf8 "core/loop/daily.py"
+if ($Apply) {
+    & $Python -X utf8 "core/loop/daily.py" "--apply"
+} else {
+    & $Python -X utf8 "core/loop/daily.py" "--dry-run"
+}
 exit $LASTEXITCODE

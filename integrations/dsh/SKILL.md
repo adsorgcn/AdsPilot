@@ -1,7 +1,7 @@
 ---
 name: adspilot
 description: "让 DSH 通过 adspilot 插件包与本机 mcp-adspilot 做自检、建站选品、OAuth/Preflight 与 dry-run，并保持广告联盟投放无人值守。"
-version: 2.2.0
+version: 2.2.1
 author: adsorgcn
 license: MIT
 say:
