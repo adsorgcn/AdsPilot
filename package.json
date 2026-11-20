@@ -1,7 +1,7 @@
 {
   "name": "adspilot",
-  "version": "2.2.1",
-  "description": "AdsPilot for DeepSeek Harness: 说一句「SEM」或「付费投流」，DSH 通过工程书与本地工具/MCP 带你在自有账号和机器上完成建站选品、Google Ads 上线与无人值守日常循环。",
+  "version": "2.2.2",
+  "description": "AdsPilot by iLang (ilang.ai): Open-source AI Agent SEM, Google Ads & Affiliate Marketing automation (MCP Server + DeepSeek Harness DSH plugin). 开源免费搜索广告与付费投流无人值守插件，说「SEM」或「付费投流」即用。",
   "type": "module",
   "main": "integrations/dsh/index.mjs",
   "exports": {
@@ -26,22 +26,53 @@
     "VERSION"
   ],
   "keywords": [
+    "ilang",
+    "ilang-ai",
+    "ilang-v5",
+    "adspilot",
     "dsh",
     "dsh-plugin",
     "deepseek-harness",
-    "ilang",
-    "adspilot",
+    "engineering-book",
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "ai-agent",
+    "claude-code",
+    "codex",
+    "cursor",
+    "openclaw",
+    "hermes",
     "sem",
-    "付费投流",
+    "ppc",
+    "paid-search",
+    "search-ads",
+    "google-ads",
     "affiliate-marketing",
-    "google-ads"
+    "cj-affiliate",
+    "impact",
+    "cloudflare-workers",
+    "conversion-tracking",
+    "gclid",
+    "marketing-automation",
+    "付费投流",
+    "搜索广告",
+    "谷歌广告",
+    "广告联盟",
+    "联盟营销"
   ],
   "license": "MIT",
-  "author": "adsorgcn",
-  "homepage": "https://github.com/adsorgcn/AdsPilot",
+  "author": {
+    "name": "iLang Inc. (adsorgcn)",
+    "url": "https://ilang.ai"
+  },
+  "homepage": "https://ilang.ai",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/adsorgcn/AdsPilot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/adsorgcn/AdsPilot/issues"
   },
   "engines": {
     "node": ">=20",

@@ -1,20 +1,20 @@
-# AdsPilot
+# AdsPilot：开源免费 AI Agent 搜索广告（SEM / Google Ads）与联盟投流无人值守系统
 
-**开源、免费。** 把整套广告联盟投放能力做成基座加插件，交给你自己的 Agent（Claude Code、Codex、OpenClaw、Hermes 或同类），在你自己的账号、你自己的机器上无人值守地跑。不登录、不托管、不收费。
+**开源、免费。** 把整套搜索广告（SEM / PPC）与广告联盟（CJ、Impact）投放能力做成基座加插件，交给你自己的 Agent（DeepSeek Harness、Claude Code、Codex、Cursor、OpenClaw、Hermes 或任何 MCP 客户端），在你自己的账号、你自己的机器上无人值守地跑。不登录、不托管、不收费。
 
 **合规姿态，与开源免费并排写在第一屏。** 本人真实身份、单账号，平台要 KYC 照实做；不造流量、不模拟点击、不做 cloaking、不绕平台资格与封禁、不冒充身份、不做多账号；凭据零留存，一切在你自己的机器与账号里。做不到这几条的，这个仓库帮不上。
 
-*English: [README.en.md](README.en.md)*
+**[iLang 官网 (ilang.ai)](https://ilang.ai)** · **[DSH 插件指南 (dsh.ilang.guide)](https://dsh.ilang.guide)** · **[GitHub 源码](https://github.com/adsorgcn/AdsPilot)** · **[npm (`adspilot`)](https://www.npmjs.com/package/adspilot)** · *English: [README.en.md](https://github.com/adsorgcn/AdsPilot/blob/main/README.en.md)*
 
 ## 这是什么，为什么这么做
 
 传统的投放 SaaS 是「平台替你干活」：你登录它的后台，把账号托管给它，按月付费，它替你建广告、看报表、调预算。这个架构下登录、计费、多租户、托管 token 一样都少不了，而且它永远在替你做判断，你看不见它怎么判的。
 
-AdsPilot 反过来，是「你的 Agent 替你干活」。仓库里没有一个要编译的程序、没有后台、没有账号系统。它是一套写给 Agent 看的使用方法，加一组只用 Python 标准库的小脚本。使用方法用 iLang 写，所以 Claude Code、Codex 或别的 Agent 读到的是同一份，执行出来也是同一个样子。你的 Agent 读完入口文件，先自检这台机器够不够格，然后按使用方法在你自己的 Google Ads 和 CJ 账号上建广告、拉报表、对账、把转化灌回去，每天自己跑一轮。
+AdsPilot 反过来，是「你的 Agent 替你干活」。仓库里没有一个要编译的程序、没有后台、没有账号系统。它是一套写给 Agent 看的使用方法，加一组只用 Python 标准库的小脚本（同时提供 39 个标准 JSON / MCP 工具与 DeepSeek Harness 插件组合包 `adspilot`）。使用方法用 [iLang](https://ilang.ai) 写，所以 Claude Code、Codex、DSH 或别的 Agent 读到的是同一份，执行出来也是同一个样子。你的 Agent 读完入口文件，先自检这台机器够不够格，然后按使用方法在你自己的 Google Ads 和 CJ / Impact 账号上建广告、拉报表、对账、把转化灌回去，每天自己跑一轮。
 
 它分两块，一条判据切开：**凡是要对外部 API 说话的，就是插件；剩下的全是主干。** 主干不依赖任何一家外部服务，任何一个插件消失，主干照样跑，只是笨一点。加一家平台或一家联盟，只加一个目录，主干一行不改。
 
-能跑起来是主干保证的；跑得好不好取决于 SOUL。SOUL 是所有判断规则和阈值的集合，仓库自带一个通用默认 SOUL，本地、开源、零成本。每到要做决定的地方（选哪个 offer、要不要上线、今天加预算还是暂停、这个词要不要停、转化要不要灌、账号异常要不要停），主干把状态打成 iLang v5 的 11 维向量，按冻结的 f_v5 算出 M1 到 M8。判断给的是建议，不是闸门：你明确说了要投什么、要怎么调，就照你的做，判断照算，作为建议写进输出和账本；你没说，Agent 才按判断自己拿主意，M1 和 M2 执行，其余只提议。唯一不因一句话放行的是第一屏那几条合规姿态。公益期 iLang Inc. 托管一个判断服务（便宜模型加 Jev），免费给大家用，用真实数据把判断磨准。这也是 iLang 协议第一个较大的商用应用：v3 通信层、v4 执行层、v5 判断层各管一段。
+能跑起来是主干保证的；跑得好不好取决于 SOUL。SOUL 是所有判断规则和阈值的集合，仓库自带一个通用默认 SOUL，本地、开源、零成本。每到要做决定的地方（选哪个 offer、要不要上线、今天加预算还是暂停、这个词要不要停、转化要不要灌、账号异常要不要停），主干把状态打成 [iLang v5](https://ilang.ai) 的 11 维向量，按冻结的 f_v5 算出 M1 到 M8。判断给的是建议，不是闸门：你明确说了要投什么、要怎么调，就照你的做，判断照算，作为建议写进输出和账本；你没说，Agent 才按判断自己拿主意，M1 和 M2 执行，其余只提议。唯一不因一句话放行的是第一屏那几条合规姿态。公益期 [iLang Inc.](https://ilang.ai) 托管一个判断服务（便宜模型加 Jev），免费给大家用，用真实数据把判断磨准。这也是 [iLang 协议](https://ilang.ai)（[规范与校验器仓库](https://github.com/ilang-ai/ilang-spec)）第一个较大的商用应用：v3 通信层、v4 执行层、v5 判断层各管一段。
 
 人只在三处出现：证件与 KYC、付款与绑卡、平台要求本人申诉。其余全是 Agent 与脚本。
 
@@ -39,7 +39,7 @@ reference/    iLang runtime 与语法校验器（钉版本） · affiliate-desig
 
 ## 走到哪了
 
-截至 2026-11-20，版本 2.2.1。下面每一块都有代码、有使用方法、有自测，区别只在有没有碰过真实世界。
+截至 2026-11-20，版本 2.2.2。下面每一块都有代码、有使用方法、有自测，区别只在有没有碰过真实世界。
 
 | 部件 | 状态 | 真实世界 |
 |---|---|---|
@@ -58,14 +58,16 @@ reference/    iLang runtime 与语法校验器（钉版本） · affiliate-desig
 | 插件 Cloudflare 落地位 | **真实账号实测通过** | 一把钥匙建 KV、Worker、域名证书；页面 200、/go 302 带 sid、/export 进账本，全通 |
 | 选品第一条（词的出价 < 每次点击赚的钱） | **真实账号实测通过** | CJ 前 10 家查词算账，3 家过、7 家出局，过线的词直接带给建系列 |
 | 插件 关键词（Google Ads Keyword Planner） | **真实账号实测通过** | 用商家首页当种子出品类词，带月搜索与首页出价 |
-| DSH 3.1 插件包、工程书与交接 | 完成 | 同仓提供 npm `adspilot` 组合包、`BOOK.md`、`sem` 技能（触发 `SEM` / `付费投流`）、`adspilot_book` 分页工具与 `dsh.handoff`；16 项 Node 测试与严格 iLang 校验全过 |
+| DSH 3.1 插件包、工程书与交接 | 完成 | 同仓提供 npm `adspilot` 组合包（对齐 `ilang.ai` 主页与中英双语检索词）、`BOOK.md`、`sem` 技能（触发 `SEM` / `付费投流`）、`adspilot_book` 分页工具与 `dsh.handoff`；16 项 Node 测试与严格 iLang 校验全过 |
 | 统一 JSON 接口与 MCP | 完成 | 39 个接口与 `daily.py` 共用集中式双开关写门控（`write_gate.py`），137 项真值表与跨通道隔离回归自测全过 |
 | 插件 IP 情报（ipapi.is） | alpha | 离线样例 |
 | 七天验收与校准提议 | 完成 | 结合只读账本 P90 归因窗口与轮次汇率/去重输出提议；7 天模拟验收与校准自测通过，真实七天待学员环境 |
 
-以往的开局记录见上表，覆盖落地位、系列和账本。2.2.1 进一步把日循环、统一接口、MCP 与调度模板的对外写入收口到同一条双开关 fail-closed 规则，未新增真实账号实盘运行；SOUL 阈值校准和真实七天运行仍需学员环境。
+以往的开局记录见上表，覆盖落地位、系列和账本。2.2.2 补齐了 npm 包与双语 README 的检索词及 `ilang.ai` 官方链接对齐，未新增真实账号实盘运行；SOUL 阈值校准和真实七天运行仍需学员环境。
 
 ## 进度记录
+
+**2026-11-20，2.2.2**。补齐 npm `adspilot` 包与仓库文档的检索元数据及 [ilang.ai](https://ilang.ai) 官方链接对齐。`package.json` 的 `homepage` 与 `author.url` 指向 `https://ilang.ai`，补上中英双语描述、`bugs` 地址与涵盖 SEM / Google Ads / Affiliate / MCP / DSH / iLang 的检索词；`README.md`、`README.en.md`、`BOOK.md` 与技能说明补齐 `ilang.ai`、`dsh.ilang.guide` 及跨语言完整链接，消除在 npm 页面渲染时的相对链接断裂。投放与判断逻辑一行未动，`tests/run.sh` 全绿，没有碰真实账号。
 
 **2026-11-20，2.2.1**。把日常循环、统一 JSON 接口、MCP 与随附调度器的外部写门控收口成同一条双开关规则，`f_v5` 冻结层逐字未动。之前 `daily.py` 允许单独靠配置里的 `"apply": true` 或单独传 `--apply` 触发外部写入，预览轮次也会写出 `actions-todo.json` 与 `outbox` 转化表。现在新增 `core/selfcheck/write_gate.py` 由两路入口共用：只有请求显式带 `--apply`（或 `"apply": true`）且无 `--dry-run`，同时本机 `config/adspilot.json` 中 `"apply"` 为严格布尔 `true` 才允许执行外部写或生成可执行交付文件；任何非布尔值、缺失配置或冲突参数直接拦截，预览轮次只写本地报告且 `--ack` 确认 0 项。仓库自带的 cron、systemd 与 Windows 任务模板默认一律显式传 `--dry-run`（旧版只靠配置跑实盘的调度升级后会留在预览，须由所有者显式加 `--apply`），三份入口、`BOOK.md` 与使用方法同步对齐。全套离线回归（含新增 137 项门控矩阵与桩测试）、7 天模拟验收、16 项 Node 测试与严格 iLang 语法检查全部通过，没有碰真实账号。
 
@@ -130,6 +132,10 @@ reference/    iLang runtime 与语法校验器（钉版本） · affiliate-desig
 ## 三分钟上手（给你的 Agent）
 
 ```bash
+# DeepSeek Harness (DSH) 插件安装（说「SEM」或「付费投流」即可启动）
+npm install adspilot
+
+# 本机执行仓克隆与首轮只读预览
 git clone https://github.com/adsorgcn/AdsPilot && cd AdsPilot
 python3 core/agent/selfcheck.py                       # 够不够格无人值守
 cp config/adspilot.example.json config/adspilot.json  # 填自己的值，凭据放环境变量或 DSH 3.1 账本
@@ -137,10 +143,10 @@ python3 core/selfcheck/preflight.py                   # 上线前总检（加 --
 python3 core/loop/daily.py --dry-run                  # 跑一轮，什么都不写外部
 ```
 
-Claude Code 读 `CLAUDE.md`，Codex 与其他读 `AGENTS.md`，Cursor 读 `.cursor/rules/`（三份正文一致、各自保留抬头）。在 DeepSeek Harness（DSH）里也可直接加载 `adspilot` 插件包并说「SEM」或「付费投流」，按工程书 `BOOK.md` 从装机走到日循环；之后按 `core/loop/使用方法.md` 装调度器，每天一轮。
+Claude Code 读 `CLAUDE.md`，Codex 与其他读 `AGENTS.md`，Cursor 读 `.cursor/rules/`（三份正文一致、各自保留抬头）。在 DeepSeek Harness（DSH）里也可直接加载 `adspilot` 插件包（详见 [dsh.ilang.guide](https://dsh.ilang.guide)）并说「SEM」或「付费投流」，按工程书 `BOOK.md` 从装机走到日循环；之后按 `core/loop/使用方法.md` 装调度器，每天一轮。
 
 ## 版本与许可
 
 `VERSION` 三位号。日常改动只动末位；「迭代小版本」动中间位；大版本第一位单独决定。每一版的细节在 `CHANGELOG.md`。
 
-MIT。iLang runtime 副本来自 ilang-spec（MIT）。
+MIT。基于 [iLang (ilang.ai)](https://ilang.ai) 协议构建，iLang runtime 副本来自 [ilang-spec](https://github.com/ilang-ai/ilang-spec)（MIT）。

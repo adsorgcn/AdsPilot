@@ -2,6 +2,15 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。本文件记细节，README 的「进度记录」记叙事，每版两处都写。
 
+## 2.2.2（2026-11-20）npm 包检索元数据优化与 ilang.ai 官方链接对齐
+
+面向 npm 注册表与搜索引擎优化 `adspilot` 组合包展示与检索，并统一补齐 `https://ilang.ai` 与 `https://dsh.ilang.guide` 站点入口；投放、账本与冻结判断层一行未动。
+
+- `package.json`：`homepage` 与 `author.url` 设为 `https://ilang.ai`（`repository` 与新增 `bugs` 指向 GitHub 仓库），更新中英双语 `description`，扩充 34 个涵盖 `ilang`、`mcp-server`、`ai-agent`、`deepseek-harness`、`sem`、`ppc`、`google-ads`、`affiliate-marketing`、`cj-affiliate`、`impact` 与中文核心词的 `keywords`。
+- `README.md` 与 `README.en.md`：首屏补充 H1 标题关键词与 `ilang.ai`、`dsh.ilang.guide`、GitHub、npm 导航栏，正文与页脚补齐 `ilang.ai` 上下文链接，快速上手加入 `npm install adspilot`，并将跨语言 README 链接改为完整 HTTPS 地址以消除在 npmjs.com 页面上的相对路径失效。
+- `BOOK.md`、`skills/sem.md`、`.dsh/skills/sem/SKILL.md` 与 `integrations/dsh/SKILL.md`：同步版本号 `2.2.2` 与 `homepage: https://ilang.ai`。
+- 自测与真实世界：`tests/run.sh`、严格 iLang 语法检查与 16 项 Node 测试全过；没有碰真实账号。
+
 ## 2.2.1（2026-11-20）统一外部写双开关门控与调度器默认预览
 
 收口日循环、统一 JSON 接口、MCP 与随附调度模板的外部写门控，彻底取消「仅设置 `config.apply: true` 或仅传 `--apply` 即可写外部」的单边放行；冻结内核 `core/judge/judge.py` 的 `WEIGHTS`、`TH`、`f_v5`、`ADJUST_ORDER_*` 与 `local_choice` 逐字不变。

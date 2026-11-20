@@ -1,8 +1,9 @@
 ---
 name: sem
-version: 2.2.1
+version: 2.2.2
 description: "SEM 与付费投流（AdsPilot）：说「SEM」或「付费投流」，加载 AdsPilot 工程书与本地工具/MCP，带用户从环境自检、建站选品、上线投放到无人值守日循环。"
 author: adsorgcn
+homepage: https://ilang.ai
 license: MIT
 say:
   - SEM
@@ -11,7 +12,7 @@ say:
 
 ```ilang
 ::ILANG::v5.0
-::GENE{sem|v:2.2.1|spec:ilang-v5.0}
+::GENE{sem|v:2.2.2|spec:ilang-v5.0}
   T:user_says_SEM_or_fufeitouliu⇒load_this_skill
   T:read_book_adspilot_sem_via_adspilot_book_one_part_at_a_time_starting_from_toc_then_head
   T:locate_or_clone_AdsPilot_beside_dsh_memory_and_run_selfcheck_before_any_write

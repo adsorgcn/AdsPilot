@@ -1,13 +1,13 @@
 ::ILANG::v5.0::ENGINEERING_BOOK
 [TYPE:engineering_book]
 [ID:ADSPILOT-SEM]
-[VERSION:2.2.1]
+[VERSION:2.2.2]
 [DATE:2026-11-20]
 [LANG:zh]
 
 ::STATE{@USER, role:decision_maker, does:点头确认_KYC身份验证_付款绑卡_平台申诉}
 ::STATE{@AGENT, role:user_own_executor_in_dsh_or_cli, does:环境适配_建站选品_广告上线_每日对账判断_汇报交接, never:替本人过KYC_绑卡付款_提交申诉_伪造数据}
-::STATE{@ADSPILOT, role:local_repo_and_scripts, repo:"https://github.com/adsorgcn/AdsPilot", dir_convention:"../AdsPilot（与 dsh-memory 同级）", private_dirs:"config/ data/ runs/ site/", version:"2.2.1"}
+::STATE{@ADSPILOT, role:local_repo_and_scripts, repo:"https://github.com/adsorgcn/AdsPilot", homepage:"https://ilang.ai", dir_convention:"../AdsPilot（与 dsh-memory 同级）", private_dirs:"config/ data/ runs/ site/", version:"2.2.2"}
 ::STATE{@LEDGER, role:local_attribution_and_secrets_boundary, db:"data/ledger.db（仅存本地）", secrets_storage:"DSH 3.1 env/ledger.env + env/keys.env（经 grant 按需注入进程），或仓库外 0600 env 文件"}
 ::STATE{@JUDGMENT_CORE, perception:"SOUL（soul/default.soul.md 或自定义 SOUL）与 plugins/judgment/*", decision:"core/judge/judge.py 冻结 f_v5，只输出 M1..M8", rule:"M1/M2 可执行，M3..M8 只提议或交本人"}
 

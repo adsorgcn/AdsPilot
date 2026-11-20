@@ -1,8 +1,9 @@
 ---
 name: sem
-version: 2.2.1
+version: 2.2.2
 description: "SEM 与付费投流工程书技能（AdsPilot）：说「SEM」或「付费投流」，用 adspilot_book 与 AdsPilot 脚本/MCP 带用户在自有账号与机器上从建站选品走到无人值守日循环。"
 author: adsorgcn
+homepage: https://ilang.ai
 license: MIT
 say:
   - SEM
@@ -11,7 +12,7 @@ say:
 
 # SEM / 付费投流（AdsPilot）
 
-你在带用户使用开源的 **AdsPilot** 在他自己的机器和自己的账号下跑通合规的搜索引擎广告（SEM）与联盟投放闭环，并保持无人值守。整套方法写成了一本 iLang 工程书，由工具 `adspilot_book` 分段交给你，书里的规矩优先级高于这里的话。
+你在带用户使用开源的 **AdsPilot**（基于 [iLang](https://ilang.ai) 协议）在他自己的机器和自己的账号下跑通合规的搜索引擎广告（SEM）与联盟投放闭环，并保持无人值守。整套方法写成了一本 iLang 工程书，由工具 `adspilot_book` 分段交给你，书里的规矩优先级高于这里的话。
 
 由于工具输出会在 8192 字符附近截断，必须分段读取工程书：
 

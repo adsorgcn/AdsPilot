@@ -1,20 +1,20 @@
-# AdsPilot
+# AdsPilot: Open-Source AI Agent SEM, Google Ads & Affiliate Marketing Automation
 
-**Open source, free.** The whole affiliate-advertising operation packaged as a core plus plugins, handed to *your own* agent (Claude Code, Codex, OpenClaw, Hermes or similar) to run unattended on *your own* accounts and *your own* machine. No login, no hosting, no fees.
+**Open source, free.** The whole paid-search (SEM / PPC) and affiliate-marketing (CJ, Impact) operation packaged as a core plus plugins, handed to *your own* agent (DeepSeek Harness, Claude Code, Codex, Cursor, OpenClaw, Hermes or any MCP client) to run unattended on *your own* accounts and *your own* machine. No login, no hosting, no fees.
 
 **Compliance, stated next to "free":** your real identity, one account, KYC done honestly; no fake traffic, no click simulation, no cloaking, no bypassing platform eligibility or bans, no impersonation, no multi-accounting; zero credential retention, everything stays on your machine. If you cannot live with these, this repository cannot help you.
 
-*中文: [README.md](README.md)*
+**[iLang Official (ilang.ai)](https://ilang.ai)** · **[DSH Plugin Guide (dsh.ilang.guide)](https://dsh.ilang.guide)** · **[GitHub Repository](https://github.com/adsorgcn/AdsPilot)** · **[npm (`adspilot`)](https://www.npmjs.com/package/adspilot)** · *中文: [README.md](https://github.com/adsorgcn/AdsPilot/blob/main/README.md)*
 
 ## What it is and why it is built this way
 
 Traditional ad SaaS is built as "the platform works for you": you log into its back office, hand it your accounts, pay monthly, and it builds campaigns, reads reports and moves budgets for you. That shape cannot avoid login, billing, tenants and hosted tokens, and it always makes the judgment calls for you, out of sight.
 
-AdsPilot is built the other way round: "your agent works for you". There is no program to compile, no back office, no account system. The repository is a set of usage methods written for agents, plus small scripts that use only the Python standard library. The usage methods are written in iLang, so Claude Code, Codex or any other capable agent reads the same text and executes it the same way. Your agent reads the entry file, checks whether this machine qualifies for unattended operation, then follows the usage methods on your own Google Ads and CJ accounts: build campaigns, pull reports, reconcile commissions, feed conversions back, one round a day.
+AdsPilot is built the other way round: "your agent works for you". There is no program to compile, no back office, no account system. The repository is a set of usage methods written for agents, plus small scripts that use only the Python standard library (along with 39 structured JSON / MCP tools and the `adspilot` DeepSeek Harness bundle). The usage methods are written in [iLang](https://ilang.ai), so Claude Code, Codex, DSH or any other capable agent reads the same text and executes it the same way. Your agent reads the entry file, checks whether this machine qualifies for unattended operation, then follows the usage methods on your own Google Ads and CJ / Impact accounts: build campaigns, pull reports, reconcile commissions, feed conversions back, one round a day.
 
 It splits in two along one rule: **anything that talks to an external API is a plugin; everything else is core.** The core depends on no external service. Remove any plugin and the core still runs, only dumber. Adding a platform or a network means adding one directory; the core does not change.
 
-The core guarantees it runs; how well it runs depends on the SOUL, the collection of judgment rules and thresholds. A general default SOUL ships in the repo, local, open, free. At every decision point (which offer, whether to publish, raise budget or pause today, keep or stop this keyword, upload this conversion, stop on an account anomaly) the core scores the state as an iLang v5 eleven-dimension vector, runs the frozen f_v5 cascade to get M1 through M8. Judgment is advice, not a gate: when you say what to run or how to adjust, that is what happens, and the judgment is still computed and written into the output and ledger as advice; when you have not said, the agent decides by the judgment, M1 and M2 execute and the rest are only proposed. The only thing a word from you does not unlock is the first-screen compliance posture. During the public-good phase iLang Inc. hosts a judgment service (a cheap model plus Jev) free of charge, to sharpen the judgment on real data. This is also the first sizeable commercial application of the [iLang protocol](https://github.com/ilang-ai/ilang-spec): v3 communication, v4 execution, v5 judgment.
+The core guarantees it runs; how well it runs depends on the SOUL, the collection of judgment rules and thresholds. A general default SOUL ships in the repo, local, open, free. At every decision point (which offer, whether to publish, raise budget or pause today, keep or stop this keyword, upload this conversion, stop on an account anomaly) the core scores the state as an [iLang v5](https://ilang.ai) eleven-dimension vector, runs the frozen f_v5 cascade to get M1 through M8. Judgment is advice, not a gate: when you say what to run or how to adjust, that is what happens, and the judgment is still computed and written into the output and ledger as advice; when you have not said, the agent decides by the judgment, M1 and M2 execute and the rest are only proposed. The only thing a word from you does not unlock is the first-screen compliance posture. During the public-good phase [iLang Inc.](https://ilang.ai) hosts a judgment service (a cheap model plus Jev) free of charge, to sharpen the judgment on real data. This is also the first sizeable commercial application of the [iLang protocol](https://ilang.ai) ([specification & validators](https://github.com/ilang-ai/ilang-spec)): v3 communication, v4 execution, v5 judgment.
 
 Humans appear in exactly three places: identity and KYC, payment and card binding, and appeals the platform requires in person. Everything else is the agent and the scripts.
 
@@ -39,7 +39,7 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-11-20, version 2.2.1. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-11-20, version 2.2.2. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
@@ -58,14 +58,16 @@ As of 2026-11-20, version 2.2.1. Every part below has code, a usage method and a
 | Plugin Cloudflare landing site | **live-tested on a real account** | one key builds KV, Worker, domain and certificate; page 200, /go 302 with sid, /export into the ledger: all pass |
 | Offer rule 1 (keyword bid < earnings per click) | **live-tested on a real account** | top 10 CJ offers checked against real bids: 3 pass, 7 out; passing keywords go straight to campaign creation |
 | Plugin keywords (Google Ads Keyword Planner) | **live-tested on a real account** | homepage URL as seed yields category keywords with monthly searches and top-of-page bids |
-| DSH 3.1 bundle, Engineering Book & handoff | done | ships in-repo npm bundle `adspilot`, `BOOK.md`, `sem` skill (`SEM` / `付费投流`), `adspilot_book` paginated tool and `dsh.handoff`; 16 Node tests and strict iLang lint pass |
+| DSH 3.1 bundle, Engineering Book & handoff | done | ships in-repo npm bundle `adspilot` (with `ilang.ai` homepage & bilingual search metadata), `BOOK.md`, `sem` skill (`SEM` / `付费投流`), `adspilot_book` paginated tool and `dsh.handoff`; 16 Node tests and strict iLang lint pass |
 | JSON CLI and MCP | done | 39 interfaces share `write_gate.py` dual-opt-in enforcement with `daily.py`; 137 truth-table and isolated spy regression checks pass offline |
 | Plugin ipintel (ipapi.is) | alpha | offline sample |
 | Seven-day acceptance and calibration proposals | done | read-only ledger P90 attribution lag plus per-run FX/dedupe snapshots; 7-day simulation acceptance and calibration self-tests pass; live 7-day run requires student environment |
 
-The previous live-account records remain in the table above. Release 2.2.1 unifies external-write gating across the daily loop, structured interfaces, MCP, and shipped scheduler templates under one fail-closed dual-opt-in rule without new live-account runs; SOUL threshold calibration and a real seven-day run still belong to a student's environment.
+The previous live-account records remain in the table above. Release 2.2.2 aligns npm package discovery metadata, bilingual README navigation, and official `ilang.ai` links without new live-account runs; SOUL threshold calibration and a real seven-day run still belong to a student's environment.
 
 ## Progress log
+
+**2026-11-20, 2.2.2.** Improved npm package discovery metadata and aligned official [ilang.ai](https://ilang.ai) links across `package.json` (`homepage`, `author.url`, `bugs`, bilingual description, and SEM / Google Ads / Affiliate / MCP / DSH / iLang keywords), `README.md`, `README.en.md`, `BOOK.md`, and skill manifests, fixing relative README links when rendered on npmjs.com. Zero ad or judgment code changed; `tests/run.sh` passes completely and no real account was touched.
 
 **2026-11-20, 2.2.1.** Unified external-write authorization across `daily.py`, `adspilot.py`, `mcp_server.py`, and shipped scheduler templates under one fail-closed dual-opt-in rule (`core/selfcheck/write_gate.py`), leaving `f_v5` untouched byte for byte. Previously `daily.py` accepted single opt-in (`config.apply: true` or `--apply` alone) and wrote `actions-todo.json` and outbox conversion CSVs during preview runs. Now external writes and executable handoffs require both an explicit literal boolean `apply` request (with no `dry_run`) and literal boolean `"apply": true` in `config/adspilot.json`; non-boolean values, missing configs, and conflicting flags fail closed before dispatch, preview runs never emit executable handoff files, and `--ack` / `loop.ack` acknowledges zero actions on preview runs. Shipped cron, systemd, and Windows Task Scheduler templates now pass `--dry-run` / `-DryRun` explicitly by default (existing config-only unattended live jobs stay in preview until the owner explicitly adds `--apply`), and entry files, `BOOK.md`, and usage guides are aligned. All offline regression checks (including 137 new truth-table and isolated spy checks), 7-day simulation acceptance, 16 Node tests, and strict iLang lints pass; no real account was touched.
 
@@ -130,6 +132,10 @@ The previous live-account records remain in the table above. Release 2.2.1 unifi
 ## Three minutes (for your agent)
 
 ```bash
+# DeepSeek Harness (DSH) bundle install (say "SEM" or "付费投流" to start)
+npm install adspilot
+
+# Local execution checkout & first read-only preview
 git clone https://github.com/adsorgcn/AdsPilot && cd AdsPilot
 python3 core/agent/selfcheck.py                       # does this machine qualify for unattended operation
 cp config/adspilot.example.json config/adspilot.json  # your values; credentials stay in env vars or DSH 3.1 ledger
@@ -137,10 +143,10 @@ python3 core/selfcheck/preflight.py                   # preflight check (add --a
 python3 core/loop/daily.py --dry-run                  # one round, writes nothing external
 ```
 
-Entry files: `CLAUDE.md` (Claude Code), `AGENTS.md` (Codex and others), `.cursor/rules/` (Cursor) — same body with agent-specific headers. Inside DeepSeek Harness (DSH), you can also load the `adspilot` bundle and say `SEM` or `付费投流` to follow `BOOK.md` step by step. Then install the scheduler per `core/loop/使用方法.md`, one round a day.
+Entry files: `CLAUDE.md` (Claude Code), `AGENTS.md` (Codex and others), `.cursor/rules/` (Cursor), sharing the same body with agent-specific headers. Inside DeepSeek Harness (DSH), you can also load the `adspilot` bundle (see [dsh.ilang.guide](https://dsh.ilang.guide)) and say `SEM` or `付费投流` to follow `BOOK.md` step by step. Then install the scheduler per `core/loop/使用方法.md`, one round a day.
 
 ## Versioning and license
 
 Three-part `VERSION`. Routine changes bump the last digit; a "minor" bumps the middle; the first digit is decided separately. Details of every version are in `CHANGELOG.md`.
 
-MIT. The vendored iLang runtime is from ilang-spec (MIT).
+MIT. Built on the [iLang protocol (ilang.ai)](https://ilang.ai); the vendored iLang runtime is from [ilang-spec](https://github.com/ilang-ai/ilang-spec) (MIT).

@@ -1,20 +1,21 @@
 ---
 name: adspilot
 description: "让 DSH 通过 adspilot 插件包与本机 mcp-adspilot 做自检、建站选品、OAuth/Preflight 与 dry-run，并保持广告联盟投放无人值守。"
-version: 2.2.1
+version: 2.2.2
 author: adsorgcn
+homepage: https://ilang.ai
 license: MIT
 say:
   - SEM
   - 付费投流
 metadata:
   hermes:
-    tags: [adspilot, sem, advertising, affiliate, dry-run]
+    tags: [adspilot, ilang, sem, advertising, affiliate, dry-run]
 ---
 
 # AdsPilot（DSH 接入说明）
 
-AdsPilot 现在同时以仓库内置的 DSH 插件组合包（npm 包名 `adspilot`，带 `cordis.patch.yml`、`skills/sem.md` 与工程书 `BOOK.md`）和本机执行仓两种形态工作：
+AdsPilot（[iLang](https://ilang.ai) 协议参考应用 · [DSH 插件指南](https://dsh.ilang.guide)）现在同时以仓库内置的 DSH 插件组合包（npm 包名 `adspilot`，带 `cordis.patch.yml`、`skills/sem.md` 与工程书 `BOOK.md`）和本机执行仓两种形态工作：
 
 1. **启用工程书插件与触发口令**：在 DSH profile 中加入 `adspilot`（`cordis.patch.yml` 挂入 `id: adspilot`）。用户说出 **「SEM」** 或 **「付费投流」** 时加载 `sem` 技能，并通过 `adspilot_book` 按段读取工程书（`toc` → `head` → `M0_SETUP`..`M5_REPORT` → `tail`）。
 2. **挂载本机执行仓与 MCP**：在 DSH 创造模式粘贴下句，把尖括号部分换成克隆后的本机绝对路径（推荐与 `dsh-memory` 同级，即 `../AdsPilot`）。
