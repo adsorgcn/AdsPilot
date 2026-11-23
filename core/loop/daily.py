@@ -197,6 +197,9 @@ class Run:
             if rc == 4:
                 self.log("commissions: 凭据缺失，退回 json 文件")
                 src = "json"
+            elif rc != 0:
+                self.log("commissions api failed rc=%s" % rc)
+                return None
         if src != "api":
             p = self._abs(a.get("commissions_json", "data/inbox/cj-commissions.json"))
             if not os.path.exists(p):
@@ -464,6 +467,43 @@ class Run:
             os.replace(tmp_p, cp)
         return changed
 
+    def _acct_amount(self, val, row_cur=None):
+        v = float(val or 0.0)
+        acct_cur = self.cfg.get("currency", "USD")
+        rc = (row_cur or acct_cur).upper()
+        if rc == acct_cur:
+            return v
+        fx = self.cfg.get("fx") or {}
+        if isinstance(fx.get(acct_cur), (int, float)) and isinstance(fx.get(rc), (int, float)) and float(fx[rc]) > 0:
+            return v * (float(fx[acct_cur]) / float(fx[rc]))
+        return v
+
+    def commissions_freshness(self, rec, rows):
+        """核对佣金报表是否存在且覆盖当前投放窗口。缺失、无时间戳、过期或窗口错位均视为表现未知。"""
+        if rec is None:
+            return False, "commissions_missing"
+        if not rows:
+            return True, "no_traffic_rows"
+        ref_date = _date(max(r["date"] for r in rows))
+        min_traffic = _date(min(r["date"] for r in rows))
+        earliest_win7 = max(min_traffic, ref_date - timedelta(days=6))
+        win = rec.get("commissions_window") or {}
+        pulled_dt = R.parse_time(rec.get("pulled_at"))
+        until_dt = R.parse_time(win.get("until"))
+        since_dt = R.parse_time(win.get("since"))
+        cover_end = until_dt.date() if until_dt else (pulled_dt.date() if pulled_dt else None)
+        if cover_end is None:
+            return False, "commissions_timestamp_missing"
+        if cover_end < ref_date - timedelta(days=1):
+            return False, "commissions_stale"
+        if pulled_dt is not None and pulled_dt.date() < ref_date - timedelta(days=1):
+            return False, "commissions_stale"
+        if since_dt is not None and since_dt.date() > earliest_win7 + timedelta(days=1):
+            return False, "commissions_window_mismatch"
+        if not win and pulled_dt is not None and (pulled_dt.date() - ref_date).days > 7:
+            return False, "commissions_window_mismatch"
+        return True, "ok"
+
     def step_judgments(self, rep, rec):
         acct = {}
         for sp in (self.path("account-status.json"), os.path.join(self.data_dir, "inbox", "account-status.json")):
@@ -481,6 +521,9 @@ class Run:
         today = max((r["date"] for r in rows), default=time.strftime("%Y-%m-%d"))
         d0 = datetime.strptime(today, "%Y-%m-%d")
         win7 = {(d0 - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(7)}
+        perf_known, perf_why = self.commissions_freshness(rec, rows)
+        if rows and not perf_known:
+            self.log("commissions performance unknown (%s): 跳过依赖转化的停投与降预算规则，硬性支出上限照常" % perf_why)
         # anomaly
         spend_today = sum(r["cost"] for r in rows if r["date"] == today)
         prev = [r["cost"] for r in rows if r["date"] != today and r["date"] in win7]
@@ -495,14 +538,29 @@ class Run:
         self.record_action("anomaly.escalate", "account", resp, applied=(resp["choice"] == "continue"), note="" if resp["choice"] == "continue" else "需要本人处理")
         if halt:
             self.log("anomaly: %s，本轮不再做投放调整" % resp["choice"])
-        # campaign.adjust
+        # campaign.adjust & keyword.action 表现汇总（含已上传转化；报表缺失或过期时置为未知 None）
         by_c = defaultdict(list)
         for r in rows:
             by_c[r["campaign"]].append(r)
-        conv_by_c = defaultdict(lambda: [0, 0.0])
-        for x in (rec or {}).get("rows", []):
-            conv_by_c[x.get("campaign") or ""][0] += 1
-            conv_by_c[x.get("campaign") or ""][1] += x["value"]
+        conv_win_by_c = defaultdict(int)
+        com_by_c = defaultdict(float)
+        conv_by_k = defaultdict(int)
+        ledger_rows = []
+        seen_win_all = set()
+        if perf_known:
+            w_rows = (rec or {}).get("window_rows") if rec and "window_rows" in rec else (rec or {}).get("rows", [])
+            seen_win = {x.get("event_id") for x in w_rows if x.get("event_id")}
+            ledger_rows = R.ledger_conversions(self.con)
+            win_convs = list(w_rows) + [
+                lx for lx in ledger_rows
+                if lx.get("event_id") not in seen_win and str(lx.get("conversion_time") or "")[:10] in win7
+            ]
+            seen_win_all = {x.get("event_id") for x in win_convs if x.get("event_id")}
+            for x in win_convs:
+                c_name = x.get("campaign") or ""
+                conv_win_by_c[c_name] += 1
+                com_by_c[c_name] += self._acct_amount(x.get("value", 0), x.get("currency"))
+                conv_by_k[(c_name, x.get("adgroup") or "", x.get("keyword") or "")] += 1
         todo = []
         # 当前系列设置（Agent 从后台读回来维护的文件；没有就按 SOUL 的首日预算估）
         camp_cfg = {}
@@ -527,12 +585,26 @@ class Run:
             live_cur = brec.get("current")
             cur_budget = live_cur if live_cur is not None else (camp_cfg.get(c) or {}).get("daily_budget")
             clicks_w = sum(r["clicks"] for r in w); cost_w = sum(r["cost"] for r in w)
+            if perf_known:
+                extra_hist = sum(
+                    1 for lx in ledger_rows
+                    if (lx.get("campaign") or "") == c
+                    and lx.get("event_id") not in seen_win_all
+                    and dates[0] <= str(lx.get("conversion_time") or "")[:10] <= today
+                )
+                camp_conv = conv_win_by_c[c] + extra_hist
+                camp_com = round(com_by_c[c], 2)
+            else:
+                camp_conv, camp_com = None, None
             st = {"days_running": len(dates), "spend_total": round(sum(r["cost"] for r in rs), 2), "spend_window": round(cost_w, 2),
                   "clicks": clicks_w, "avg_cpc": round(cost_w / clicks_w, 4) if clicks_w else 0.0,
-                  "conversions": conv_by_c[c][0], "commission": round(conv_by_c[c][1], 2), "last_change_days": self.last_change_days(c),
+                  "conversions": camp_conv, "commission": camp_com, "performance_known": perf_known,
+                  "last_change_days": self.last_change_days(c),
                   "daily_budget": float(cur_budget) if cur_budget is not None else None, "google_budget": brec.get("recommended"), "money_at_stake": round(cost_w, 2),
                   "disapproved": any(r.get("disapproved") for r in rs), "bid_cap": (camp_cfg.get(c) or {}).get("bid_cap"), "google_bid": gbid,
                   "bidding": (camp_cfg.get(c) or {}).get("bidding")}
+            if not perf_known:
+                st["performance_unknown_reason"] = perf_why
             if st_terms.get(c):
                 st["search_terms"] = st_terms[c]
             if st["bid_cap"] is None and caps.get("max_cpc") is None and gbid is None:
@@ -558,18 +630,19 @@ class Run:
         for r in rows:
             if r.get("keyword") and r["date"] in win7:
                 by_k[(r["campaign"], r.get("adgroup", ""), r["keyword"])].append(r)
-        conv_by_k = defaultdict(int)
-        for x in (rec or {}).get("rows", []):
-            conv_by_k[(x.get("campaign") or "", x.get("adgroup") or "", x.get("keyword") or "")] += 1
         for key, rs in by_k.items():
             if halt:
                 break
             clicks = sum(r["clicks"] for r in rs); cost = sum(r["cost"] for r in rs)
             if clicks == 0:
                 continue
-            st = {"clicks": clicks, "conversions": conv_by_k[key], "avg_cpc": round(cost / clicks, 4), "cost": round(cost, 2), "money_at_stake": round(cost, 2),
+            kw_conv = conv_by_k[key] if perf_known else None
+            st = {"clicks": clicks, "conversions": kw_conv, "performance_known": perf_known,
+                  "avg_cpc": round(cost / clicks, 4), "cost": round(cost, 2), "money_at_stake": round(cost, 2),
                   "bid_cap": (camp_cfg.get(key[0]) or {}).get("bid_cap"), "google_bid": latest_google_bid(rs),
                   "bidding": (camp_cfg.get(key[0]) or {}).get("bidding")}   # 老系列没写就是手动出价
+            if not perf_known:
+                st["performance_unknown_reason"] = perf_why
             tgt = "%s/%s/%s" % key
             resp = self.decide("keyword.action", st, ["keep", "pause", "bid_down", "negative"], target=tgt)
             if resp["choice"] != "keep" and J.executes(resp):
@@ -670,8 +743,10 @@ class Run:
     def build_report(self, rep, rec, exit_code):
         rows = (rep or {}).get("rows", [])
         clicks = sum(r["clicks"] for r in rows); cost = sum(r["cost"] for r in rows)
-        conv = len((rec or {}).get("rows", []))
-        com = sum(x["value"] for x in (rec or {}).get("rows", []))
+        w_rows = (rec or {}).get("window_rows") if rec and "window_rows" in rec else (rec or {}).get("rows", [])
+        w_cbs = (rec or {}).get("window_chargebacks") if rec and "window_chargebacks" in rec else (rec or {}).get("chargebacks", [])
+        conv = len(w_rows)
+        com = max(0.0, sum(self._acct_amount(x.get("value", 0), x.get("currency")) for x in w_rows))
         hard = [n for n in self.needs_human if not n.get("soft")]
         reasons = sorted({n["reason"] for n in self.needs_human}) or []
         status = "stopped" if any(j["mode"] == "M8" for j in self.judgments) else ("blocked" if hard else "in_progress")
@@ -679,7 +754,7 @@ class Run:
                   "run_id": self.run_id, "line": self.cfg.get("line", "NA"), "seg": int(self.cfg.get("seg", 0)),
                   "summary": {"window_days": 30, "spend": round(cost, 2), "clicks": clicks, "impressions": sum(r["impressions"] for r in rows),
                               "avg_cpc": round(cost / clicks, 4) if clicks else 0.0, "conversions": conv, "commission": round(com, 2),
-                              "chargebacks": len((rec or {}).get("chargebacks", [])), "epc": round(com / clicks, 4) if clicks else 0.0,
+                              "chargebacks": len(w_cbs), "epc": round(com / clicks, 4) if clicks else 0.0,
                               "currency": self.cfg.get("currency", "USD"), "campaigns_active": len({r["campaign"] for r in rows})},
                   "actions": self.actions, "judgments": self.judgments, "evidence": self.evidence,
                   "needs_human": {"required": bool(hard), "reasons": reasons, "note": "; ".join(n["note"] for n in self.needs_human)[:300]},
@@ -1084,6 +1159,115 @@ def selftest():
     check("T8-c", synced8["C1"]["daily_budget"] == 20.0 and "status" not in synced8["C2"]
           and mlook is not None and mlook.get("gclid_kind") == "gclid" and mstats.get("chargebacks_uploaded") == 1,
           "synced=%s mlook_kind=%s cb_up=%s" % (synced8, mlook and mlook.get("gclid_kind"), mstats.get("chargebacks_uploaded")))
+    # T9-a: 已上传＝不重传，但仍计入同一窗口的表现（系列与关键词不因上传回执误判归零）
+    cfg_t9a = _selftest_cfg(tmp, "t9a")
+    rc9_1 = run_once(cfg_t9a, run_id="r9-1", apply=False)
+    rep9_1 = _selftest_report(cfg_t9a, "r9-1")
+    con9a = subid.open_db(os.path.join(cfg_t9a["data_dir"], "ledger.db"))
+    R.mark_uploaded(con9a, "r9-1", ["cj-evt-0001", "cj-evt-0002", "cj-evt-0004"])
+    con9a.close()
+    rc9_2 = run_once(cfg_t9a, run_id="r9-2", apply=False)
+    rep9_2 = _selftest_report(cfg_t9a, "r9-2")
+    conv9_2 = json.load(open(os.path.join(cfg_t9a["runs_dir"], "r9-2", "conversions.json"), encoding="utf-8"))
+    # 同时验 7 天窄窗拉回空佣金时，账本中 30 天内已上传的历史转化仍计入累计 conversions（不误触 spend_no_conversion）
+    com_7d_empty = os.path.join(tmp, "com-7d-empty.json")
+    json.dump({"type": "adspilot.commissions", "schema_version": 1, "network": "cj", "currency": "USD",
+               "pulled_at": "2026-09-21T02:00:00Z", "window": {"since": "2026-09-14", "until": "2026-09-21"}, "rows": []},
+              open(com_7d_empty, "w", encoding="utf-8"))
+    csv_120 = os.path.join(tmp, "ads-widget-120.csv")
+    with open(csv_120, "w", encoding="utf-8") as fh:
+        fh.write("Day,Campaign,Campaign state,Ad group,Keyword,Match type,Impr.,Clicks,Cost,Avg. CPC,Conversions,Conv. value,Policy details\n")
+        for idx in range(20):
+            day_s = "2026-09-%02d" % (idx + 1)
+            fh.write("%s,Widget Deals,Enabled,Brand X,widget x review,Phrase match,50,2,6.00,3.00,0,0.00,Approved\n" % day_s)
+    os.makedirs(os.path.join(cfg_t9a["data_dir"], "inbox"), exist_ok=True)
+    json.dump({"Widget Deals": {"daily_budget": 10.0, "bid_cap": 5.0}},
+              open(os.path.join(cfg_t9a["data_dir"], "inbox", "campaigns.json"), "w", encoding="utf-8"))
+    cfg_t9a_hist = dict(cfg_t9a, traffic=dict(cfg_t9a["traffic"], report_csv=csv_120),
+                        affiliate=dict(cfg_t9a["affiliate"], commissions_json=com_7d_empty))
+    run_once(cfg_t9a_hist, run_id="r9-3", apply=False)
+    rep9_3 = _selftest_report(cfg_t9a_hist, "r9-3")
+    t9a_ok = (rc9_1 == 0 and rc9_2 == 0 and not validate(schema, rep9_2)
+              and conv9_2["rows"] == [] and conv9_2["chargebacks"] == [] and conv9_2["summary"]["skipped_uploaded"] == 3
+              and not any(a["node"] == "conversion.upload" for a in rep9_2["actions"])
+              and by_target(rep9_2, "campaign.adjust") == by_target(rep9_1, "campaign.adjust")
+              and by_target(rep9_2, "campaign.adjust").get("Widget Deals") == "keep"
+              and by_target(rep9_2, "keyword.action") == by_target(rep9_1, "keyword.action")
+              and rep9_2["summary"]["conversions"] == 2 and rep9_2["summary"]["commission"] == 25.9
+              and by_target(rep9_3, "campaign.adjust").get("Widget Deals") == "budget_down")
+    check("T9-a", t9a_ok, "post_upload_rows=%d skipped=%d adj=%s kw=%s sum_conv=%d hist_120=%s" % (
+        len(conv9_2["rows"]), conv9_2["summary"]["skipped_uploaded"], by_target(rep9_2, "campaign.adjust"),
+        by_target(rep9_2, "keyword.action"), rep9_2["summary"]["conversions"], by_target(rep9_3, "campaign.adjust")))
+
+    # T9-b: 报表缺失＝表现未知，不按零转化暂停或降预算，硬性支出上限照常
+    def _write_high_spend_csv(path, daily_cost):
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("Day,Campaign,Campaign state,Ad group,Keyword,Match type,Impr.,Clicks,Cost,Avg. CPC,Conversions,Conv. value,Policy details\n")
+            for idx in range(20):
+                day_s = "2026-09-%02d" % (idx + 1)
+                fh.write("%s,HighSpend,Enabled,AG,kw test,Phrase match,100,8,%.2f,%.4f,0,0.00,Approved\n" % (day_s, daily_cost, daily_cost / 8.0))
+
+    csv_150 = os.path.join(tmp, "ads-150.csv")
+    csv_320 = os.path.join(tmp, "ads-320.csv")
+    _write_high_spend_csv(csv_150, 7.50)   # 20d * 7.50 = 150 >= spend_no_conversion(100), 7d clicks = 56 >= 30
+    _write_high_spend_csv(csv_320, 16.00)  # 20d * 16.00 = 320 >= test_spend_total(300)
+    cfg_t9b = _selftest_cfg(tmp, "t9b", mappings=False)
+    os.makedirs(os.path.join(cfg_t9b["data_dir"], "inbox"), exist_ok=True)
+    json.dump({"HighSpend": {"daily_budget": 10.0, "bid_cap": 3.0}},
+              open(os.path.join(cfg_t9b["data_dir"], "inbox", "campaigns.json"), "w", encoding="utf-8"))
+    cfg_t9b["traffic"]["report_csv"] = csv_150
+    cfg_t9b["affiliate"]["commissions_json"] = os.path.join(tmp, "missing-commissions.json")
+    rc9b_1 = run_once(cfg_t9b, run_id="r9b-miss-150", apply=False)
+    rep9b_1 = _selftest_report(cfg_t9b, "r9b-miss-150")
+    cfg_t9b_hard = dict(cfg_t9b, traffic=dict(cfg_t9b["traffic"], report_csv=csv_320))
+    rc9b_2 = run_once(cfg_t9b_hard, run_id="r9b-miss-320", apply=False)
+    rep9b_2 = _selftest_report(cfg_t9b_hard, "r9b-miss-320")
+    reasons_9b1 = {j["node"]: j.get("reason") for j in rep9b_1["judgments"] if j["node"] in ("campaign.adjust", "keyword.action")}
+    reasons_9b2 = {j["node"]: j.get("reason") for j in rep9b_2["judgments"] if j["node"] == "campaign.adjust"}
+    t9b_ok = (rc9b_1 == 0 and rc9b_2 == 0 and not validate(schema, rep9b_1) and not validate(schema, rep9b_2)
+              and by_target(rep9b_1, "campaign.adjust") == {"HighSpend": "keep"}
+              and by_target(rep9b_1, "keyword.action") == {}
+              and reasons_9b1 == {"campaign.adjust": "performance_unknown_skip_conversion_rules",
+                                  "keyword.action": "performance_unknown_skip_conversion_rules"}
+              and by_target(rep9b_2, "campaign.adjust") == {"HighSpend": "pause"}
+              and reasons_9b2 == {"campaign.adjust": "test_spend_total_reached_escalate"})
+    check("T9-b", t9b_ok, "miss150=%s kw=%s reasons=%s | miss320=%s(%s)" % (
+        by_target(rep9b_1, "campaign.adjust"), by_target(rep9b_1, "keyword.action"), reasons_9b1,
+        by_target(rep9b_2, "campaign.adjust"), reasons_9b2.get("campaign.adjust")))
+
+    # T9-c: 报表过期或窗口残缺＝表现未知，不按零转化暂停或降预算，硬性支出上限照常
+    stale_com = os.path.join(tmp, "com-stale.json")
+    short_com = os.path.join(tmp, "com-short.json")
+    json.dump({"type": "adspilot.commissions", "schema_version": 1, "network": "cj", "currency": "USD",
+               "pulled_at": "2026-09-10T02:00:00Z", "window": {"since": "2026-09-01", "until": "2026-09-10"}, "rows": []},
+              open(stale_com, "w", encoding="utf-8"))
+    json.dump({"type": "adspilot.commissions", "schema_version": 1, "network": "cj", "currency": "USD",
+               "pulled_at": "2026-09-20T02:00:00Z", "window": {"since": "2026-09-19", "until": "2026-09-20"}, "rows": []},
+              open(short_com, "w", encoding="utf-8"))
+    cfg_t9c = _selftest_cfg(tmp, "t9c", mappings=False)
+    os.makedirs(os.path.join(cfg_t9c["data_dir"], "inbox"), exist_ok=True)
+    json.dump({"HighSpend": {"daily_budget": 10.0, "bid_cap": 3.0}},
+              open(os.path.join(cfg_t9c["data_dir"], "inbox", "campaigns.json"), "w", encoding="utf-8"))
+    cfg_t9c["traffic"]["report_csv"] = csv_150
+    cfg_t9c["affiliate"]["commissions_json"] = stale_com
+    rc9c_1 = run_once(cfg_t9c, run_id="r9c-stale-150", apply=False)
+    rep9c_1 = _selftest_report(cfg_t9c, "r9c-stale-150")
+    cfg_t9c_short = dict(cfg_t9c, affiliate=dict(cfg_t9c["affiliate"], commissions_json=short_com))
+    rc9c_2 = run_once(cfg_t9c_short, run_id="r9c-short-150", apply=False)
+    rep9c_2 = _selftest_report(cfg_t9c_short, "r9c-short-150")
+    cfg_t9c_hard = dict(cfg_t9c, traffic=dict(cfg_t9c["traffic"], report_csv=csv_320))
+    rc9c_3 = run_once(cfg_t9c_hard, run_id="r9c-stale-320", apply=False)
+    rep9c_3 = _selftest_report(cfg_t9c_hard, "r9c-stale-320")
+    t9c_ok = (rc9c_1 == 0 and rc9c_2 == 0 and rc9c_3 == 0
+              and not validate(schema, rep9c_1) and not validate(schema, rep9c_2) and not validate(schema, rep9c_3)
+              and by_target(rep9c_1, "campaign.adjust") == {"HighSpend": "keep"}
+              and by_target(rep9c_1, "keyword.action") == {}
+              and by_target(rep9c_2, "campaign.adjust") == {"HighSpend": "keep"}
+              and by_target(rep9c_2, "keyword.action") == {}
+              and by_target(rep9c_3, "campaign.adjust") == {"HighSpend": "pause"})
+    check("T9-c", t9c_ok, "stale150=%s short150=%s stale320=%s" % (
+        by_target(rep9c_1, "campaign.adjust"), by_target(rep9c_2, "campaign.adjust"), by_target(rep9c_3, "campaign.adjust")))
+
     check("T2-f", f_ok_round2 and _selftest_sha1(p) == h0 and _selftest_sha1(pb) == hb and _selftest_sha1(pc) == hc,
           "user-decisions.json 三份跑完字节不变")
     ok = ok and all(results) and not errs4

@@ -1,13 +1,13 @@
 ::ILANG::v5.0::ENGINEERING_BOOK
 [TYPE:engineering_book]
 [ID:ADSPILOT-SEM]
-[VERSION:2.2.2]
-[DATE:2026-11-20]
+[VERSION:2.2.3]
+[DATE:2026-11-22]
 [LANG:zh]
 
 ::STATE{@USER, role:decision_maker, does:点头确认_KYC身份验证_付款绑卡_平台申诉}
 ::STATE{@AGENT, role:user_own_executor_in_dsh_or_cli, does:环境适配_建站选品_广告上线_每日对账判断_汇报交接, never:替本人过KYC_绑卡付款_提交申诉_伪造数据}
-::STATE{@ADSPILOT, role:local_repo_and_scripts, repo:"https://github.com/adsorgcn/AdsPilot", homepage:"https://ilang.ai", dir_convention:"../AdsPilot（与 dsh-memory 同级）", private_dirs:"config/ data/ runs/ site/", version:"2.2.2"}
+::STATE{@ADSPILOT, role:local_repo_and_scripts, repo:"https://github.com/adsorgcn/AdsPilot", homepage:"https://ilang.ai", dir_convention:"../AdsPilot（与 dsh-memory 同级）", private_dirs:"config/ data/ runs/ site/", version:"2.2.3"}
 ::STATE{@LEDGER, role:local_attribution_and_secrets_boundary, db:"data/ledger.db（仅存本地）", secrets_storage:"DSH 3.1 env/ledger.env + env/keys.env（经 grant 按需注入进程），或仓库外 0600 env 文件"}
 ::STATE{@JUDGMENT_CORE, perception:"SOUL（soul/default.soul.md 或自定义 SOUL）与 plugins/judgment/*", decision:"core/judge/judge.py 冻结 f_v5，只输出 M1..M8", rule:"M1/M2 可执行，M3..M8 只提议或交本人"}
 
@@ -67,8 +67,8 @@
     4) `budget_api.py --campaigns` 读取 Google 对现有系列的推荐预算；
     5) 可选 `plugins/ipintel/ipapi-is/lookup.py` 读取摘要态代理/机房占比（出外部判断前脱敏，不传原始 IP）；
     6) 联盟 `commissions.py`（含退单/拒付负行 `chargebacks`）拉佣金；
-    7) `core/ledger/reconcile.py` 按 `gclid`/`gbraid`/`wbraid` 对账并维护 `schema_version=1` 与已上传游标；
-    8) 对 `anomaly.escalate`、`campaign.adjust`、`keyword.action`、`conversion.upload` 四类节点调判断；
+    7) `core/ledger/reconcile.py` 按 `gclid`/`gbraid`/`wbraid` 对账：已上传转化不重传（`rows` 仅含待上传项），但 `window_rows` 与账本历史转化仍计入同一窗口的系列与关键词表现；
+    8) 对 `anomaly.escalate`、`campaign.adjust`、`keyword.action`、`conversion.upload` 四类节点调判断（佣金报表缺失、过期或窗口残缺时标记表现未知，不按零转化暂停或降预算，硬性支出上限与出价上限照常生效）；
     9) 严格只对 `M1`/`M2` 或未过期且未超额外花费红线的用户明确决定执行写动作（`deploy_api.py` 改预算/上限/停词/加否定词，`convert_api.py` 通过 Data Manager 上传转化，遇新建转化操作传播延迟判 `retry_later` 下轮自动重试），`M3..M8` 只记报告与动作清单；
     10) 生成 `runs/<id>/report.json`。
   [STEP] 3 记忆交接：每轮结束执行 `python3 integrations/dsh/handoff.py --report runs/<id>/report.json --memory ../dsh-memory`（或调用 MCP `dsh.handoff`），仅向 `../dsh-memory/handoff/CURRENT.md` 追加一行含轮次编号、状态、退出码与是否需本人处理的摘要；禁止把 `data/`、`runs/`、配置或密钥拷入记忆库。

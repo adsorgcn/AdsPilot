@@ -1,6 +1,6 @@
 ---
 name: sem
-version: 2.2.2
+version: 2.2.3
 description: "SEM 与付费投流工程书技能（AdsPilot）：说「SEM」或「付费投流」，用 adspilot_book 与 AdsPilot 脚本/MCP 带用户在自有账号与机器上从建站选品走到无人值守日循环。"
 author: adsorgcn
 homepage: https://ilang.ai

@@ -111,17 +111,17 @@
 
 规则按顺序，第一条命中即停（与 `core/judge/judge.py` 的 `local_choice` 同序，自测里有顺序守卫）：
 
-::RULE{spend_total≥stop_loss.test_spend_total⇒这条线的测试期结束 pause并escalate 让本人决定要不要继续}
+::RULE{spend_total≥stop_loss.test_spend_total（或caps.stop_loss_spend）⇒这条线的测试期结束 pause并escalate 让本人决定要不要继续 佣金报表缺失或过期时硬上限照常生效}
 ::RULE{avg_cpc>出价上限⇒bid_down 尽可能多点击的系列把每次点击上限设成出价上限 手动出价的系列降广告组出价keyword.bid_down_pct|出价上限未知⇒这条不看}
-::RULE{spend_total≥stop_loss.spend_no_conversion且conversions=0⇒pause}
-::RULE{days_running≥stop_loss.days_before_budget_down且commission<spend_window×roi_floor⇒budget_down}
-::RULE{谷歌对这条系列有推荐预算且与当前不同⇒按推荐改 高了budget_up 低了budget_down|用户设了caps.daily_budget⇒不超过它|没有推荐⇒预算不动}
+::RULE{spend_total≥stop_loss.spend_no_conversion且conversions已知且conversions=0⇒pause|佣金报表缺失或过期（表现未知）⇒不按零转化pause}
+::RULE{days_running≥stop_loss.days_before_budget_down且commission已知且commission<spend_window×roi_floor⇒budget_down|佣金报表缺失或过期（表现未知）⇒不按低ROI降预算}
+::RULE{已过上面两道止损门槛但表现未知⇒keep 不盲目改预算|其余情况谷歌对这条系列有推荐预算且与当前不同⇒按推荐改 高了budget_up 低了budget_down|用户设了caps.daily_budget⇒不超过它|没有推荐⇒预算不动}
 ::RULE{其余⇒keep}
 
 ### keyword.action（每词）
 
 ::RULE{avg_cpc>出价上限⇒bid_down|出价上限未知⇒这条不看|系列是尽可能多点击⇒这条不看 词级出价不生效 由系列的每次点击上限管}
-::RULE{clicks≥keyword.pause_after_clicks_no_conv且conversions=0⇒pause}
+::RULE{clicks≥keyword.pause_after_clicks_no_conv且conversions已知且conversions=0⇒pause|佣金报表缺失或过期（表现未知）⇒keep 不按零转化停词}
 ::RULE{搜索词与offer无关⇒negative|本地规则判不了相关性 这条只有判断插件能给 本地一律keep}
 ::RULE{其余⇒keep}
 

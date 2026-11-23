@@ -2,6 +2,16 @@
 
 规则：主.次.末。日常改动只动末位；「迭代小版本」动中间位；大版本第一位由老板决定。三处一致：VERSION、本文件最上面一条、git tag。本文件记细节，README 的「进度记录」记叙事，每版两处都写。
 
+## 2.2.3（2026-11-22）修复已上传转化归零与佣金报表缺失或过期误触发止损
+
+修复转化上传回执后的次轮表现归零缺陷与佣金报表缺失或过期时的止损误判风险；冻结内核 `core/judge/judge.py` 的 `WEIGHTS`、`TH` 与 `f_v5` 结构逐字不变。
+
+一，已上传＝不重传，但仍计入同一窗口的表现：`core/ledger/reconcile.py` 保持 `rows` 与 `chargebacks` 仅输出 `uploaded_at IS NULL` 的待上传事件（避免 `conversion.upload`、`convert_export.py` 与 `convert_api.py` 重复回传），同时新增按 `event_id` 去重的 `window_rows`、`window_chargebacks`、`pulled_at`、`commissions_window` 以及 `ledger_conversions(con)`（包含已标 `uploaded_at` 的窗口内与账本历史已对账转化，并在 `redacted()` 中同步脱敏 `gclid`）。`core/loop/daily.py` 的 `step_judgments` 与 `build_report` 改为按 `window_rows` 合并账本历史转化（按 `config.fx` 折成账户币种）汇总系列与关键词表现及本轮报告摘要，消除「一笔转化上传成功后下一轮被当成零转化」导致的误停投与误降预算。
+
+二，报表缺失或过期＝表现未知，不按零转化暂停或降预算，硬性支出上限照常：`core/loop/daily.py` 在 `step_commissions` 对非零 API 失败直接返回缺失，并新增 `commissions_freshness` 对照当前投放报表日期核验佣金报表是否存在、是否带有效时间戳、是否过期或窗口残缺。表现未知时，`campaign.adjust` 与 `keyword.action` 的 `conversions` / `commission` 置为 `None`（`performance_known: false`）；`core/judge/judge.py`（`local_choice`、`local_vector`、`_within_caps` 及外部提供者 `aut` 上限）与 `soul/default.soul.md`（保持 `ADJUST_ORDER_DOC` / `ADJUST_ORDER_CODE` 同序守卫）跳过 `stop_loss_no_conversion`、`commission_below_roi_floor` 与 `clicks_without_conversion` 并在跨越止损门槛但表现未知时禁止盲目 `budget_up`，同时保留硬性支出上限（`stop_loss.test_spend_total` / `caps.stop_loss_spend`）与出价上限（`avg_cpc > bid_cap`）照常自动执行。若线上此前已开启自动执行，建议人工复核升级前依赖转化的停投与降预算动作。
+
+自测与真实世界：`reconcile.py --selftest`（验证 `mark_uploaded` 后 `rows` 不重传且 `window_rows` 保留已上传转化）、`judge.py --selftest`（新增 `T9-a`）与 `daily.py --selftest`（新增 `T9-a` 上传后表现保留与 30 天累计转化防误停、`T9-b` 报表缺失、`T9-c` 报表过期与窄窗）以及全量 `tests/run.sh`、7 天离线模拟验收、16 项 Node 测试与严格 iLang 语法检查全部通过；没有碰真实账号。
+
 ## 2.2.2（2026-11-20）npm 包检索元数据优化与 ilang.ai 官方链接对齐
 
 面向 npm 注册表与搜索引擎优化 `adspilot` 组合包展示与检索，并统一补齐 `https://ilang.ai` 与 `https://dsh.ilang.guide` 站点入口；投放、账本与冻结判断层一行未动。

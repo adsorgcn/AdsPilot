@@ -39,7 +39,7 @@ The architecture one-pager is `ARCHITECTURE.md`; changing it needs the owner's s
 
 ## Where things stand
 
-As of 2026-11-20, version 2.2.2. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
+As of 2026-11-22, version 2.2.3. Every part below has code, a usage method and a self-test; the difference is whether it has touched the real world.
 
 | Part | State | Real world |
 |---|---|---|
@@ -47,9 +47,9 @@ As of 2026-11-20, version 2.2.2. Every part below has code, a usage method and a
 | Dual-scope OAuth helper & preflight | done | `oauth_helper.py` (PKCE for `adwords` + `datamanager`) and `preflight.py` (currency match, scopes, landing health/export probe) pass offline and loopback self-tests; live probe requires real accounts |
 | Launch (three keys in, one campaign out) | **live-tested on a real account** | on reviews.aixray.dev: landing site built from nothing, page published, campaign created, one real click into the ledger, no human in between, then torn down (2.0.9) |
 | Landing page | done | template and compliance check pass self-test; one page published on a real domain during launch |
-| Judgment (f_v5 frozen) & L2 eval | done | judgment blocks verified by canonical iLang validator; `provider_chain` fallback, `eval_provider.py` L2 evaluation and dynamic boundary checks pass offline self-tests |
-| Attribution & reconciliation | done | adds `schema_version=1`, uploaded conversion cursor, chargeback reconciliation and pull truncation guard; sample and cursor regression self-tests pass |
-| Unattended loop & sentinel | done | external writes gated by centralized dual opt-in (`--apply` plus literal `config.apply=true`), shipped cron/systemd/Windows schedulers default explicitly to `--dry-run`, plus `retry_later`, 7-day simulation and sanitized sentinel alerts; real 7-day run awaits student environment |
+| Judgment (f_v5 frozen) & L2 eval | done | judgment blocks verified by canonical iLang validator; unknown conversion performance skips conversion-based pause/budget-cut while preserving hard spend caps; `provider_chain` fallback, `eval_provider.py` and dynamic boundary checks pass offline self-tests |
+| Attribution & reconciliation | done | adds `schema_version=1`, uploaded conversion cursor (uploaded items skip re-upload while `window_rows` preserves window performance), chargeback reconciliation and pull truncation guard; sample and cursor regression self-tests pass |
+| Unattended loop & sentinel | done | external writes gated by centralized dual opt-in (`--apply` plus literal `config.apply=true`), missing/stale commission reports mark performance unknown, shipped schedulers default explicitly to `--dry-run`, plus `retry_later`, 7-day simulation and sanitized sentinel alerts; real 7-day run awaits student environment |
 | Default SOUL | done | money in USD converted to account currency; bids and budgets follow Google recommendations; bidding defaults to maximize clicks; custom boundaries enforced in code; thresholds await real-data calibration |
 | Plugin Google Ads | **live-tested on a real account** | campaign CRUD, bids, pause/negative, report pull and Data Manager upload (validate-only) verified in 2.0.x; new `oauth_helper.py` verified via offline selftest |
 | Plugin CJ | **live-tested on a real account** | offers (187 advertisers, paged), link with sid, commissions in windows, chargebacks: all pass (read-only) |
@@ -63,9 +63,11 @@ As of 2026-11-20, version 2.2.2. Every part below has code, a usage method and a
 | Plugin ipintel (ipapi.is) | alpha | offline sample |
 | Seven-day acceptance and calibration proposals | done | read-only ledger P90 attribution lag plus per-run FX/dedupe snapshots; 7-day simulation acceptance and calibration self-tests pass; live 7-day run requires student environment |
 
-The previous live-account records remain in the table above. Release 2.2.2 aligns npm package discovery metadata, bilingual README navigation, and official `ilang.ai` links without new live-account runs; SOUL threshold calibration and a real seven-day run still belong to a student's environment.
+The previous live-account records remain in the table above. Release 2.2.3 fixes post-upload zero-conversion miscounting and false stop-loss pauses or budget cuts on missing or stale commission reports, without new live-account runs; SOUL threshold calibration and a real seven-day run still belong to a student's environment.
 
 ## Progress log
+
+**2026-11-22, 2.2.3.** Fixed an independent stop-loss bug where uploaded conversions or missing/stale commission reports could be treated as zero conversions, while keeping the frozen `f_v5` kernel untouched byte for byte. Previously `reconcile.py` returned only un-uploaded conversions in `rows`, and `daily.py` read that upload queue for campaign and keyword performance, so a conversion uploaded in one round looked like zero conversions in the next; a missing or stale commission report hit the same zero-conversion fallback and could falsely trigger `pause` or `budget_down`. Two invariants are now enforced and tested together: first, uploaded means never re-uploaded (`rows` stays upload-only) while `window_rows` and historical ledger conversions still count toward campaign, keyword, and report performance in the same window; second, a missing, failed, stale, or window-mismatched commission report marks conversion performance unknown (`None`), skipping conversion- and ROI-dependent `pause` and `budget_down` rules (and preventing blind `budget_up` past unverified gates) while hard spend limits (`test_spend_total` / `caps.stop_loss_spend`) and CPC caps fire normally. Operators who already enabled unattended live writes should manually review prior conversion-dependent pause or budget-down actions. New `reconcile`, `judge`, and `daily` regression self-tests plus `tests/run.sh`, 7-day simulation acceptance, and 16 Node tests all pass; no real account was touched.
 
 **2026-11-20, 2.2.2.** Improved npm package discovery metadata and aligned official [ilang.ai](https://ilang.ai) links across `package.json` (`homepage`, `author.url`, `bugs`, bilingual description, and SEM / Google Ads / Affiliate / MCP / DSH / iLang keywords), `README.md`, `README.en.md`, `BOOK.md`, and skill manifests, fixing relative README links when rendered on npmjs.com. Zero ad or judgment code changed; `tests/run.sh` passes completely and no real account was touched.
 

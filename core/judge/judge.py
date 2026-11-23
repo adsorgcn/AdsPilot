@@ -327,14 +327,42 @@ REQUIRED_FIELDS = {
 }
 
 
+def _performance_unknown(node, state):
+    st = state or {}
+    if st.get("performance_known") is False:
+        return True
+    if node == "campaign.adjust":
+        return ("conversions" in st and st.get("conversions") is None) or ("commission" in st and st.get("commission") is None)
+    if node == "keyword.action":
+        return "conversions" in st and st.get("conversions") is None
+    return False
+
+
 def _within_caps(node, state, choice, caps, p):
     caps = caps or {}
+    st = state or {}
+    perf_unknown = _performance_unknown(node, st)
     if choice in ("go",):
-        bc = bid_cap_for(state, caps, p)   # 出价上限未知 ⇒ 不算在上限之内（只提议，不自动执行）
-        db, u = state.get("daily_budget"), caps.get("daily_budget")   # 预算上限只有用户自己设的
-        return db is not None and (u is None or float(db) <= float(u)) and bc is not None and float(state.get("max_cpc", 0)) <= bc
+        bc = bid_cap_for(st, caps, p)   # 出价上限未知 ⇒ 不算在上限之内（只提议，不自动执行）
+        db, u = st.get("daily_budget"), caps.get("daily_budget")   # 预算上限只有用户自己设的
+        return db is not None and (u is None or float(db) <= float(u)) and bc is not None and float(st.get("max_cpc", 0)) <= bc
     if choice == "budget_up":
-        return budget_target(state, caps) is not None   # 谷歌推荐（已按用户上限封顶）才算在上限之内
+        if perf_unknown and (
+            float(st.get("spend_total", 0) or 0) >= p["stop_loss"]["spend_no_conversion"]
+            or int(st.get("days_running", 0) or 0) >= p["stop_loss"]["days_before_budget_down"]
+        ):
+            return False
+        return budget_target(st, caps) is not None   # 谷歌推荐（已按用户上限封顶）才算在上限之内
+    if perf_unknown:
+        if node == "campaign.adjust" and choice == "pause":
+            return float(st.get("spend_total", 0) or 0) >= cap(caps, "stop_loss_spend", p["stop_loss"]["test_spend_total"])
+        if node == "campaign.adjust" and choice == "budget_down":
+            tb, cur = budget_target(st, caps), st.get("daily_budget")
+            has_lower_rec = tb is not None and cur is not None and tb < round(float(cur), 2)
+            if int(st.get("days_running", 0) or 0) >= p["stop_loss"]["days_before_budget_down"] or not has_lower_rec:
+                return False
+        if node == "keyword.action" and choice == "pause":
+            return False
     return True
 
 
@@ -418,27 +446,41 @@ def local_choice(node, state, choices, soul, caps=None):
         return pick("go", "spec_valid_lp_published_within_caps")
 
     if node == "campaign.adjust":
-        if float(st.get("spend_total", 0)) >= p["stop_loss"]["test_spend_total"]:
+        hard_spend = cap(caps, "stop_loss_spend", p["stop_loss"]["test_spend_total"])
+        if float(st.get("spend_total", 0) or 0) >= hard_spend:
             return pick("pause", "test_spend_total_reached_escalate")
         bc = bid_cap_for(st, caps, p)   # 出价上限未知 ⇒ 这条不看
-        if bc is not None and float(st.get("avg_cpc", 0)) > bc:
+        if bc is not None and float(st.get("avg_cpc", 0) or 0) > bc:
             return pick("bid_down", "avg_cpc_over_cap")
-        if float(st.get("spend_total", 0)) >= p["stop_loss"]["spend_no_conversion"] and float(st.get("conversions", 0)) == 0:
+        perf_unknown = _performance_unknown(node, st)
+        need_conv = float(st.get("spend_total", 0) or 0) >= p["stop_loss"]["spend_no_conversion"]
+        if not perf_unknown and need_conv and float(st.get("conversions", 0) or 0) == 0:
             return pick("pause", "stop_loss_no_conversion")
-        sw = float(st.get("spend_window", 0)); com = float(st.get("commission", 0))
-        if int(st.get("days_running", 0)) >= p["stop_loss"]["days_before_budget_down"] and com < sw * p["stop_loss"]["roi_floor"]:
+        sw = float(st.get("spend_window", 0) or 0)
+        need_roi = int(st.get("days_running", 0) or 0) >= p["stop_loss"]["days_before_budget_down"]
+        if not perf_unknown and need_roi and float(st.get("commission", 0) or 0) < sw * p["stop_loss"]["roi_floor"]:
             return pick("budget_down", "commission_below_roi_floor")
+        if perf_unknown and (need_conv or need_roi):
+            return pick("keep", "performance_unknown_skip_conversion_rules")
         tb, cur = budget_target(st, caps), st.get("daily_budget")   # 预算照谷歌推荐（用户上限封顶）；没有推荐就不动
         if tb is not None and cur is not None and tb != round(float(cur), 2):
             return pick("budget_up" if tb > float(cur) else "budget_down", "google_recommended_budget")
+        if perf_unknown:
+            return pick("keep", "performance_unknown_skip_conversion_rules")
         return pick("keep", "no_rule_hit")
 
     if node == "keyword.action":
         bc = bid_cap_for(st, caps, p)   # 出价上限未知 ⇒ 这条不看；系列是尽可能多点击 ⇒ 词级出价不生效，这条也不看（由系列的每次点击上限管）
-        if bc is not None and st.get("bidding") != "maximize_clicks" and float(st.get("avg_cpc", 0)) > bc:
+        if bc is not None and st.get("bidding") != "maximize_clicks" and float(st.get("avg_cpc", 0) or 0) > bc:
             return pick("bid_down", "avg_cpc_over_cap")
-        if int(st.get("clicks", 0)) >= p["keyword"]["pause_after_clicks_no_conv"] and float(st.get("conversions", 0)) == 0:
-            return pick("pause", "clicks_without_conversion")
+        perf_unknown = _performance_unknown(node, st)
+        if int(st.get("clicks", 0) or 0) >= p["keyword"]["pause_after_clicks_no_conv"]:
+            if perf_unknown:
+                return pick("keep", "performance_unknown_skip_conversion_rules")
+            if float(st.get("conversions", 0) or 0) == 0:
+                return pick("pause", "clicks_without_conversion")
+        if perf_unknown:
+            return pick("keep", "performance_unknown_skip_conversion_rules")
         return pick("keep", "no_rule_hit_relevance_needs_provider")
 
     if node == "conversion.upload":
@@ -467,7 +509,7 @@ def local_vector(node, state, choice, caps, evidence, cfg, soul):
     st = state or {}
     base = dict(p["vector_base"])
     req = REQUIRED_FIELDS.get(node, [])
-    have = sum(1 for k in req if k in st)
+    have = sum(1 for k in req if st.get(k) is not None)
     cer = 0.85 if not req else max(0.10, 0.85 * have / len(req))
     evd = 0.85 if evidence else 0.20
     autonomy = (cfg.get("caps") or {}).get("autonomy", "within_caps") if cfg else "within_caps"
@@ -623,6 +665,8 @@ def judge(node, state, choices, cfg=None, soul=None, caps=None, evidence=None, p
                 v = local_vector(node, state, ch, caps, evidence, cfg, soul)
             else:
                 v = normalize_vector(res.get("v"))
+                if _performance_unknown(node, state) and not _within_caps(node, state, ch, caps, soul["params"]):
+                    v["aut"] = r2(min(v["aut"], soul["params"]["authority"]["over_caps"]))
             perc = {"v": v, "choice": ch, "conf": r2(res.get("conf", 0.5)), "reason": str(res.get("reason", ""))[:120] or "provider_reason_missing"}
             distribution, latency = res.get("distribution"), res.get("latency_ms")
             used, fallback = cand, (cand != primary)
@@ -1106,6 +1150,34 @@ def selftest(soul_path="soul/default.soul.md"):
         ok = r_chain["provider"] == "llm" and r_chain["fallback"] is True and r_chain["choice"] == "keep" and bad_slug
         return ok, "provider=%s fallback=%s bad_slug_rejected=%s" % (r_chain["provider"], r_chain["fallback"], bad_slug)
     t3("T8-e provider_chain 失败回退与合法性拦截", t8e)
+
+    def t9a():
+        KW = C("keep", "pause", "bid_down", "negative")
+        unk = {"days_running": 12, "spend_total": 150.0, "spend_window": 45.0, "clicks": 180, "avg_cpc": 0.22,
+               "conversions": None, "commission": None, "performance_known": False, "last_change_days": 5,
+               "daily_budget": 10.0, "google_budget": 25.0, "bid_cap": 0.50}
+        r_keep = judge("campaign.adjust", unk, ADJ, cfg=lcfg, soul=soul, evidence=["r"], provider="local")
+        r_hard = judge("campaign.adjust", dict(unk, spend_total=320.0), ADJ, cfg=lcfg, soul=soul, evidence=["r"], provider="local")
+        r_cap = judge("campaign.adjust", dict(unk, spend_total=210.0), ADJ, cfg={"caps": {"stop_loss_spend": 200.0}, "judgment": {"provider": "local"}},
+                      soul=soul, evidence=["r"], provider="local")
+        r_cpc = judge("campaign.adjust", dict(unk, avg_cpc=0.65), ADJ, cfg=lcfg, soul=soul, evidence=["r"], provider="local")
+        kw_keep = judge("keyword.action", {"clicks": 45, "conversions": None, "performance_known": False, "avg_cpc": 0.22, "bid_cap": 0.50},
+                        KW, cfg=lcfg, soul=soul, evidence=["r"], provider="local")
+        kw_cpc = judge("keyword.action", {"clicks": 45, "conversions": None, "performance_known": False, "avg_cpc": 0.65, "bid_cap": 0.50},
+                       KW, cfg=lcfg, soul=soul, evidence=["r"], provider="local")
+        v_pause = local_vector("campaign.adjust", unk, "pause", None, ["r"], lcfg, soul)
+        v_hard = local_vector("campaign.adjust", dict(unk, spend_total=320.0), "pause", None, ["r"], lcfg, soul)
+        ok = (r_keep["choice"] == "keep" and r_keep["judge"]["reason"] == "performance_unknown_skip_conversion_rules"
+              and r_hard["choice"] == "pause" and r_hard["judge"]["reason"] == "test_spend_total_reached_escalate" and executes(r_hard)
+              and r_cap["choice"] == "pause" and executes(r_cap)
+              and r_cpc["choice"] == "bid_down" and executes(r_cpc)
+              and kw_keep["choice"] == "keep" and kw_keep["judge"]["reason"] == "performance_unknown_skip_conversion_rules"
+              and kw_cpc["choice"] == "bid_down" and executes(kw_cpc)
+              and f_v5(v_pause) == "M3" and f_v5(v_hard) in ("M1", "M2"))
+        return ok, "unk=%s(%s) hard320=%s(exec=%s) cap200=%s kw=%s vec_pause=%s/%s" % (
+            r_keep["choice"], r_keep["judge"]["reason"], r_hard["choice"], executes(r_hard),
+            r_cap["choice"], kw_keep["choice"], f_v5(v_pause), f_v5(v_hard))
+    t3("T9-a 表现未知时不按零转化停投或降预算，硬上限照常", t9a)
 
     shutil.rmtree(tmpd, ignore_errors=True)
     # schema 校验

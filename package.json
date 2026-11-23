@@ -1,6 +1,6 @@
 {
   "name": "adspilot",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "description": "AdsPilot by iLang (ilang.ai): Open-source AI Agent SEM, Google Ads & Affiliate Marketing automation (MCP Server + DeepSeek Harness DSH plugin). 开源免费搜索广告与付费投流无人值守插件，说「SEM」或「付费投流」即用。",
   "type": "module",
   "main": "integrations/dsh/index.mjs",
